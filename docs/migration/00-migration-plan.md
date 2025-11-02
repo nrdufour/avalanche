@@ -54,18 +54,31 @@ Actions taken:
 - Created .gitignore for Nix/secrets
 - Created migration documentation structure
 
-#### Step 2: Flake Structure (In Progress)
+#### Step 2: Flake Structure ✅
+**Date:** 2025-11-02
+
+Actions completed:
+- Created flake.nix with all inputs from snowpea + snowy
+- Implemented mkNixosConfig pattern from snowpea
+- Set up lib/ and overlays/ structure
+- Added all 14 active snowpea hosts to flake
+
+See: docs/migration/01-nixos-base-migration.md
+
+#### Step 3: SOPS Configuration (In Progress)
 **Date:** 2025-11-02
 
 Next steps:
-- Analyze snowpea's `mkNixosConfig` pattern
-- Create flake.nix with inputs
-- Set up lib/ helper functions
-- Prepare for host migrations
+- Copy .sops.yaml from snowpea
+- Verify Age keys location
+- Document secrets structure
 
-#### Step 3: SOPS Configuration (Pending)
+#### Step 4: Snowy Integration (Pending)
 
-#### Step 4: NixOS Migration (Pending)
+Next steps:
+- Create role-workstation.nix profile
+- Copy calypso host configuration
+- Integrate with mkNixosConfig pattern
 
 #### Step 5: Kubernetes Migration (Pending)
 
