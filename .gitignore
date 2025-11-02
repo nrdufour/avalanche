@@ -1,0 +1,29 @@
+# Nix
+result
+result-*
+.direnv/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets (unencrypted)
+secrets/**/*.dec.*
+secrets/**/*.yaml
+secrets/**/*.yml
+!secrets/**/*.enc.*
+
+# Temporary files
+*.tmp
+*.bak
+
+# Build artifacts
+*.qcow2
+*.iso
