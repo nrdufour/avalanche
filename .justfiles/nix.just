@@ -12,9 +12,13 @@ nix-check:
 nix-list-hosts:
     @nix flake show --json 2>/dev/null | jq -r '.nixosConfigurations | keys.[]'
 
-# Deploy the configuration of a given host
+# Deploy the configuration of a given host (remote)
 nix-deploy host:
     nixos-rebuild switch -j auto --use-remote-sudo --build-host {{host}}.internal --target-host {{host}}.internal --flake ".#{{host}}" --fast
+
+# Switch to a configuration locally (for current machine)
+nix-switch host:
+    sudo nixos-rebuild switch --flake ".#{{host}}"
 
 # Deploy flake to all nodes (with confirmation)
 nix-deploy-all:
