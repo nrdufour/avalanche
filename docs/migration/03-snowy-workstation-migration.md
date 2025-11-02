@@ -126,12 +126,10 @@ avalanche/
 │   ├── personalities/      ✅ Modular workstation features (from snowy)
 │   ├── modules/            ✅ Custom modules
 │   └── pkgs/               ✅ Custom packages
+├── kubernetes/             ✅ Complete GitOps manifests (from home-ops)
 ├── secrets/                ✅ All secrets (snowpea + snowy)
 ├── .sops.yaml              ✅ Unified SOPS config
 └── flake.nix               ✅ 15 NixOS configurations
-
-Pending:
-├── kubernetes/             ⏳ (from home-ops)
 ```
 
 ## Compatibility Notes

@@ -162,7 +162,7 @@ See: docs/migration/04-kubernetes-migration.md
 
 ## Migration Status Summary
 
-**Phase 1: Foundation** ✅ COMPLETE
+**Phase 1: Migration** ✅ COMPLETE
 
 All three source repositories successfully migrated into avalanche:
 - **snowpea** (14 server hosts) → `nixos/` ✅
@@ -171,6 +171,22 @@ All three source repositories successfully migrated into avalanche:
 
 Total: 15 NixOS hosts + complete Kubernetes GitOps infrastructure
 
+**Phase 2: Deployment** ✅ COMPLETE
+
+All infrastructure successfully deployed from avalanche:
+- **NixOS hosts:** All 15 hosts deployed and operational ✅
+- **AutoUpgrade:** All hosts configured to pull from avalanche ✅
+- **ArgoCD:** 44 applications synced and running ✅
+- **Flux:** All kustomizations reconciled ✅
+- **Repository:** Made public on Forgejo for autoUpgrade access ✅
+
+## Next Steps (Optional)
+
+- [ ] Archive old repositories (snowpea, snowy, home-ops) on Forgejo
+- [ ] Disable automated flake.lock updates on old repos
+- [ ] Consider rotating Kubernetes credentials (kubeconfig was briefly in git history)
+- [ ] Complete Flux → ArgoCD migration for remaining manifests
+
 ---
 
-*Last updated: 2025-11-02*
+*Migration completed: 2025-11-02*

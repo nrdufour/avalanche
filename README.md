@@ -91,13 +91,16 @@ just nix-list-hosts
 ### Deploying NixOS Hosts
 
 ```bash
-# Deploy a specific host
+# Deploy to a remote host
 just nix-deploy <hostname>
+
+# Deploy locally (for workstation)
+just nix-switch <hostname>
 
 # Deploy to all hosts (with confirmation)
 just nix-deploy-all
 
-# Build locally
+# Build locally without applying
 nix build .#nixosConfigurations.<hostname>.config.system.build.toplevel
 ```
 
@@ -121,21 +124,32 @@ just sd-flash <hostname>
 ### Managing Kubernetes
 
 ```bash
-# ArgoCD handles automatic deployment
-# Manual apply if needed:
-kubectl apply -k kubernetes/clusters/main/
+# Get kubeconfig from cluster
+just k8s-get-kubeconfig
+
+# Bootstrap Flux on the cluster
+just k8s-bootstrap
+
+# ArgoCD and Flux handle automatic deployment
+# Check sync status:
+argocd app list
+flux get kustomizations
 ```
 
 ## Technologies
 
 - **NixOS**: Declarative system configuration
-- **SOPS**: Secrets management with Age encryption
+- **SOPS + Age**: Secrets management with encryption
 - **Tailscale**: Mesh VPN
-- **Authentik**: Identity provider
-- **ArgoCD**: GitOps for Kubernetes
-- **K3s**: Lightweight Kubernetes
+- **Authentik**: Identity provider (SSO/OIDC)
+- **ArgoCD**: GitOps for Kubernetes applications
+- **Flux**: GitOps for Kubernetes infrastructure
+- **K3s**: Lightweight Kubernetes distribution
+- **Just**: Command runner for deployment automation
 
-## Migration Status
+## Migration & Deployment Status
+
+**Phase 1: Migration** ✅ **COMPLETE**
 
 This repository consolidates:
 - ✅ Repository structure created
@@ -144,12 +158,20 @@ This repository consolidates:
 - ✅ Unified secrets management (SOPS + Age)
 - ✅ Development environment (.envrc, default.nix)
 - ✅ Justfile deployment automation
-- ⏳ Kubernetes manifests (home-ops)
-- ⏳ Cloud infrastructure setup
+- ✅ Kubernetes manifests (home-ops)
+- ✅ Forgejo workflow for automated updates
 
-**All 15 NixOS hosts validated with `nix flake check` ✅**
+**Phase 2: Deployment** ✅ **COMPLETE**
+
+- ✅ All 15 NixOS hosts deployed and operational
+- ✅ AutoUpgrade configured (pulling from avalanche)
+- ✅ ArgoCD applications synced (44 apps)
+- ✅ Flux kustomizations reconciled
+- ✅ All infrastructure running from unified monorepo
 
 See [docs/migration/](docs/migration/) for detailed migration documentation.
+
+**Cloud infrastructure:** Pending future implementation
 
 ## Previous Repositories
 
