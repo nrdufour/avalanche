@@ -90,14 +90,193 @@
             };
         in
         {
+          # Infrastructure services (from snowpea)
+          eagle = mkNixosConfig {
+            hostname = "eagle";
+            system = "aarch64-linux";
+            hardwareModules = [
+              "${nixpkgs}/nixos/modules/installer/sd-card/sd-image-aarch64.nix"
+              ./nixos/profiles/hw-rpi4.nix
+            ];
+            profileModules = [
+              ./nixos/profiles/role-server.nix
+            ];
+          };
+
+          mysecrets = mkNixosConfig {
+            hostname = "mysecrets";
+            system = "aarch64-linux";
+            hardwareModules = [
+              "${nixpkgs}/nixos/modules/installer/sd-card/sd-image-aarch64.nix"
+              ./nixos/profiles/hw-rpi4.nix
+            ];
+            profileModules = [
+              ./nixos/profiles/role-server.nix
+            ];
+          };
+
+          possum = mkNixosConfig {
+            hostname = "possum";
+            system = "aarch64-linux";
+            hardwareModules = [
+              "${nixpkgs}/nixos/modules/installer/sd-card/sd-image-aarch64.nix"
+              ./nixos/profiles/hw-rpi4.nix
+            ];
+            profileModules = [
+              ./nixos/profiles/role-server.nix
+            ];
+          };
+
+          # K3s Worker Nodes: Raspberry Pi 4 (from snowpea)
+          raccoon00 = mkNixosConfig {
+            hostname = "raccoon00";
+            system = "aarch64-linux";
+            hardwareModules = [
+              "${nixpkgs}/nixos/modules/installer/sd-card/sd-image-aarch64.nix"
+              ./nixos/profiles/hw-rpi4.nix
+            ];
+            profileModules = [
+              ./nixos/profiles/role-server.nix
+              ./nixos/profiles/role-k3s-worker.nix
+            ];
+          };
+
+          raccoon01 = mkNixosConfig {
+            hostname = "raccoon01";
+            system = "aarch64-linux";
+            hardwareModules = [
+              "${nixpkgs}/nixos/modules/installer/sd-card/sd-image-aarch64.nix"
+              ./nixos/profiles/hw-rpi4.nix
+            ];
+            profileModules = [
+              ./nixos/profiles/role-server.nix
+              ./nixos/profiles/role-k3s-worker.nix
+            ];
+          };
+
+          raccoon02 = mkNixosConfig {
+            hostname = "raccoon02";
+            system = "aarch64-linux";
+            hardwareModules = [
+              "${nixpkgs}/nixos/modules/installer/sd-card/sd-image-aarch64.nix"
+              ./nixos/profiles/hw-rpi4.nix
+            ];
+            profileModules = [
+              ./nixos/profiles/role-server.nix
+              ./nixos/profiles/role-k3s-worker.nix
+            ];
+          };
+
+          raccoon03 = mkNixosConfig {
+            hostname = "raccoon03";
+            system = "aarch64-linux";
+            hardwareModules = [
+              "${nixpkgs}/nixos/modules/installer/sd-card/sd-image-aarch64.nix"
+              ./nixos/profiles/hw-rpi4.nix
+            ];
+            profileModules = [
+              ./nixos/profiles/role-server.nix
+              ./nixos/profiles/role-k3s-worker.nix
+            ];
+          };
+
+          raccoon04 = mkNixosConfig {
+            hostname = "raccoon04";
+            system = "aarch64-linux";
+            hardwareModules = [
+              "${nixpkgs}/nixos/modules/installer/sd-card/sd-image-aarch64.nix"
+              ./nixos/profiles/hw-rpi4.nix
+            ];
+            profileModules = [
+              ./nixos/profiles/role-server.nix
+              ./nixos/profiles/role-k3s-worker.nix
+            ];
+          };
+
+          raccoon05 = mkNixosConfig {
+            hostname = "raccoon05";
+            system = "aarch64-linux";
+            hardwareModules = [
+              "${nixpkgs}/nixos/modules/installer/sd-card/sd-image-aarch64.nix"
+              ./nixos/profiles/hw-rpi4.nix
+            ];
+            profileModules = [
+              ./nixos/profiles/role-server.nix
+              ./nixos/profiles/role-k3s-worker.nix
+            ];
+          };
+
+          # K3s Controller Nodes: Orange Pi 5 Plus (from snowpea)
+          opi01 = mkNixosConfig {
+            hostname = "opi01";
+            system = "aarch64-linux";
+            hardwareModules = [
+              ./nixos/profiles/hw-orangepi5plus.nix
+            ];
+            profileModules = [
+              ./nixos/profiles/role-server.nix
+              ./nixos/profiles/role-k3s-controller.nix
+            ];
+          };
+
+          opi02 = mkNixosConfig {
+            hostname = "opi02";
+            system = "aarch64-linux";
+            hardwareModules = [
+              ./nixos/profiles/hw-orangepi5plus.nix
+            ];
+            profileModules = [
+              ./nixos/profiles/role-server.nix
+              ./nixos/profiles/role-k3s-controller.nix
+            ];
+          };
+
+          opi03 = mkNixosConfig {
+            hostname = "opi03";
+            system = "aarch64-linux";
+            hardwareModules = [
+              ./nixos/profiles/hw-orangepi5plus.nix
+            ];
+            profileModules = [
+              ./nixos/profiles/role-server.nix
+              ./nixos/profiles/role-k3s-controller.nix
+            ];
+          };
+
+          # x86 Servers (from snowpea)
+          beacon = mkNixosConfig {
+            hostname = "beacon";
+            system = "x86_64-linux";
+            hardwareModules = [
+              ./nixos/profiles/hw-acer-minipc.nix
+            ];
+            profileModules = [
+              ./nixos/profiles/role-server.nix
+            ];
+          };
+
+          routy = mkNixosConfig {
+            hostname = "routy";
+            system = "x86_64-linux";
+            stateVersion = "25.05";
+            hardwareModules = [ ];
+            profileModules = [
+              ./nixos/profiles/role-server.nix
+            ];
+          };
+
+          cardinal = mkNixosConfig {
+            hostname = "cardinal";
+            system = "x86_64-linux";
+            stateVersion = "25.05";
+            hardwareModules = [ ];
+            profileModules = [
+              ./nixos/profiles/role-server.nix
+            ];
+          };
+
           # Workstation: calypso (from snowy)
           # Will be migrated in next step
-
-          # Infrastructure services
-          # Will be migrated from snowpea in next step
-
-          # K3s cluster hosts
-          # Will be migrated from snowpea in next step
 
           # Placeholder: cloud hosts will be added here
         };

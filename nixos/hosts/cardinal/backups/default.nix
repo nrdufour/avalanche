@@ -1,0 +1,10 @@
+{
+  ...
+}:
+{
+  imports =
+    [
+      ./local
+      ./remote
+    ];
+}

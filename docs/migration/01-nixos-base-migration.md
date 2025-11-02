@@ -87,12 +87,47 @@ From `global/nix.nix`:
 - GC: daily, delete >7 days old
 - Trusted users: root, @wheel
 
-## Step 2: Copy Individual Host Configurations (Pending)
+## Step 2: Copy Individual Host Configurations ✅
 
-Next steps:
-- Copy host directories from `/home/ndufour/Documents/code/projects/ops/snowpea/nixos/hosts/`
-- Update flake.nix with all host definitions
-- Verify each host builds successfully
+**Date:** 2025-11-02
+
+### Hosts Copied from snowpea
+
+All host configurations copied as-is from `/home/ndufour/Documents/code/projects/ops/snowpea/nixos/hosts/`:
+
+**Infrastructure Services:**
+- `eagle` - Raspberry Pi 4 (Forgejo)
+- `mysecrets` - Raspberry Pi 4 (step-ca, Vaultwarden)
+- `possum` - Raspberry Pi 4 (Garage S3, backups)
+
+**K3s Worker Nodes (Raspberry Pi 4):**
+- `raccoon00` through `raccoon05` (6 nodes)
+
+**K3s Controller Nodes (Orange Pi 5 Plus):**
+- `opi01`, `opi02`, `opi03` (3 nodes)
+
+**x86 Servers:**
+- `beacon` - Acer mini PC
+- `routy` - x86_64 server (stateVersion 25.05)
+- `cardinal` - x86_64 server (stateVersion 25.05)
+
+**Decommissioned/Archived:**
+- `sparrow01` - Raspberry Pi 3 (copied but not active in flake)
+
+### Flake Configuration Updated
+
+All active hosts (14 total) added to `flake.nix` with exact configurations from snowpea:
+- 3 infrastructure services (RPi 4)
+- 6 K3s workers (RPi 4)
+- 3 K3s controllers (Orange Pi 5+)
+- 2 x86 servers with stateVersion 25.05
+- 1 x86 Acer mini PC
+
+### Next Steps
+
+- Verify flake builds successfully (`nix flake check`)
+- Test building individual hosts
+- Proceed to snowy integration
 
 ## Step 3: Integrate Snowy (Pending)
 
