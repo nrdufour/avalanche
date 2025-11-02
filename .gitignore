@@ -34,3 +34,5 @@ secrets/**/*.yml
 # Kubernetes
 kubernetes/kubeconfig
 kubernetes/kubeconfig.tmp
+kubernetes/**/kubeconfig
+kubernetes/**/kubeconfig.*
