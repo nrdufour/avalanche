@@ -123,11 +123,30 @@ All active hosts (14 total) added to `flake.nix` with exact configurations from 
 - 2 x86 servers with stateVersion 25.05
 - 1 x86 Acer mini PC
 
+### Flake Validation ✅
+
+**Date:** 2025-11-02
+
+Successfully validated with `nix flake check`:
+- All 14 active host configurations passed
+- Infrastructure services: eagle, mysecrets, possum ✓
+- K3s workers: raccoon00-05 ✓
+- K3s controllers: opi01-03 ✓
+- x86 servers: beacon, routy, cardinal ✓
+
+### Modifications from Original snowpea
+
+**Orange Pi Kernel Update:**
+- Changed from Linux 6.16 → 6.17
+- Reason: 6.16 reached EOL and was removed from nixpkgs
+- Location: `nixos/profiles/hw-orangepi5plus.nix:42`
+
+This was the only necessary modification to the snowpea configuration.
+
 ### Next Steps
 
-- Verify flake builds successfully (`nix flake check`)
-- Test building individual hosts
-- Proceed to snowy integration
+- User will perform additional testing
+- Proceed to snowy integration when ready
 
 ## Step 3: Integrate Snowy (Pending)
 
