@@ -10,19 +10,16 @@ k8s-get-kubeconfig host="opi01.internal":
 
     echo "Retrieving kubeconfig from {{host}}..."
 
-    # Create the kubernetes/main directory if it doesn't exist
-    mkdir -p {{kubernetes_dir}}/main
-
     # Retrieve the kubeconfig file via SSH
-    ssh {{host}} 'sudo cat /etc/rancher/k3s/k3s.yaml' > {{kubernetes_dir}}/main/kubeconfig.tmp
+    ssh {{host}} 'sudo cat /etc/rancher/k3s/k3s.yaml' > {{kubernetes_dir}}/kubeconfig.tmp
 
     # Replace 127.0.0.1 with the VIP address (kube-vip)
-    sed 's/127\.0\.0\.1/10.1.0.5/g' {{kubernetes_dir}}/main/kubeconfig.tmp > {{kubernetes_dir}}/main/kubeconfig
+    sed 's/127\.0\.0\.1/10.1.0.5/g' {{kubernetes_dir}}/kubeconfig.tmp > {{kubernetes_dir}}/kubeconfig
 
     # Clean up temporary file
-    rm {{kubernetes_dir}}/main/kubeconfig.tmp
+    rm {{kubernetes_dir}}/kubeconfig.tmp
 
-    echo "Kubeconfig saved to {{kubernetes_dir}}/main/kubeconfig"
+    echo "Kubeconfig saved to {{kubernetes_dir}}/kubeconfig"
     echo "The server URL has been updated to use the kube-vip VIP: 10.1.0.5"
 
 # Bootstrap Flux on a cluster (default: main)

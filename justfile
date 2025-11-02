@@ -5,8 +5,9 @@ root_dir := justfile_directory()
 kubernetes_dir := root_dir / "kubernetes"
 
 # Environment variables
-export KUBECONFIG := kubernetes_dir / "main/kubeconfig"
-export SOPS_AGE_KEY_FILE := env_var('HOME') / ".config/sops/age/keys.txt"
+# Note: KUBECONFIG and SOPS_AGE_KEY_FILE are set by direnv via .envrc
+# kubernetes_dir is still needed for justfile recipes
+
 
 # Import sub-justfiles
 import '.justfiles/nix.just'

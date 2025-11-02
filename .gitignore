@@ -30,3 +30,7 @@ secrets/**/*.yml
 # Build artifacts
 *.qcow2
 *.iso
+
+# Kubernetes
+kubernetes/kubeconfig
+kubernetes/kubeconfig.tmp
