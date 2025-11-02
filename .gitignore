@@ -25,7 +25,9 @@ secrets/**/*.yml
 
 # Temporary files
 *.tmp
+*.tmp.*
 *.bak
+*.bak.*
 
 # Build artifacts
 *.qcow2
