@@ -37,8 +37,9 @@ in
       "btrfs"
     ];
 
-    ## Setting the kernel at 6.16 which is supposed to cover rockchip support (since 6.13)
-    kernelPackages = pkgs.linuxKernel.packages.linux_6_16;
+    ## Setting the kernel at 6.17 (updated from 6.16 which reached EOL)
+    ## Rockchip support has been available since 6.13
+    kernelPackages = pkgs.linuxKernel.packages.linux_6_17;
 
     ## Commenting this out for now with 6.16 enabled
     # Switching back to 6.1.75 for now to have mali drivers present
