@@ -51,13 +51,13 @@ k8s-bootstrap cluster="main":
     echo "Installing Flux..."
     # TODO: see why --force-conflicts is actually needed, especially after a reconcile
     # Wonder if the install manifests are that different (seems related to limits and other helm deployment)
-    kubectl --context {{cluster}} apply --server-side --force-conflicts --kustomize {{kubernetes_dir}}/{{cluster}}/bootstrap/flux
+    kubectl --context {{cluster}} apply --server-side --force-conflicts --kustomize {{kubernetes_dir}}/kubernetes/{{cluster}}/bootstrap/flux
 
     echo "Applying gitea access and sops keys..."
-    sops --decrypt {{kubernetes_dir}}/{{cluster}}/bootstrap/flux/gitea-access.sops.yaml | kubectl --context {{cluster}} apply --force-conflicts --server-side --filename -
-    sops --decrypt {{kubernetes_dir}}/{{cluster}}/bootstrap/flux/sops-age.sops.yaml | kubectl --context {{cluster}} apply --server-side --filename -
+    sops --decrypt {{kubernetes_dir}}/kubernetes/{{cluster}}/bootstrap/flux/gitea-access.sops.yaml | kubectl --context {{cluster}} apply --force-conflicts --server-side --filename -
+    sops --decrypt {{kubernetes_dir}}/kubernetes/{{cluster}}/bootstrap/flux/sops-age.sops.yaml | kubectl --context {{cluster}} apply --server-side --filename -
 
     echo "Applying kustomizations..."
-    kubectl --context {{cluster}} apply --server-side --kustomize {{kubernetes_dir}}/{{cluster}}/flux/config
+    kubectl --context {{cluster}} apply --server-side --kustomize {{kubernetes_dir}}/kubernetes/{{cluster}}/flux/config
 
     echo "Bootstrap complete!"

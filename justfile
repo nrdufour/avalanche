@@ -5,7 +5,7 @@ root_dir := justfile_directory()
 kubernetes_dir := root_dir / "kubernetes"
 
 # Environment variables
-export KUBECONFIG := kubernetes_dir / "kubernetes/main/kubeconfig"
+export KUBECONFIG := kubernetes_dir / "main/kubeconfig"
 export SOPS_AGE_KEY_FILE := env_var('HOME') / ".config/sops/age/keys.txt"
 
 # Import sub-justfiles
