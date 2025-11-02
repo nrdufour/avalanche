@@ -279,7 +279,17 @@
           };
 
           # Workstation: calypso (from snowy)
-          # Will be migrated in next step
+          calypso = mkNixosConfig {
+            hostname = "calypso";
+            system = "x86_64-linux";
+            stateVersion = "24.05";
+            hardwareModules = [
+              inputs.nixos-hardware.nixosModules.asus-rog-strix-g513im
+            ];
+            profileModules = [
+              ./nixos/profiles/role-workstation.nix
+            ];
+          };
 
           # Placeholder: cloud hosts will be added here
         };

@@ -22,6 +22,7 @@ keys:
   - &server-possum age1z5se5pwlkle36c2kyklj6ujv49vd4rqvv6drg88rluf6c5dwa9rqgggnnf
   - &server-routy age1k9lzhm2k7damqf9ev3lun6naysj08u3vnewnw06yeaq8g7vlw3zsh6vlcw
   - &server-cardinal age1r3k5yyln7lqxpw92qlf5rvpnwj79perdesfdjxea733sqe5qw4kq5lgdyr
+  - &workstation-calypso age1h97nk0wyf7wxa0cl2ms8hngem88pxy4chh8sg8zmt5edny4d89nsrygp9a
 
 creation_rules:
   - path_regex: secrets/common-local-restic/[^/]+\.(yaml|json|env|ini)$
@@ -88,6 +89,12 @@ creation_rules:
         - *admin-ndufour-2022
         - *admin-ndufour-2023
         - *server-cardinal
+  - path_regex: secrets/calypso/[^/]+\.(yaml|json|env|ini)$
+    key_groups:
+      - age:
+        - *admin-ndufour-2022
+        - *admin-ndufour-2023
+        - *workstation-calypso
   - path_regex: secrets/[^/]+\.(yaml|json|env|ini)$
     key_groups:
       - age:
