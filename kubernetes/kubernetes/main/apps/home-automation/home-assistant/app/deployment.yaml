@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: homeassistant
+  name: homeassistant
+  namespace: home-automation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: homeassistant
+  template:
+    metadata:
+      labels:
+        app: homeassistant
+    spec:
+      volumes:
+        - name: ha-storage
+          persistentVolumeClaim:
+            claimName: ha-pvc
+      containers:
+        - image: ghcr.io/home-assistant/home-assistant:2025.10.4
+          name: home-assistant
+          env:
+            - name: "SECRET_RECORDER_DB_URL"
+              valueFrom:
+                secretKeyRef:
+                  key: uri
+                  name: hass-16-db-app
+          volumeMounts:
+            - mountPath: "/config"
+              name: ha-storage

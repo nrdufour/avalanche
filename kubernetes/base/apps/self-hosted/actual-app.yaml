@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: actual
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - path: base/apps/self-hosted/actual
+      repoURL: https://forge.internal/nemo/home-ops.git
+      targetRevision: HEAD
+      ref: values
+    - repoURL: oci://ghcr.io/bjw-s/helm/app-template
+      targetRevision: 3.7.3
+      path: .
+      helm:
+        releaseName: actual
+        valueFiles:
+          - $values/base/apps/self-hosted/actual/helm-values.yaml
+  destination:
+    namespace: self-hosted
+    name: 'in-cluster'
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

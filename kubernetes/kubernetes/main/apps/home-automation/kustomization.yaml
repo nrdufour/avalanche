@@ -1,0 +1,20 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+components:
+  - ../../components/common
+
+resources:
+  - namespace.yaml
+  # Secrets
+  - ./cnpg-minio-access.sops.yaml
+  # Applications
+  - ./home-assistant/ks.yaml
+  # - ./rtlamr2mqtt/ks.yaml
+  - ./esphome/ks.yaml
+  # - ./nut-upsd/ks.yaml
+  # - ./rtl433/ks.yaml
+  - ./zwave/ks.yaml
+  - ./mqtt/ks.yaml

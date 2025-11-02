@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: longhorn
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - path: base/infra/longhorn-system/resources
+      repoURL: https://forge.internal/nemo/home-ops.git
+      targetRevision: HEAD
+      ref: values
+    - chart: longhorn
+      repoURL: https://charts.longhorn.io
+      targetRevision: 1.10.0
+      helm:
+        releaseName: longhorn
+        valueFiles:
+          - $values/base/infra/longhorn-system/longhorn/helm-values.yaml
+  destination:
+    namespace: longhorn-system
+    name: 'in-cluster'
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

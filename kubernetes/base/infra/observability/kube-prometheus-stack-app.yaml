@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - path: base/infra/observability/kube-prometheus-stack
+      repoURL: https://forge.internal/nemo/home-ops.git
+      targetRevision: HEAD
+      ref: values
+    - chart: kube-prometheus-stack
+      repoURL: https://prometheus-community.github.io/helm-charts
+      targetRevision: 79.1.0
+      helm:
+        releaseName: kube-prometheus-stack
+        valueFiles:
+          - $values/base/infra/observability/kube-prometheus-stack/helm-values.yaml
+  destination:
+    namespace: observability
+    name: 'in-cluster'
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

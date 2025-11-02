@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homepage
+  labels:
+    app.kubernetes.io/name: homepage
+data:
+  kubernetes.yaml: |
+    mode: cluster
+    ingress: true  # enable ingress
+    traefik: false # enable traefik ingressRoute
+    gateway: false # enable gateway-api
+  settings.yaml: |
+   layout:
+     Home:
+       style: row
+       columns: 3
+     Media:
+       style: row
+       columns: 4
+     Projects:
+       style: row
+       columns: 3
+     System:
+       style: row
+       columns: 3
+   providers:
+     longhorn:
+       url: https://longhorn.internal
+  custom.css: |
+    /* Rounded corners for service cards */
+    .service {
+      border-radius: 12px !important;
+    }
+
+    /* Rounded corners for widget cards */
+    .widget {
+      border-radius: 12px !important;
+    }
+
+    /* Rounded corners for bookmarks */
+    .bookmark {
+      border-radius: 8px !important;
+    }
+
+    /* Rounded search bar */
+    input[type="text"], input[type="search"] {
+      border-radius: 24px !important;
+    }
+  custom.js: ""
+  bookmarks.yaml: |
+    - Developer:
+        - Github:
+            - abbr: GH
+              href: https://github.com/
+  services.yaml: |
+    - Media:
+        - Jellyfin:
+            href: https://jellyfin.internal/
+            description: TV/Video Server
+            icon: sh-jellyfin
+
+        - Navidrome:
+            href: https://navidrome.internal/
+            description: Music Server
+            icon: sh-navidrome
+
+        - Calibre Wed Automated:
+            href: https://cwa.internal/
+            description: Books Server
+            icon: sh-calibre-web
+
+    - Projects:
+        - Garage:
+            href: https://ui.garage.internal/
+            description: S3 Server (Garage)
+            icon: sh-garage
+
+        - Minio:
+            href: https://minio.internal/
+            description: S3 Server (Minio -- will go away)
+            icon: sh-minio
+
+        - Forgejo:
+            href: https://forge.internal/
+            description: Git Server and Registry
+            icon: sh-forgejo
+
+  widgets.yaml: |
+    - greeting:
+        text_size: xl
+        text: "Welcome home!"
+    - search:
+        provider: duckduckgo
+        target: _blank
+    - datetime:
+        text_size: xl
+        format:
+          dateStyle: long
+          timeStyle: short
+          hourCycle: h23
+    - openmeteo:
+        label: West Orange, NJ
+        latitude: 40.7987
+        longitude: -74.2390
+        units: imperial
+        cache: 5
+  docker.yaml: ""

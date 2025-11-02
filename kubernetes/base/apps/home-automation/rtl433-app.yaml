@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rtl433
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - path: base/apps/home-automation/rtl433
+      repoURL: https://forge.internal/nemo/home-ops.git
+      targetRevision: HEAD
+      ref: values
+    - repoURL: oci://ghcr.io/bjw-s/helm/app-template
+      targetRevision: 3.7.3
+      path: .
+      helm:
+        releaseName: rtl433
+        valueFiles:
+          - $values/base/apps/home-automation/rtl433/helm-values.yaml
+  destination:
+    namespace: home-automation
+    name: 'in-cluster'
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

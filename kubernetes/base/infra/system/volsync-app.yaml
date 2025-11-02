@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: volsync
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://forge.internal/nemo/home-ops.git
+      targetRevision: HEAD
+      ref: values
+    - chart: volsync
+      repoURL: https://perfectra1n.github.io/volsync/charts/
+      targetRevision: 0.17.15
+      helm:
+        releaseName: volsync
+        valueFiles:
+          - $values/base/infra/system/volsync/helm-values.yaml
+  destination:
+    namespace: system
+    name: 'in-cluster'
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

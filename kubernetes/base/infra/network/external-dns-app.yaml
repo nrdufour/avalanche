@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-dns
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - path: base/infra/network/external-dns
+      repoURL: https://forge.internal/nemo/home-ops.git
+      targetRevision: HEAD
+      ref: values
+    - chart: external-dns
+      repoURL: https://kubernetes-sigs.github.io/external-dns
+      targetRevision: 1.19.0
+      helm:
+        releaseName: external-dns
+        valueFiles:
+          - $values/base/infra/network/external-dns/helm-values.yaml
+  destination:
+    namespace: network
+    name: 'in-cluster'
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

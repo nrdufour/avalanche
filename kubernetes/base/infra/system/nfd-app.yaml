@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: node-feature-discovery
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://forge.internal/nemo/home-ops.git
+      targetRevision: HEAD
+      ref: values
+    - chart: node-feature-discovery
+      repoURL: https://kubernetes-sigs.github.io/node-feature-discovery/charts
+      targetRevision: 0.18.2
+      helm:
+        releaseName: node-feature-discovery
+        valueFiles:
+          - $values/base/infra/system/nfd/helm-values.yaml
+  destination:
+    namespace: system
+    name: 'in-cluster'
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

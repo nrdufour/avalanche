@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rtlamr2mqtt-config
+  namespace: home-automation
+data:
+  rtlamr2mqtt.yaml: ENC[AES256_GCM,data:c6G0742+v58a8xwxjvoFn7ddV6xpg+9H0SNxr7J/cd/OcxktTLrVh2vh7nC6slDYXiVzbWoj9iWBQxjylywORXoeViK/HeWJPO0+2xpa8VAm2cUVYLcLzHcru6lih5c8xQYrqVBE7wUdXalZR4sNW77Xzuz63UfAcXzEq95ayiy9QVhlRhYIWLG4RxMoq8kflWC9kqtuyJJ8D42yUWUD1mpHFybyO7vEhl6dxl12A99k8owh5xsj5C/MIhIrg4Ddp0OodoxzMFfzQm3ix3hHiBxUd/oA0nZIX3k4eST/LeaOSrXqWR+eSqsLt+9BuHSUsdOmqGs1rbcbVqSx1Wc4zU10Nxea/Rey9lEvoiC3aU2WCTScpWpy1DAVqJ8H718NEjO71KoietKTw7EweAqyEdX9LF3fGeN7C907tOYLjg8vUlQgZLUpMcZY/Kl+ewT9LYDfzgYyY1OrStl8CVeh671QIlZ6jwBZiCy66sSSzAQRF2jL5F8X7UYy0/YnxfaqHuY6bgFTqPzx4b9neoUMTunKSOFU/FomNvGgI35U+y3ieVKpE3b9fJyWmNoCsOX7LeHLzDPAwsuRk+5uV6esYot2IBZdM12RXAAUGen5CTsWiny0M8fYF9gS3qLpxuNZtwvCutqSAlxda1wBw2HNaxDhyqnZIIEoMYNnfdnTmj4otcX4wB7n5OXixZVRXmeSa2TAG/LVpGQiyuExRUL4icWtPiUYamFdycMVUlLE/fp00ycYFiIjbr4eIoR1LoqLnToIFin21WeA34U2GQ==,iv:LgHav9OIDdIMLSI2cne/xypxKxV6Mr7TPvAHrMy1yrg=,tag:Ts8vyNpMzUovImSCFYNquQ==,type:str]
+sops:
+  age:
+    - recipient: age1tmrr00pnj6gpc4pfp3wzvyjt66tfhudwj2kn84skt24qvwzlcsusrvrypj
+      enc: |
+        -----BEGIN AGE ENCRYPTED FILE-----
+        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBTSjJ4TU1NTkl4NEVON3Qz
+        aFc5VkFlT0sxWnZMUHh2ZGhnZVdkUThFa3lvCmtuNzAwM2p4eVRnWkVGeE1WUHZY
+        ZHpoNlRkNkYzYVFTcmpHVDVZbzNvb2MKLS0tIHBHU0xNcGdhbTVLSmY4UUNReVdZ
+        MTA5c2Q1WnhVK0xFNUpaTUhkN2FrZTgKDr3vdO3XufJfq7DxDpcKaCx7Hqw4u6FF
+        BE560ycXJ8YDhaDQC/zwN7x5VQZwJlHbhk12aRo3gfbttDLbTpd2jg==
+        -----END AGE ENCRYPTED FILE-----
+  lastmodified: "2025-06-14T11:36:02Z"
+  mac: ENC[AES256_GCM,data:WkU+4Q9Ci2wligBQRVOtlpqxvhWdZ5RK7yDJL++BcTaIE0zm0W4YLPZlmFLhfHJZ5AFbqUli+C1PDWDNPUaKpcbv2KzGjkkZP/HT7RzKyQxpfOtNvkOV84Ji5WeCG5Lvaj4z1I2QmT4TiCP3gb48hX2c8MewiP2oXr7LBO5JDU8=,iv:ehVLE1SY1F6Q18ZaPYSwKfj0zqJb2gZVaieDnk4+ztQ=,tag:UlZsWc0pn17D17fEEhvnRw==,type:str]
+  encrypted_regex: ^(data|stringData)$
+  version: 3.10.2

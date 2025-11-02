@@ -1,0 +1,19 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml
+  - service.yaml
+  - netpol.yaml
+  - cluster-secret-stores.yaml
+  - external-secret-test.yaml
+
+configMapGenerator:
+  - name: private-ca
+    behavior: create
+    files:
+      - root_ca.crt
+
+generatorOptions:
+  disableNameSuffixHash: true

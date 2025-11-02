@@ -1,0 +1,24 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - cert-manager/cert-manager-app.yaml
+  - cert-manager/cert-manager-issuers-app.yaml
+  - security/external-secrets-app.yaml
+  - security/bitwarden-store-app.yaml
+  - network/ingress-nginx-internal-app.yaml
+  - network/external-dns-app.yaml
+  - system/kube-vip-app.yaml
+  - system/kyverno-app.yaml
+  - system/kured-app.yaml
+  - system/nfd-app.yaml
+  - system/nfd-rules-app.yaml
+  - system/openebs-app.yaml
+  - system/reloader-app.yaml
+  - system/snapshot-controller-app.yaml
+  - system/volsync-app.yaml
+  - observability/kube-prometheus-stack-app.yaml
+  - kube-system/metrics-server.yaml
+  - longhorn-system/longhorn-app.yaml
+  - network/coredns-custom-app.yaml

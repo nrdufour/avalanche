@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ingress-nginx-internal
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://forge.internal/nemo/home-ops.git
+      targetRevision: HEAD
+      ref: values
+    - chart: ingress-nginx
+      repoURL: https://kubernetes.github.io/ingress-nginx
+      targetRevision: 4.13.3
+      helm:
+        releaseName: ingress-nginx-internal
+        valueFiles:
+          - $values/base/infra/network/ingress-nginx-internal/helm-values.yaml
+  destination:
+    namespace: network
+    name: 'in-cluster'
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
