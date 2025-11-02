@@ -1,8 +1,8 @@
-{ pkgs, ... }: {
+{ pkgs, lib, ... }: {
     users.users.ndufour = {
-        isNormalUser = true;
-        description = "Nicolas Dufour";
-        extraGroups = [ "networkmanager" "wheel" "dialout" ];
-        shell = pkgs.fish;
+        isNormalUser = lib.mkDefault true;
+        description = lib.mkDefault "Nicolas Dufour";
+        extraGroups = lib.mkDefault [ "networkmanager" "wheel" "dialout" ];
+        shell = lib.mkDefault pkgs.fish;
     };
 }
