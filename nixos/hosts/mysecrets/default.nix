@@ -40,7 +40,7 @@
     enable = true;
     allowReboot = true;
     dates = "02:00";
-    flake = "git+https://forge.internal/nemo/snowpea.git";
+    flake = "git+https://forge.internal/nemo/avalanche.git";
   };
   
 }
