@@ -42,10 +42,10 @@ avalanche/
 
 ## Infrastructure Overview
 
-### NixOS Hosts (from snowy + snowpea)
+### NixOS Hosts (15 total)
 
-**Laptop:**
-- calypso: ASUS ROG Strix (personal workstation)
+**Workstation (from snowy):**
+- calypso: ASUS ROG Strix G513IM (personal laptop)
 
 **Infrastructure Services:**
 - mysecrets: Raspberry Pi 4 (8GB) - step-ca, Vaultwarden, Authentik
@@ -139,12 +139,15 @@ kubectl apply -k kubernetes/clusters/main/
 
 This repository consolidates:
 - ✅ Repository structure created
-- ✅ NixOS configurations (snowpea - 14 hosts)
+- ✅ NixOS server configurations (snowpea - 14 hosts)
+- ✅ NixOS workstation config (snowy - calypso)
 - ✅ Unified secrets management (SOPS + Age)
+- ✅ Development environment (.envrc, default.nix)
 - ✅ Justfile deployment automation
-- ⏳ NixOS laptop config (snowy - calypso)
 - ⏳ Kubernetes manifests (home-ops)
 - ⏳ Cloud infrastructure setup
+
+**All 15 NixOS hosts validated with `nix flake check` ✅**
 
 See [docs/migration/](docs/migration/) for detailed migration documentation.
 
