@@ -7,7 +7,7 @@ metadata:
   namespace: flux-system
 spec:
   targetNamespace: self-hosted
-  path: ./kubernetes/main/apps/self-hosted/ollama/app
+  path: ./kubernetes/kubernetes/main/apps/self-hosted/ollama/app
   prune: true
   sourceRef:
     kind: GitRepository

@@ -6,7 +6,7 @@ metadata:
   name: cluster-apps-ha-home-assistant
   namespace: flux-system
 spec:
-  path: ./kubernetes/main/apps/home-automation/home-assistant/app
+  path: ./kubernetes/kubernetes/main/apps/home-automation/home-assistant/app
   prune: true
   sourceRef:
     kind: GitRepository

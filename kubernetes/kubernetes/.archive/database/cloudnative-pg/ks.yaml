@@ -6,7 +6,7 @@ metadata:
   name: cluster-apps-database-cloudnative-pg
   namespace: flux-system
 spec:
-  path: ./kubernetes/main/apps/database/cloudnative-pg/app
+  path: ./kubernetes/kubernetes/main/apps/database/cloudnative-pg/app
   prune: true
   sourceRef:
     kind: GitRepository

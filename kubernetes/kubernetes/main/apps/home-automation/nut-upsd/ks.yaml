@@ -6,7 +6,7 @@ metadata:
   name: ha-nut-upsd
   namespace: flux-system
 spec:
-  path: ./kubernetes/main/apps/home-automation/nut-upsd/app
+  path: ./kubernetes/kubernetes/main/apps/home-automation/nut-upsd/app
   prune: true
   sourceRef:
     kind: GitRepository

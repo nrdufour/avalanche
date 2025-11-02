@@ -6,7 +6,7 @@ metadata:
   name: &app mqtt
   namespace: flux-system
 spec:
-  path: ./kubernetes/main/apps/home-automation/mqtt/app
+  path: ./kubernetes/kubernetes/main/apps/home-automation/mqtt/app
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app

@@ -6,8 +6,8 @@ metadata:
 spec:
   project: default
   sources:
-    - path: base/infra/network/coredns
-      repoURL: https://forge.internal/nemo/home-ops.git
+    - path: kubernetes/base/infra/network/coredns
+      repoURL: https://forge.internal/nemo/avalanche.git
       targetRevision: HEAD
   destination:
     namespace: kube-system

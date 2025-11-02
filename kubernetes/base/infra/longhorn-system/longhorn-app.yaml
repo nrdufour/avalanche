@@ -6,8 +6,8 @@ metadata:
 spec:
   project: default
   sources:
-    - path: base/infra/longhorn-system/resources
-      repoURL: https://forge.internal/nemo/home-ops.git
+    - path: kubernetes/base/infra/longhorn-system/resources
+      repoURL: https://forge.internal/nemo/avalanche.git
       targetRevision: HEAD
       ref: values
     - chart: longhorn

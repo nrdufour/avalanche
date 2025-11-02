@@ -7,7 +7,7 @@ metadata:
   namespace: flux-system
 spec:
   targetNamespace: self-hosted
-  path: ./kubernetes/main/apps/self-hosted/wikijs/app
+  path: ./kubernetes/kubernetes/main/apps/self-hosted/wikijs/app
   prune: false
   sourceRef:
     kind: GitRepository

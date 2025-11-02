@@ -6,7 +6,7 @@ metadata:
   name: irc-marmitton
   namespace: flux-system
 spec:
-  path: ./kubernetes/main/apps/irc/marmitton/app
+  path: ./kubernetes/kubernetes/main/apps/irc/marmitton/app
   prune: true
   sourceRef:
     kind: GitRepository
@@ -27,7 +27,7 @@ metadata:
   name: irc-marmitton-image
   namespace: flux-system
 spec:
-  path: ./kubernetes/main/apps/irc/marmitton/image
+  path: ./kubernetes/kubernetes/main/apps/irc/marmitton/image
   prune: true
   sourceRef:
     kind: GitRepository

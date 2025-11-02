@@ -6,7 +6,7 @@ metadata:
   name: self-hosted-homepage
   namespace: flux-system
 spec:
-  path: ./kubernetes/main/apps/self-hosted/homepage/app
+  path: ./kubernetes/kubernetes/main/apps/self-hosted/homepage/app
   prune: false
   targetNamespace: self-hosted
   sourceRef:

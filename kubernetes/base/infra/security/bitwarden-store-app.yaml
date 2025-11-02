@@ -6,8 +6,8 @@ metadata:
 spec:
   project: default
   source:
-    path: base/infra/security/bitwarden
-    repoURL: https://forge.internal/nemo/home-ops.git
+    path: kubernetes/base/infra/security/bitwarden
+    repoURL: https://forge.internal/nemo/avalanche.git
     targetRevision: HEAD
   destination:
     namespace: security

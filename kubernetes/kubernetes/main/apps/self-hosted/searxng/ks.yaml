@@ -6,7 +6,7 @@ metadata:
   name: self-hosted-searxng
   namespace: flux-system
 spec:
-  path: ./kubernetes/main/apps/self-hosted/searxng/app
+  path: ./kubernetes/kubernetes/main/apps/self-hosted/searxng/app
   prune: true
   targetNamespace: self-hosted
   sourceRef:

@@ -17,7 +17,7 @@ kind: Kustomization
 metadata:
   name: mqtt
 spec:
-  path: ./kubernetes/main/apps/home-automation/mqtt/app
+  path: ./kubernetes/kubernetes/main/apps/home-automation/mqtt/app
   components:
     - ../../../../components/volsync
   targetNamespace: home-automation

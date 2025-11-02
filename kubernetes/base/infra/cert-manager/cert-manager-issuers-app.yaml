@@ -6,8 +6,8 @@ metadata:
 spec:
   project: default
   sources:
-    - path: base/infra/cert-manager/issuers
-      repoURL: 'https://forge.internal/nemo/home-ops.git'
+    - path: kubernetes/base/infra/cert-manager/issuers
+      repoURL: 'https://forge.internal/nemo/avalanche.git'
       targetRevision: HEAD
   destination:
     namespace: cert-manager

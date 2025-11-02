@@ -6,7 +6,7 @@ metadata:
   name: ha-rtl433
   namespace: flux-system
 spec:
-  path: ./kubernetes/main/apps/home-automation/rtl433/app
+  path: ./kubernetes/kubernetes/main/apps/home-automation/rtl433/app
   prune: true
   sourceRef:
     kind: GitRepository

@@ -7,7 +7,7 @@ metadata:
   namespace: flux-system
 spec:
   targetNamespace: cnpg-system
-  path: ./kubernetes/main/apps/cnpg-system/cloudnative-pg/app
+  path: ./kubernetes/kubernetes/main/apps/cnpg-system/cloudnative-pg/app
   prune: true
   sourceRef:
     kind: GitRepository

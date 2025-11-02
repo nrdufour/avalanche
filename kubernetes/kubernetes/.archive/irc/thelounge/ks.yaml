@@ -7,7 +7,7 @@ metadata:
   namespace: flux-system
 spec:
   targetNamespace: irc
-  path: ./kubernetes/main/apps/irc/thelounge/app
+  path: ./kubernetes/kubernetes/main/apps/irc/thelounge/app
   prune: true
   sourceRef:
     kind: GitRepository

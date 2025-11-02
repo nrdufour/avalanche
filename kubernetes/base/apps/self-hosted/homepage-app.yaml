@@ -6,8 +6,8 @@ metadata:
 spec:
   project: default
   source:
-    path: base/apps/self-hosted/homepage
-    repoURL: https://forge.internal/nemo/home-ops.git
+    path: kubernetes/base/apps/self-hosted/homepage
+    repoURL: https://forge.internal/nemo/avalanche.git
     targetRevision: HEAD
   destination:
     namespace: self-hosted

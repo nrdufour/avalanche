@@ -7,8 +7,8 @@ metadata:
 spec:
   project: default
   source:
-    path: base/apps/media/sonarr
-    repoURL: https://forge.internal/nemo/home-ops.git
+    path: kubernetes/base/apps/media/sonarr
+    repoURL: https://forge.internal/nemo/avalanche.git
     targetRevision: HEAD
   destination:
     namespace: media
