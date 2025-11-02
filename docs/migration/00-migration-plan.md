@@ -65,22 +65,45 @@ Actions completed:
 
 See: docs/migration/01-nixos-base-migration.md
 
-#### Step 3: SOPS Configuration (In Progress)
+#### Step 3: SOPS Configuration ✅
 **Date:** 2025-11-02
 
-Next steps:
-- Copy .sops.yaml from snowpea
-- Verify Age keys location
-- Document secrets structure
+Actions completed:
+- Copied .sops.yaml from snowpea with all Age keys
+- Copied secrets/ directory structure
+- Fixed .gitignore to allow .sops.yaml files
+- Added workstation-calypso Age key
+- All secrets properly encrypted and accessible
 
-#### Step 4: Snowy Integration (Pending)
+See: docs/migration/01-nixos-base-migration.md
 
-Next steps:
-- Create role-workstation.nix profile
-- Copy calypso host configuration
-- Integrate with mkNixosConfig pattern
+#### Step 4: Snowy Integration ✅
+**Date:** 2025-11-02
 
-#### Step 5: Kubernetes Migration (Pending)
+Actions completed:
+- Created role-workstation.nix profile importing core personalities
+- Copied calypso host configuration from snowy
+- Migrated complete personalities/ structure (base, laptop, development, ham, chat, backups, knowledge)
+- Integrated with mkNixosConfig pattern using nixos-hardware
+- Resolved configuration conflicts using lib.mkDefault
+- All 15 hosts (14 servers + 1 workstation) pass validation
+
+See: docs/migration/03-snowy-workstation-migration.md
+
+#### Step 5: Kubernetes Migration ✅
+**Date:** 2025-11-02
+
+Actions completed:
+- Copied complete home-ops structure to kubernetes/
+- Merged justfiles with proper k8s- prefix
+- Updated all ArgoCD Application paths (kubernetes/base/, kubernetes/clusters/)
+- Updated all ArgoCD Application repoURLs (home-ops.git → avalanche.git)
+- Updated Flux GitRepository URL (home-ops.git → avalanche.git)
+- Updated all Flux Kustomization paths (./kubernetes/kubernetes/main/)
+- Merged Kubernetes tools into default.nix
+- Created Forgejo workflow for automated flake.lock updates
+
+See: docs/migration/04-kubernetes-migration.md
 
 ## Migration Strategy
 
@@ -115,11 +138,14 @@ Next steps:
 
 ## Post-Migration Tasks
 
+- [x] Update deployment automation (justfile with k8s- commands)
+- [x] Verify all secrets are accessible (SOPS configured)
+- [x] Confirm all hosts can build successfully (15 hosts pass validation)
+- [x] Created Forgejo workflow for automated flake updates
 - [ ] Update bookmarks/scripts pointing to old repos
 - [ ] Archive old repositories (mark as read-only)
-- [ ] Update deployment automation
-- [ ] Verify all secrets are accessible
-- [ ] Confirm all hosts can build successfully
+- [ ] Test Kubernetes deployments with new paths
+- [ ] Migrate remaining Flux manifests to ArgoCD
 
 ## Notes & Decisions
 
@@ -130,9 +156,20 @@ Next steps:
 - **SOPS**: Continue with Age, unify configuration
 
 ### Open Questions
-- [ ] Should we preserve git history from old repos?
-- [ ] How to handle ongoing changes during migration?
-- [ ] Test infrastructure for validation?
+- [x] Should we preserve git history from old repos? **Decision: Fresh start, old repos archived**
+- [x] How to handle ongoing changes during migration? **Decision: Disable workflows in old repos once stable**
+- [x] Test infrastructure for validation? **Decision: nix flake check + manual deployments**
+
+## Migration Status Summary
+
+**Phase 1: Foundation** ✅ COMPLETE
+
+All three source repositories successfully migrated into avalanche:
+- **snowpea** (14 server hosts) → `nixos/` ✅
+- **snowy** (1 workstation) → `nixos/personalities/` + `calypso` ✅
+- **home-ops** (Kubernetes) → `kubernetes/` ✅
+
+Total: 15 NixOS hosts + complete Kubernetes GitOps infrastructure
 
 ---
 
