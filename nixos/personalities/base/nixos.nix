@@ -1,4 +1,4 @@
-{ pkgs, ... }: {
+{ pkgs, lib, ... }: {
     nix = {
         settings = {
             trusted-substituters = [
@@ -21,10 +21,10 @@
             experimental-features = [ "nix-command" "flakes" ];
         };
         gc = {
-            automatic = true;
-            dates = "weekly";
+            automatic = lib.mkDefault true;
+            dates = lib.mkDefault "weekly";
             # Delete older generations too
-            options = "--delete-older-than 7d";
+            options = lib.mkDefault "--delete-older-than 7d";
         };
     };
 
