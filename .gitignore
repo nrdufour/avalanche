@@ -15,9 +15,12 @@ result-*
 Thumbs.db
 
 # Secrets (unencrypted)
+# Allow .sops.yaml (encrypted) but block plain .yaml
 secrets/**/*.dec.*
 secrets/**/*.yaml
 secrets/**/*.yml
+!secrets/**/*.sops.yaml
+!secrets/**/*.sops.yml
 !secrets/**/*.enc.*
 
 # Temporary files

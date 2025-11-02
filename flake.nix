@@ -44,6 +44,9 @@
       nixosConfigurations =
         with self.lib;
         let
+          # Make lib available for mkNixosConfig
+          lib = self.lib;
+
           specialArgs = {
             inherit inputs outputs;
           };

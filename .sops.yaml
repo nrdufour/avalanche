@@ -1,0 +1,95 @@
+---
+keys:
+  - &admin-ndufour-2022 age1tmrr00pnj6gpc4pfp3wzvyjt66tfhudwj2kn84skt24qvwzlcsusrvrypj
+  - &admin-ndufour-2023 age1n535rsu7hlyjg0p46y6du9nl0j7ldsfcmy9x9a24kxs6tuh8dgks2engp2
+  - &server-mysecrets age14hltxzv2tpzutpcjr7lreet5rzcufgcx0rd3syz48v9gdkpaa45s4cfktj
+  - &server-eagle age1qzg88e0eytyyuanj4l20pk0hp5068k5umnqkpd9rzdgfntf2uczqxyxhn9
+  - &server-raccoon00 age1lpvr9au8fhrwhjyhfjcnhk2qq3tnple2rsc4yu7a7zl7nmz3tswqu8suaf
+  - &server-raccoon01 age1w3h0pnv5fc7mwt3s0zcjj2nv9lgksptjewd6rm6dxupz6y4rraksc5w5ef
+  - &server-raccoon02 age17tvysh6j960q87wwfwcjfnsj44kjpg8rpa7v8kjkly7ypfxnxefqd3p339
+  - &server-raccoon03 age1q0uy2kn5ny8tpxqlfexmf9mqjdlmsyguzdqrrkzhugl9p9vvveksdlwa72
+  - &server-raccoon04 age1rdm9hcseejyjnkmd0n6crf8779yhtt2c0jd8fds6346u2n5g2s6sxkv6pt
+  - &server-raccoon05 age1rqpd3prnw2lz9knh5mpwgzwdpj8a0yn5gc4ee7ef2g5x42sj7pqqys49yl
+  - &server-sparrow01 age146nj6qplcm2e72v5sm0mf0wfxm77xdagaj54v2245nehuxgspgtq5e0cwa
+  - &server-sparrow02 age1q4eyu6q327yxxk5dkdqp3gvfec8ve0f4jnq9ugkky2qjqe22ud7s0fetr7
+  - &server-sparrow03 age1h9kdsj49cnh2whfk66pjjjrh07nrpwddcv0zjt2kr527phaxvs7qvg85ka
+  - &server-sparrow04 age1zwfpwda843rg86d848h6rypmrmjur9gcs4u5awzu57cvpslzqpzq95fa2r
+  - &server-sparrow05 age1guve3l9udv5rzkm3u5sqte53d74fxuufzr8mhd8p0l5jt58vdpasafnsh0
+  - &server-sparrow06 age1fl9qu4zlz3ndm2sqfwr44xdxv7zghtzjyytmx22srlsjsqkwz4xqa8xgj4
+  - &server-opi01 age10zgavqrdukj6k6zkzmwg4klg95ll99ktmqzwyz24cn95grcqjerqcsff8w
+  - &server-opi02 age1nhfx8uyrfdq99c7avexfd64qsdmlkgedlckg28zpk4wz944cuvlsg03407
+  - &server-opi03 age15sz68u0tw4f7nnwuk4jz3lm230esqfktae000t62s8fwjqvl2ukslyw8g0
+  - &server-possum age1z5se5pwlkle36c2kyklj6ujv49vd4rqvv6drg88rluf6c5dwa9rqgggnnf
+  - &server-routy age1k9lzhm2k7damqf9ev3lun6naysj08u3vnewnw06yeaq8g7vlw3zsh6vlcw
+  - &server-cardinal age1r3k5yyln7lqxpw92qlf5rvpnwj79perdesfdjxea733sqe5qw4kq5lgdyr
+
+creation_rules:
+  - path_regex: secrets/common-local-restic/[^/]+\.(yaml|json|env|ini)$
+    key_groups:
+      - age:
+        - *admin-ndufour-2022
+        - *admin-ndufour-2023
+        - *server-cardinal
+  - path_regex: secrets/common-remote-restic/[^/]+\.(yaml|json|env|ini)$
+    key_groups:
+      - age:
+        - *admin-ndufour-2022
+        - *admin-ndufour-2023
+        - *server-eagle
+        - *server-possum
+        - *server-cardinal
+  - path_regex: secrets/eagle/[^/]+\.(yaml|json|env|ini)$
+    key_groups:
+      - age:
+        - *admin-ndufour-2022
+        - *admin-ndufour-2023
+        - *server-eagle
+  - path_regex: secrets/mysecrets/[^/]+\.(yaml|json|env|ini)$
+    key_groups:
+      - age:
+        - *admin-ndufour-2022
+        - *admin-ndufour-2023
+        - *server-mysecrets
+  - path_regex: secrets/k3s-worker/[^/]+\.(yaml|json|env|ini)$
+    key_groups:
+      - age:
+        - *admin-ndufour-2022
+        - *admin-ndufour-2023
+        - *server-raccoon00
+        - *server-raccoon01
+        - *server-raccoon02
+        - *server-raccoon03
+        - *server-raccoon04
+        - *server-raccoon05
+        - *server-sparrow01
+        - *server-sparrow02
+        - *server-sparrow03
+        - *server-sparrow04
+        - *server-sparrow05
+        - *server-sparrow06
+        - *server-opi01
+        - *server-opi02
+        - *server-opi03
+  - path_regex: secrets/possum/[^/]+\.(yaml|json|env|ini)$
+    key_groups:
+      - age:
+        - *admin-ndufour-2022
+        - *admin-ndufour-2023
+        - *server-possum
+  - path_regex: secrets/routy/[^/]+\.(yaml|json|env|ini)$
+    key_groups:
+      - age:
+        - *admin-ndufour-2022
+        - *admin-ndufour-2023
+        - *server-routy
+  - path_regex: secrets/cardinal/[^/]+\.(yaml|json|env|ini)$
+    key_groups:
+      - age:
+        - *admin-ndufour-2022
+        - *admin-ndufour-2023
+        - *server-cardinal
+  - path_regex: secrets/[^/]+\.(yaml|json|env|ini)$
+    key_groups:
+      - age:
+        - *admin-ndufour-2022
+        - *admin-ndufour-2023
