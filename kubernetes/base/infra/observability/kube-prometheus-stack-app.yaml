@@ -16,7 +16,7 @@ spec:
       helm:
         releaseName: kube-prometheus-stack
         valueFiles:
-          - $values/base/infra/observability/kube-prometheus-stack/helm-values.yaml
+          - $values/kubernetes/base/infra/observability/kube-prometheus-stack/helm-values.yaml
   destination:
     namespace: observability
     name: 'in-cluster'

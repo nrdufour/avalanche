@@ -15,7 +15,7 @@ spec:
       helm:
         releaseName: cloudnative-pg
         valueFiles:
-          - $values/base/apps/cnpg-system/cloudnative-pg/helm-values.yaml
+          - $values/kubernetes/base/apps/cnpg-system/cloudnative-pg/helm-values.yaml
   destination:
     namespace: cnpg-system
     name: 'in-cluster'

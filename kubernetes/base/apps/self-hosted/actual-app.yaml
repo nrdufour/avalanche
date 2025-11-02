@@ -16,7 +16,7 @@ spec:
       helm:
         releaseName: actual
         valueFiles:
-          - $values/base/apps/self-hosted/actual/helm-values.yaml
+          - $values/kubernetes/base/apps/self-hosted/actual/helm-values.yaml
   destination:
     namespace: self-hosted
     name: 'in-cluster'

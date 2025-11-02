@@ -15,7 +15,7 @@ spec:
       helm:
         releaseName: ingress-nginx-internal
         valueFiles:
-          - $values/base/infra/network/ingress-nginx-internal/helm-values.yaml
+          - $values/kubernetes/base/infra/network/ingress-nginx-internal/helm-values.yaml
   destination:
     namespace: network
     name: 'in-cluster'

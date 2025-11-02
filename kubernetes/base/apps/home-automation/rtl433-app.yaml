@@ -16,7 +16,7 @@ spec:
       helm:
         releaseName: rtl433
         valueFiles:
-          - $values/base/apps/home-automation/rtl433/helm-values.yaml
+          - $values/kubernetes/base/apps/home-automation/rtl433/helm-values.yaml
   destination:
     namespace: home-automation
     name: 'in-cluster'

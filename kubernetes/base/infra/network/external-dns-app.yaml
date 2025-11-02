@@ -16,7 +16,7 @@ spec:
       helm:
         releaseName: external-dns
         valueFiles:
-          - $values/base/infra/network/external-dns/helm-values.yaml
+          - $values/kubernetes/base/infra/network/external-dns/helm-values.yaml
   destination:
     namespace: network
     name: 'in-cluster'

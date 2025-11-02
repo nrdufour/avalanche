@@ -15,7 +15,7 @@ spec:
       helm:
         releaseName: reloader
         valueFiles:
-          - $values/base/infra/system/reloader/helm-values.yaml
+          - $values/kubernetes/base/infra/system/reloader/helm-values.yaml
   destination:
     namespace: system
     name: 'in-cluster'

@@ -16,7 +16,7 @@ spec:
       helm:
         releaseName: rtlamr2mqtt
         valueFiles:
-          - $values/base/apps/home-automation/rtlamr2mqtt/helm-values.yaml
+          - $values/kubernetes/base/apps/home-automation/rtlamr2mqtt/helm-values.yaml
   destination:
     namespace: home-automation
     name: 'in-cluster'

@@ -16,7 +16,7 @@ spec:
       helm:
         releaseName: longhorn
         valueFiles:
-          - $values/base/infra/longhorn-system/longhorn/helm-values.yaml
+          - $values/kubernetes/base/infra/longhorn-system/longhorn/helm-values.yaml
   destination:
     namespace: longhorn-system
     name: 'in-cluster'

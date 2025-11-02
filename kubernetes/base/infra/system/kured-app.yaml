@@ -15,7 +15,7 @@ spec:
       helm:
         releaseName: kured
         valueFiles:
-          - $values/base/infra/system/kured/helm-values.yaml
+          - $values/kubernetes/base/infra/system/kured/helm-values.yaml
   destination:
     namespace: system
     name: 'in-cluster'

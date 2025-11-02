@@ -16,7 +16,7 @@ spec:
       helm:
         releaseName: nut-upsd
         valueFiles:
-          - $values/base/apps/home-automation/nut-upsd/helm-values.yaml
+          - $values/kubernetes/base/apps/home-automation/nut-upsd/helm-values.yaml
   destination:
     namespace: home-automation
     name: 'in-cluster'
