@@ -1,4 +1,4 @@
-# Project Avalanche
+# Project Avalanche 🏔️
 
 > "Started with a snowflake, became an avalanche"
 
