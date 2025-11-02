@@ -88,6 +88,8 @@
                 config = {
                   allowUnfree = true;
                   allowUnfreePredicate = _: true;
+                  # Enable DRM protected content in chromium (for workstations)
+                  chromium.enableWideVine = true;
                 };
               };
             };

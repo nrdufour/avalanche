@@ -17,9 +17,11 @@
 
 
   # Enable drm protected content playing in chrome
-  nixpkgs.config = {
-      chromium = {
-          enableWideVine = true;
-      };
-  };
+  # Note: chromium.enableWideVine moved to flake.nix pkgs config
+  # to avoid conflict with externally created pkgs instance
+  # nixpkgs.config = {
+  #     chromium = {
+  #         enableWideVine = true;
+  #     };
+  # };
 }

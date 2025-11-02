@@ -29,7 +29,9 @@
     };
 
     # Allow unfree packages
-    nixpkgs.config.allowUnfree = true;
+    # Note: Moved to flake.nix pkgs config to avoid conflict
+    # with externally created pkgs instance
+    # nixpkgs.config.allowUnfree = true;
 
     environment.systemPackages = with pkgs; [
         ## NOTE: disabling the usage of any-nix-shell for now
