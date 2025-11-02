@@ -75,14 +75,47 @@ avalanche/
 
 ## Quick Start
 
+### Available Commands
+
+```bash
+# List all available commands
+just
+
+# Check flake validity
+just nix-check
+
+# List all NixOS hosts
+just nix-list-hosts
+```
+
 ### Deploying NixOS Hosts
 
 ```bash
 # Deploy a specific host
 just nix-deploy <hostname>
 
+# Deploy to all hosts (with confirmation)
+just nix-deploy-all
+
 # Build locally
 nix build .#nixosConfigurations.<hostname>.config.system.build.toplevel
+```
+
+### Managing Secrets
+
+```bash
+# Update SOPS keys for all secrets
+just sops-update
+```
+
+### SD Card Images
+
+```bash
+# Build SD card image for a host
+just sd-build <hostname>
+
+# Build and flash SD card image
+just sd-flash <hostname>
 ```
 
 ### Managing Kubernetes
@@ -106,9 +139,11 @@ kubectl apply -k kubernetes/clusters/main/
 
 This repository consolidates:
 - ✅ Repository structure created
-- ⏳ NixOS configurations (snowy + snowpea)
+- ✅ NixOS configurations (snowpea - 14 hosts)
+- ✅ Unified secrets management (SOPS + Age)
+- ✅ Justfile deployment automation
+- ⏳ NixOS laptop config (snowy - calypso)
 - ⏳ Kubernetes manifests (home-ops)
-- ⏳ Unified secrets management
 - ⏳ Cloud infrastructure setup
 
 See [docs/migration/](docs/migration/) for detailed migration documentation.
