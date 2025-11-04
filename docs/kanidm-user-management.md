@@ -4,6 +4,50 @@ Kanidm running on `mysecrets` at `https://auth.internal`
 
 User identities: `username@auth.internal`
 
+## Client Configuration
+
+First time setup - create the client config on mysecrets:
+
+```bash
+sudo mkdir -p /etc/kanidm
+sudo tee /etc/kanidm/config <<EOF
+uri = "https://auth.internal"
+verify_ca = true
+verify_hostnames = true
+EOF
+```
+
+This allows you to run commands without specifying `--url` every time.
+
+**Alternative:** Add `--url https://auth.internal` to every command.
+
+### Authenticate
+
+Before running any commands, you must login:
+
+```bash
+sudo kanidm login --name idm_admin
+```
+
+Enter the idm_admin password when prompted. This creates a session token for future commands.
+
+**Important:** Use `idm_admin` (the Identity Management admin account) for user/group management operations. The `admin` account has limited permissions.
+
+**Get idm_admin password:**
+```bash
+sudo kanidmd recover-account idm_admin
+```
+
+**Check current session:**
+```bash
+sudo kanidm session status --name idm_admin
+```
+
+**Logout:**
+```bash
+sudo kanidm logout --name idm_admin
+```
+
 ## Common Operations
 
 All commands run on mysecrets host: `ssh mysecrets.internal`
@@ -72,11 +116,17 @@ sudo kanidm person delete <username> --name idm_admin
 
 ### Account Recovery
 
-If admin loses access:
+**If idm_admin loses access:**
+```bash
+sudo kanidmd recover-account idm_admin
+```
+
+**If admin loses access:**
 ```bash
 sudo kanidmd recover-account admin
 ```
-This generates a new recovery password.
+
+Both commands generate a new recovery password.
 
 ## Built-in Groups
 
