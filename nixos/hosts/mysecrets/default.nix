@@ -4,6 +4,7 @@
     ./step-ca
     ./vaultwarden
     ./kanidm
+    ./tailscale.nix
     # ./knot-dns
   ];
 
