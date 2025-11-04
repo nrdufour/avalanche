@@ -3,6 +3,7 @@
   imports = [
     ./step-ca
     ./vaultwarden
+    ./kanidm
     # ./knot-dns
   ];
 
