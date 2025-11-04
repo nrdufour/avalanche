@@ -125,7 +125,7 @@ flux get kustomizations
 
 ### NixOS Hosts (15 total)
 - **Workstation**: calypso (ASUS ROG Strix, from snowy)
-- **Infrastructure**: mysecrets (step-ca, Vaultwarden, Authentik), eagle (Forgejo), possum (Garage S3, backups)
+- **Infrastructure**: mysecrets (step-ca, Vaultwarden, Kanidm), eagle (Forgejo), possum (Garage S3, backups)
 - **x86 Servers**: beacon, routy, cardinal
 - **K3s Controllers**: opi01-03 (Orange Pi 5 Plus, aarch64)
 - **K3s Workers**: raccoon00-05 (Raspberry Pi 4, aarch64)
@@ -134,15 +134,69 @@ flux get kustomizations
 - **Deployment**: nixos-rebuild over SSH to `<hostname>.internal` (Tailscale)
 - **Secrets**: SOPS with Age encryption (keys in `~/.config/sops/age/keys.txt`)
 - **Network**: Tailscale mesh VPN, kube-vip for K8s HA (VIP: 10.1.0.5)
+- **Identity**: Kanidm at `https://auth.internal` (users: `username@auth.internal`)
 - **GitOps**: ArgoCD (primary), Flux (legacy/transitioning)
 - **Storage**: Longhorn (K8s), Garage S3 (object storage)
 
 ### Kubernetes Applications
-- **Identity**: Authentik (SSO/OIDC), Vaultwarden
+- **Identity**: Vaultwarden (password manager)
 - **Observability**: Prometheus stack, Grafana, InfluxDB2
 - **Self-hosted**: Miniflux, SearXNG, Wallabag, Mealie, Wiki.js, Homepage
 - **Home Automation**: RTL433, RTLAMR2MQTT, NUT UPS daemon
 - **Infrastructure**: CloudNative-PG, cert-manager, External DNS, Nginx Ingress, Kyverno
+
+## Identity Management (Kanidm)
+
+**Location**: mysecrets host at `https://auth.internal`
+**Documentation**: `docs/kanidm-user-management.md`
+
+### Key Details
+- **Domain**: `auth.internal` (user identities: `username@auth.internal`)
+- **Origin**: `https://auth.internal` (accessed via Tailscale/internal network)
+- **Admin accounts**:
+  - `admin` - Basic administrative functions
+  - `idm_admin` - Full identity management (create users, manage groups, OAuth2)
+- **Database**: SQLite at `/srv/kanidm/kanidm.db` (bind mounted from `/var/lib/kanidm`)
+- **Certificates**: Self-signed for backend (localhost), step-ca ACME for nginx frontend
+- **Backups**: Daily at 22:00 UTC to `/srv/backups/kanidm` (keeps 7 versions)
+
+### Administration
+**All administration is CLI-based** (no web admin UI):
+```bash
+ssh mysecrets.internal
+
+# Setup client config (first time only)
+sudo tee /etc/kanidm/config <<EOF
+uri = "https://auth.internal"
+verify_ca = true
+verify_hostnames = true
+EOF
+
+# Login as idm_admin
+sudo kanidm login --name idm_admin
+
+# Create user
+sudo kanidm person create <username> "Display Name" --name idm_admin
+
+# Set password (generates reset token URL)
+sudo kanidm person credential create-reset-token <username> --name idm_admin
+
+# Manage groups
+sudo kanidm group add-members <groupname> <username> --name idm_admin
+```
+
+### Important Notes
+- **Password-only auth**: By default requires passkeys. Set to password-only with:
+  ```bash
+  sudo kanidm group account-policy credential-type-minimum idm_all_persons any --name idm_admin
+  ```
+- **Recover admin accounts**:
+  ```bash
+  sudo kanidmd recover-account admin        # Basic admin
+  sudo kanidmd recover-account idm_admin    # Identity admin
+  ```
+- **Domain warning**: Changing `domain` breaks all credentials (WebAuthn, OAuth tokens, etc.)
+- **DNS requirement**: `domain` must exactly match DNS hostname for cookie security
 
 ## Important Patterns
 

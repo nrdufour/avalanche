@@ -128,12 +128,43 @@ sudo kanidmd recover-account admin
 
 Both commands generate a new recovery password.
 
+## Account Policies
+
+**Allow password-only authentication:**
+
+⚠️ **Note:** By default, Kanidm requires passkeys (WebAuthn) for authentication. For simpler password-only login, you need to change the account policy:
+
+```bash
+# For all users
+sudo kanidm group account-policy credential-type-minimum idm_all_persons any --name idm_admin
+
+# For specific group
+sudo kanidm group account-policy credential-type-minimum <groupname> any --name idm_admin
+```
+
+**Credential strength levels** (weakest to strongest):
+- `any` - Password-only allowed
+- `mfa` - Multi-factor required (password + TOTP)
+- `passkey` - Passkey required
+- `attested_passkey` - Hardware-attested passkey required
+
+**Other useful policies:**
+
+```bash
+# Set session expiry (in seconds)
+sudo kanidm group account-policy auth-expiry <groupname> 3600 --name idm_admin
+
+# Set minimum password length
+sudo kanidm group account-policy password-minimum-length <groupname> 12 --name idm_admin
+```
+
 ## Built-in Groups
 
 - `idm_admins` - Full administrative access
 - `idm_people_manage_priv` - Can create/modify users
 - `idm_group_manage_priv` - Can manage groups
 - `idm_account_manage_priv` - Can manage accounts
+- `idm_all_persons` - Default policy group for all users
 
 ## OAuth2 Configuration (CLI)
 

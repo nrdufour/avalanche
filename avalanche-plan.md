@@ -33,6 +33,7 @@ A friend's project that inspired the naming theme - a NixOS flake that started i
 - **Key Services on `mysecrets` (RPi 4, 8GB):**
   - step-ca (PKI/certificate authority)
   - Vaultwarden (password management)
+  - Kanidm (identity management/SSO)
   - knot-dns (DNS)
 - **Location:** `/home/ndufour/Documents/code/projects/ops/snowpea`
 
@@ -84,7 +85,7 @@ A friend's project that inspired the naming theme - a NixOS flake that started i
 │ mysecrets (RPi 4, 8GB) - NixOS Infrastructure Services │
 │  - step-ca (PKI)                                        │
 │  - Vaultwarden (passwords)                              │
-│  - Authentik (NEW - identity/SSO)                       │
+│  - Kanidm (✓ DEPLOYED - identity/SSO)                  │
 └───────────────────┬────────────────────────────────────┘
                     │ OIDC
          ┌──────────┴──────────┐
@@ -112,20 +113,23 @@ A friend's project that inspired the naming theme - a NixOS flake that started i
 #### 1. Tailscale Network Layer
 - **Purpose:** Secure mesh network with exit node support
 - **Initial Auth:** Gmail (pragmatic start)
-- **Future Auth:** Authentik OIDC (full self-hosted)
+- **Future Auth:** Kanidm OIDC (full self-hosted)
 - **Exit Node:** VPS (~$5/month Hetzner/DigitalOcean)
-- **Migration Path:** Gmail → Authentik is supported by Tailscale
+- **Migration Path:** Gmail → Kanidm is supported by Tailscale
 
-#### 2. Authentik Identity Provider
+#### 2. Kanidm Identity Provider (✓ DEPLOYED)
 - **Deployment:** NixOS on `mysecrets` Pi (alongside step-ca and Vaultwarden)
+- **Access:** `https://auth.internal` (users: `username@auth.internal`)
 - **Purpose:**
-  - OIDC provider for Tailscale
+  - OIDC/OAuth2 provider for Tailscale
   - SSO for web applications
   - Multi-user support (you + wife)
 - **Benefits:**
   - Single login for all services
   - Self-hosted identity
   - No chicken-and-egg problem (runs on separate Pi, not in K8s)
+  - Lightweight (SQLite, no Redis/PostgreSQL complexity)
+- **Documentation:** `docs/kanidm-user-management.md`
 
 #### 3. Tailscale Kubernetes Operator
 - **Deployment:** ArgoCD-managed in K8s cluster
@@ -151,25 +155,25 @@ A friend's project that inspired the naming theme - a NixOS flake that started i
 ### Why This Architecture Works
 
 **Separation of Concerns:**
-- Identity (Authentik) runs on stable, separate hardware
+- Identity (Kanidm) runs on stable, separate hardware
 - Network (Tailscale) can fail without breaking identity
 - Applications (K8s) can restart without affecting auth
 
 **Incremental Migration:**
 - Start with Gmail → Tailscale (quick win)
-- Deploy Authentik when ready
-- Migrate Tailscale auth to Authentik later
+- Deploy Kanidm when ready ✓
+- Migrate Tailscale auth to Kanidm later
 - Add service SSO gradually
 
 **Self-Hosted with Pragmatism:**
 - Keep Tailscale on Gmail if preferred (one cloud dependency)
-- Or go full self-hosted with Authentik
+- Or go full self-hosted with Kanidm
 - Choice preserved, not locked in
 
 ## The Realization: Time to Consolidate
 
 ### Why Now?
-- About to add Authentik (NixOS in snowpea)
+- Added Kanidm ✓ (NixOS in avalanche)
 - About to add Tailscale operator (K8s in home-ops)
 - Cloud infrastructure coming (would be 4th repo!)
 - Pain of context-switching finally outweighs migration effort
@@ -183,7 +187,7 @@ avalanche/
 ├── nixos/              # All NixOS configs (snowy + snowpea merged)
 │   ├── hosts/
 │   │   ├── calypso/        # Laptop (from snowy)
-│   │   ├── mysecrets/      # Pi: step-ca, vaultwarden, authentik
+│   │   ├── mysecrets/      # Pi: step-ca, vaultwarden, kanidm ✓
 │   │   ├── eagle/          # Pi: Forgejo
 │   │   ├── possum/         # Pi: Garage S3, backups
 │   │   ├── raccoon00-05/   # K8s workers (RPi 4)
@@ -261,11 +265,14 @@ avalanche/
    - Preserve ArgoCD structure
    - Update paths and references
 
-### Phase 2: Identity & Network (Next)
-1. **Deploy Authentik**
-   - Add to `mysecrets` NixOS config
-   - Configure PostgreSQL + Redis
-   - Set up initial OIDC clients
+### Phase 2: Identity & Network (In Progress)
+1. **✓ Deploy Kanidm** (Changed from Authentik - official NixOS support)
+   - ✓ Add to `mysecrets` NixOS config
+   - ✓ Configure with step-ca TLS certificates
+   - ✓ Set up at `https://auth.internal`
+   - ✓ Create initial users
+   - ✓ Document user management procedures
+   - TODO: Set up initial OAuth2 clients
 
 2. **Set up Tailscale**
    - Create tailnet (Gmail auth initially)
@@ -283,8 +290,8 @@ avalanche/
    - Test DDOS protection
 
 ### Phase 3: Identity Migration (Optional)
-1. **Migrate Tailscale to Authentik**
-   - Configure Authentik as OIDC provider
+1. **Migrate Tailscale to Kanidm**
+   - Configure Kanidm as OIDC provider
    - Contact Tailscale support for migration
    - Update user authentication
 
@@ -344,19 +351,20 @@ avalanche/
 
 ## Next Steps
 
-When ready to begin:
+Current status: Phase 2 (Identity & Network) in progress
 
-1. **Repository consolidation**
-   - Create `avalanche` repository
-   - Design migration strategy
-   - Merge NixOS configs first (lowest risk)
+1. **✓ Repository consolidation** (Phase 1 Complete)
+   - ✓ Created `avalanche` repository
+   - ✓ Merged NixOS configs
+   - ✓ Working unified infrastructure
 
-2. **Identity & network implementation**
-   - Deploy Authentik on `mysecrets`
-   - Set up Tailscale with exit node
-   - Deploy operator in K8s
+2. **Identity & network implementation** (Phase 2 In Progress)
+   - ✓ Deployed Kanidm on `mysecrets` at `https://auth.internal`
+   - ✓ Created user management documentation
+   - TODO: Set up Tailscale with exit node
+   - TODO: Deploy Tailscale operator in K8s
 
-3. **IRC bot protection**
+3. **IRC bot protection** (Phase 2 Remaining)
    - Configure marmithon to use exit node
    - Test and validate DDOS protection
 
@@ -371,14 +379,15 @@ When ready to begin:
 - **NixOS:** Declarative system configuration
 - **SOPS:** Secrets management with Age encryption
 - **Tailscale:** Mesh VPN with exit node support
-- **Authentik:** Self-hosted identity provider
+- **Kanidm:** Self-hosted identity provider (Rust-based, lightweight)
 - **ArgoCD:** GitOps for Kubernetes
 - **K3s:** Lightweight Kubernetes
 
 ### Documentation
 - Tailscale Kubernetes Operator: https://tailscale.com/kb/1236/kubernetes-operator
 - Tailscale SSO Providers: https://tailscale.com/kb/1013/sso-providers
-- Authentik Documentation: https://docs.goauthentik.io/
+- Kanidm Documentation: https://kanidm.github.io/kanidm/stable/
+- Kanidm User Management: `docs/kanidm-user-management.md`
 
 ## The Story
 
@@ -391,4 +400,4 @@ The fragmentation that came from organic growth is being consolidated into a sin
 ---
 
 *Document created: 2025-11-01*
-*Last updated: 2025-11-01*
+*Last updated: 2025-11-04 - Kanidm deployment complete*
