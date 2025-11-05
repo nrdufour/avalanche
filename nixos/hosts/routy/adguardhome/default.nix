@@ -19,6 +19,7 @@
           "10.0.0.54"
           "10.1.0.54"
           # "10.2.0.54"
+          "100.121.204.6"  # Tailscale interface for remote DNS queries
         ];
         upstream_dns = [
           "[/internal/]10.0.0.53"
