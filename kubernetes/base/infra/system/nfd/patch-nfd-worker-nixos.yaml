@@ -3,6 +3,8 @@ kind: ClusterPolicy
 metadata:
   name: patch-nfd-worker-nixos
 spec:
+  background: false
+  validationFailureAction: Audit  # This will log but not block
   rules:
     - name: fix-lib-modules-path-for-nixos
       match:
@@ -12,10 +14,8 @@ spec:
                 - Pod
               namespaces:
                 - system
-              selector:
-                matchLabels:
-                  app.kubernetes.io/name: node-feature-discovery
-                  role: worker
+              names:
+                - node-feature-discovery-worker-*
       mutate:
         patchStrategicMerge:
           spec:
