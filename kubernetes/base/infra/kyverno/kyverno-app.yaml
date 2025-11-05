@@ -9,8 +9,8 @@ spec:
     - repoURL: https://forge.internal/nemo/avalanche.git
       targetRevision: HEAD
       ref: values
-    - chart: kyverno
-      repoURL: oci://ghcr.io/kyverno/charts
+    - path: .
+      repoURL: oci://ghcr.io/kyverno/charts/kyverno
       targetRevision: 3.5.2
       helm:
         releaseName: kyverno
