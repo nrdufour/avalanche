@@ -4,8 +4,9 @@
 
 Tailscale mesh VPN for secure remote access and exit node functionality (IRC bot DDOS protection).
 
-**Tailnet Access**: Existing tailnet (GitHub auth)
-**Primary Goal**: Exit node for IRC bot + secure remote access to services
+**Tailnet Access**: New tailnet with Gmail authentication (created 2025-11-05)
+**Primary Goal**: Exit node for IRC bot + complete remote access to home network
+**Status**: ✅ Fully operational
 
 ## Previous Architecture (PROBLEMATIC - Disabled)
 
@@ -20,12 +21,12 @@ Tailscale mesh VPN for secure remote access and exit node functionality (IRC bot
 - Traffic didn't know: physical network or Tailscale?
 - Result: Network instability, disabled
 
-## New Architecture (CLEAN)
+## Current Architecture (WORKING)
 
 ### Principle
-**Never run Tailscale on your network gateway/router**
+**Subnet routing from the gateway provides full network access**
 
-Individual hosts join the tailnet, not the gateway itself.
+routy (gateway) advertises the entire `10.1.0.0/24` subnet to Tailscale, providing seamless remote access to all services.
 
 ### Hosts in Tailnet
 
@@ -59,22 +60,36 @@ Individual hosts join the tailnet, not the gateway itself.
 - **Purpose**: Access home services remotely
 - **Status**: Already configured and working
 
-### NOT in Tailnet
-
-#### routy (Main Gateway)
-- **Status**: Tailscale disabled and will remain disabled
-- **Reason**: Causes routing conflicts with physical network
-- **Alternative**: Individual hosts connect directly
+#### 6. routy (Main Gateway - Subnet Router) ✅
+- **Purpose**: Advertise entire `10.1.0.0/24` subnet to tailnet
+- **Configuration**: Subnet routing enabled, DNS disabled
+- **Tailscale IP**: `100.121.204.6` (static)
+- **Advertised routes**: `10.1.0.0/24`
+- **NixOS module**: `nixos/hosts/routy/tailscale.nix`
+- **Key settings**:
+  - `useRoutingFeatures = "both"` (subnet routing enabled)
+  - DNS disabled (this host provides DNS)
+  - IP forwarding enabled
+  - AdGuard Home listens on Tailscale IP for remote DNS
 
 ## Traffic Flows
 
-### Remote Access (Phone → Services)
+### Remote Access (Phone → Services via Subnet Route)
+```
+Phone (Tailscale, cellular)
+  ↓ (Tailscale mesh to subnet router)
+routy (100.121.204.6, advertising 10.1.0.0/24)
+  ↓ (IP forwarding, local network)
+Any service on 10.1.0.0/24 (K8s, eagle, possum, etc.)
+```
+
+### Remote Access (Phone → Direct Tailscale Peers)
 ```
 Phone (Tailscale)
-  ↓ (Tailscale mesh)
-mysecrets (Tailscale)
-  ↓ (Local network)
-Services (Kanidm, Vaultwarden)
+  ↓ (Direct peer-to-peer)
+calypso or mysecrets (Tailscale IPs)
+  ↓ (Direct access)
+Services on those hosts
 ```
 
 ### Exit Node (IRC Bot)
@@ -171,7 +186,68 @@ tailscale status | grep "Exit node"
 - [Tailscale Subnet Routers](https://tailscale.com/kb/1019/subnets) (what NOT to do on routy)
 - Project plan: `avalanche-plan.md`
 
+## Key Implementation Details
+
+### NixOS Module Workarounds
+
+The Tailscale NixOS module doesn't properly persist `extraUpFlags`, so we use systemd services to apply settings:
+
+**For routy** (`nixos/hosts/routy/tailscale.nix`):
+```nix
+systemd.services.tailscale-config = {
+  # Runs after tailscaled starts
+  ExecStart = pkgs.writeShellScript "tailscale-config" ''
+    tailscale set --accept-dns=false
+    tailscale set --advertise-routes=10.1.0.0/24
+  '';
+};
+```
+
+**For mysecrets** (`nixos/hosts/mysecrets/tailscale.nix`):
+```nix
+systemd.services.tailscale-disable-dns = {
+  ExecStart = "tailscale set --accept-dns=false";
+};
+```
+
+### Static IPs
+
+Set in Tailscale admin console to ensure stable configuration:
+- routy: `100.121.204.6` (used in AdGuard Home config)
+- Other hosts: Can use dynamic IPs
+
+### Split DNS Configuration
+
+**Tailscale Admin Console**:
+- Nameserver: `100.121.204.6` (routy's Tailscale IP)
+- Restrict to domain: `internal`
+
+**AdGuard Home** (routy):
+```nix
+dns.bind_hosts = [
+  "10.0.0.54"
+  "10.1.0.54"
+  "100.121.204.6"  # Tailscale interface
+];
+```
+
+### Lessons Learned
+
+**What didn't work initially:**
+- routy with subnet routing on GitHub-auth tailnet had routing issues (cause unclear)
+- Creating new tailnet with Gmail auth and careful configuration resolved all issues
+
+**Critical success factors:**
+- Disable Tailscale DNS on infrastructure hosts (routy, mysecrets)
+- Use systemd services to persist Tailscale settings (NixOS module limitation)
+- Set static IPs for infrastructure hosts
+- Enable IP forwarding for subnet routing
+- Approve subnet routes in Tailscale admin console
+
+**Result:** Replica of OPNsense Tailscale setup, now working on NixOS with full declarative configuration
+
 ---
 
 *Created: 2025-11-04*
-*Status: Planning phase*
+*Last Updated: 2025-11-05*
+*Status: ✅ Production - Fully operational*
