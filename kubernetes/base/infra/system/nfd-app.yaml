@@ -16,6 +16,9 @@ spec:
         releaseName: node-feature-discovery
         valueFiles:
           - $values/kubernetes/base/infra/system/nfd/helm-values.yaml
+    - repoURL: https://forge.internal/nemo/avalanche.git
+      targetRevision: HEAD
+      path: kubernetes/base/infra/system/nfd
   destination:
     namespace: system
     name: 'in-cluster'

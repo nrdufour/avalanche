@@ -1,0 +1,25 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: patch-nfd-worker-nixos
+spec:
+  rules:
+    - name: fix-lib-modules-path-for-nixos
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - system
+              selector:
+                matchLabels:
+                  app.kubernetes.io/name: node-feature-discovery
+                  role: worker
+      mutate:
+        patchStrategicMerge:
+          spec:
+            volumes:
+              - name: host-lib
+                hostPath:
+                  path: /run/current-system/kernel-modules/lib
