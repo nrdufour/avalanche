@@ -17,11 +17,9 @@ spec:
                   app.kubernetes.io/name: node-feature-discovery
                   role: worker
       mutate:
-        foreach:
-          - list: "request.object.spec.volumes[?name=='host-lib']"
-            patchStrategicMerge:
-              spec:
-                volumes:
-                  - name: host-lib
-                    hostPath:
-                      path: /run/current-system/kernel-modules/lib
+        patchStrategicMerge:
+          spec:
+            volumes:
+              - name: host-lib
+                hostPath:
+                  path: /run/current-system/kernel-modules/lib
