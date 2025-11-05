@@ -11,7 +11,7 @@ spec:
       ref: values
     - chart: node-feature-discovery
       repoURL: https://kubernetes-sigs.github.io/node-feature-discovery/charts
-      targetRevision: 0.18.2
+      targetRevision: 0.18.3
       helm:
         releaseName: node-feature-discovery
         valueFiles:
