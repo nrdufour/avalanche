@@ -361,10 +361,16 @@ Current status: Phase 2 (Identity & Network) in progress
 2. **Identity & network implementation** (Phase 2 In Progress)
    - ✓ Deployed Kanidm on `mysecrets` at `https://auth.internal`
    - ✓ Created user management documentation
-   - TODO: Set up Tailscale with exit node
+   - ✓ Set up Tailscale network (routy, calypso, mysecrets connected)
+   - ✓ Provisioned Hetzner VPS as Tailscale exit node
+   - ✓ Created automation scripts for VPS management (provision/deprovision/update-ip)
+   - ✓ SOPS-encrypted secrets for Tailscale auth key
+   - ✓ Firewall protecting VPS (SSH from home IP only)
+   - ✓ Tested exit node functionality
    - TODO: Deploy Tailscale operator in K8s
 
 3. **IRC bot protection** (Phase 2 Remaining)
+   - Deploy Tailscale Kubernetes operator
    - Configure marmithon to use exit node
    - Test and validate DDOS protection
 
@@ -386,8 +392,19 @@ Current status: Phase 2 (Identity & Network) in progress
 ### Documentation
 - Tailscale Kubernetes Operator: https://tailscale.com/kb/1236/kubernetes-operator
 - Tailscale SSO Providers: https://tailscale.com/kb/1013/sso-providers
+- Tailscale Exit Nodes: https://tailscale.com/kb/1103/exit-nodes
 - Kanidm Documentation: https://kanidm.github.io/kanidm/stable/
 - Kanidm User Management: `docs/kanidm-user-management.md`
+- VPS Management Scripts: `cloud/scripts/README.md`
+
+### VPS Management (Hetzner Cloud)
+- **Location:** `cloud/scripts/`
+- **Scripts:**
+  - `provision-exit-node.sh` - Create VPS with Tailscale exit node
+  - `deprovision-exit-node.sh` - Destroy VPS and firewall
+  - `update-home-ip.sh` - Update firewall when home IP changes
+- **Server Type:** CPX11 (€3.85/month, 2 vCPU, 2GB RAM)
+- **Secrets:** `secrets/cloud/secrets.sops.yaml` (SOPS-encrypted Tailscale auth key)
 
 ## The Story
 
@@ -400,4 +417,4 @@ The fragmentation that came from organic growth is being consolidated into a sin
 ---
 
 *Document created: 2025-11-01*
-*Last updated: 2025-11-04 - Kanidm deployment complete*
+*Last updated: 2025-11-06 - Tailscale exit node provisioned on Hetzner VPS*

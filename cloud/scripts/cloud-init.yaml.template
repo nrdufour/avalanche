@@ -1,0 +1,77 @@
+#cloud-config
+
+# Tailscale Exit Node Setup
+# This cloud-init configuration installs and configures Tailscale as an exit node
+
+# System updates
+package_update: true
+package_upgrade: true
+
+packages:
+  - curl
+  - wget
+  - htop
+  - vim
+  - ufw
+
+# Enable IP forwarding (required for exit node)
+write_files:
+  - path: /etc/sysctl.d/99-tailscale.conf
+    content: |
+      net.ipv4.ip_forward = 1
+      net.ipv6.conf.all.forwarding = 1
+    owner: root:root
+    permissions: '0644'
+
+runcmd:
+  # Apply sysctl settings
+  - sysctl -p /etc/sysctl.d/99-tailscale.conf
+
+  # Install Tailscale
+  - curl -fsSL https://tailscale.com/install.sh | sh
+
+  # Start Tailscale and advertise as exit node
+  - tailscale up --authkey="__TAILSCALE_AUTH_KEY__" --advertise-exit-node --hostname=tailscale-exit
+
+  # Log success
+  - echo "Tailscale configured successfully as exit node" | tee /root/tailscale-setup.log
+  - 'echo "Hostname: tailscale-exit" >> /root/tailscale-setup.log'
+  - 'echo "Exit node advertised: yes" >> /root/tailscale-setup.log'
+  - 'echo "Setup completed at: $(date)" >> /root/tailscale-setup.log'
+
+  # Configure UFW (belt and suspenders - Hetzner firewall is primary)
+  - ufw allow 22/tcp comment 'SSH'
+  - ufw allow 41641/udp comment 'Tailscale'
+  - ufw --force enable
+
+  # Create a helpful MOTD
+  - |
+    cat > /etc/motd <<'EOF'
+
+    ╔═══════════════════════════════════════════════════════════╗
+    ║         Tailscale Exit Node - Avalanche Project          ║
+    ╚═══════════════════════════════════════════════════════════╝
+
+    This server is configured as a Tailscale exit node.
+
+    Useful commands:
+      - tailscale status       : Check Tailscale connection status
+      - tailscale netcheck     : Check network connectivity
+      - tailscale ping <host>  : Ping another Tailscale device
+      - journalctl -u tailscaled -f : View Tailscale logs
+
+    Exit node configuration:
+      - IP forwarding: Enabled
+      - Advertised as exit node: Yes
+      - Hostname: tailscale-exit
+
+    Remember to approve this node as an exit node in:
+    https://login.tailscale.com/admin/machines
+
+    EOF
+
+# Reboot after setup to ensure all changes take effect
+power_state:
+  mode: reboot
+  timeout: 300
+  condition: True
