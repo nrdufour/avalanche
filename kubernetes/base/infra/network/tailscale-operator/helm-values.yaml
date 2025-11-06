@@ -1,0 +1,43 @@
+---
+# Tailscale Kubernetes Operator Helm Values
+# Docs: https://tailscale.com/kb/1236/kubernetes-operator
+
+# OAuth credentials are provided via ExternalSecret
+# See oauth-secret-es.yaml which creates the 'operator-oauth' secret
+# The operator will automatically use this pre-existing secret
+
+apiServer:
+  mode: true
+
+# OAuth section left empty - operator uses pre-existing 'operator-oauth' secret
+oauth: {}
+
+operatorConfig:
+  logging: "info"
+  # Default tags for all Tailscale devices created by the operator
+  defaultTags:
+    - tag:k8s
+
+# Pod security
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+
+# Resource limits
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi

@@ -9,6 +9,7 @@ resources:
   - security/bitwarden-store-app.yaml
   - network/ingress-nginx-internal-app.yaml
   - network/external-dns-app.yaml
+  - network/tailscale-operator-app.yaml
   - system/kube-vip-app.yaml
   - kyverno/kyverno-app.yaml
   - system/kured-app.yaml

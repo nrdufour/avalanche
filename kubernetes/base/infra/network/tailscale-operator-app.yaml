@@ -1,0 +1,29 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tailscale-operator
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - path: kubernetes/base/infra/network/tailscale-operator
+      repoURL: https://forge.internal/nemo/avalanche.git
+      targetRevision: HEAD
+      ref: values
+    - chart: tailscale-operator
+      repoURL: https://pkgs.tailscale.com/helmcharts
+      targetRevision: 1.78.3
+      helm:
+        releaseName: tailscale-operator
+        valueFiles:
+          - $values/kubernetes/base/infra/network/tailscale-operator/helm-values.yaml
+  destination:
+    namespace: network
+    name: 'in-cluster'
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
