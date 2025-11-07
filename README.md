@@ -176,9 +176,9 @@ See [docs/migration/](docs/migration/) for detailed migration documentation.
 ## Previous Repositories
 
 Historical reference (now archived):
-- snowy: `/home/ndufour/Documents/code/projects/ops/snowy`
-- snowpea: `/home/ndufour/Documents/code/projects/ops/snowpea`
-- home-ops: `/home/ndufour/Documents/code/projects/ops/home-ops`
+- snowy: <https://github.com/nrdufour/snowy>
+- snowpea: <https://github.com/nrdufour/snowpea>
+- home-ops: <https://github.com/nrdufour/home-ops>
 
 ## The Story
 
