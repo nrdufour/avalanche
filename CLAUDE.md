@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Avalanche is a unified infrastructure-as-code monorepo managing 15+ NixOS hosts (ARM SBCs, x86 servers, and workstations) plus a Kubernetes cluster using GitOps. This consolidates configurations from previously separate repositories (snowy, snowpea, home-ops).
+Avalanche is a unified infrastructure-as-code monorepo managing 16 NixOS hosts (ARM SBCs, x86 servers, and workstations) plus a Kubernetes cluster using GitOps. This consolidates configurations from previously separate repositories (snowy, snowpea, home-ops).
 
 ## Architecture
 
@@ -123,7 +123,7 @@ flux get kustomizations
 
 ## Infrastructure Details
 
-### NixOS Hosts (15 total)
+### NixOS Hosts (16 total)
 - **Workstation**: calypso (ASUS ROG Strix, from snowy)
 - **Infrastructure**: mysecrets (step-ca, Vaultwarden, Kanidm), eagle (Forgejo), possum (Garage S3, backups)
 - **x86 Servers**: beacon, routy, cardinal
