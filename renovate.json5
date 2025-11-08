@@ -11,31 +11,26 @@
     ':skipStatusChecks',
     ':timezone(America/New_York)',
   ],
-  // Nix is disabled - flake.lock updates handled by Forgejo workflow
   nix: {
     enabled: false,
   },
-  // ArgoCD Application manifests
   argocd: {
     managerFilePatterns: [
       '/(^|/)kubernetes/base/.+-app\\.yaml$/',
       '/(^|/)kubernetes/clusters/.+-app\\.yaml$/',
     ],
   },
-  // Flux Kustomizations (legacy, being migrated to ArgoCD)
   flux: {
     managerFilePatterns: [
       '/(^|/)kubernetes/kubernetes/.+\\.yaml$/',
     ],
   },
-  // Helm chart values files
   'helm-values': {
     managerFilePatterns: [
       '/(^|/)kubernetes/base/.+/helm-values\\.yaml$/',
       '/(^|/)kubernetes/kubernetes/.+\\.yaml$/',
     ],
   },
-  // Kubernetes manifests
   kubernetes: {
     managerFilePatterns: [
       '/(^|/)\\.justfiles/.+\\.yaml$/',
@@ -76,9 +71,11 @@
     {
       customType: 'regex',
       description: 'Update Docker images in Nix files with let bindings',
-      fileMatch: ['\\.nix$'],
+      managerFilePatterns: [
+        '/\\.nix$/',
+      ],
       matchStrings: [
-        '\\s+image\\s*=\\s*"(?<depName>[^:]+):(?<currentValue>[^@]+)@(?<currentDigest>sha256:[a-f0-9]+)"'
+        '\\s+image\\s*=\\s*"(?<depName>[^:]+):(?<currentValue>[^@]+)@(?<currentDigest>sha256:[a-f0-9]+)"',
       ],
       datasourceTemplate: 'docker',
       versioningTemplate: 'docker',
