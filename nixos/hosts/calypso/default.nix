@@ -19,6 +19,9 @@
     # Allow SSH through firewall
     services.openssh.openFirewall = true;
 
+    # Disabling the firewall for now til the experiments are done
+    networking.firewall.enable = false;
+
     sops = {
         defaultSopsFile = ../../../secrets/calypso/secrets.sops.yaml;
         secrets = {
