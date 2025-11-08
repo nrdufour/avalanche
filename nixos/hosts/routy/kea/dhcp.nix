@@ -229,7 +229,7 @@ in
               }
               {
                 hostname = "calypso-rtx";
-                ip-address = "10.1.0.80";
+                ip-address = "10.1.0.75";
                 hw-address = "fc:34:97:4d:0f:7d";
               }
             ];
