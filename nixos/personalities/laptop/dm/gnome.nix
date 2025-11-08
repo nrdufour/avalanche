@@ -14,7 +14,7 @@
             displayManager.gdm = {
                 enable = true;
                 wayland = true;
-                autoSuspend = true;
+                autoSuspend = false;
             };
         };
         geoclue2.enable = true;
