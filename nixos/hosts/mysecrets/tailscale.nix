@@ -11,16 +11,21 @@
     authKeyFile = config.sops.secrets."tailscale_auth_key".path;
   };
 
-  # Disable Tailscale DNS - critical infrastructure should use local DNS
-  systemd.services.tailscale-disable-dns = {
-    description = "Disable Tailscale DNS for critical infrastructure";
+  # Configure Tailscale settings - critical infrastructure should use local DNS/routes
+  systemd.services.tailscale-config = {
+    description = "Configure Tailscale for critical infrastructure";
     after = [ "tailscaled.service" ];
     wants = [ "tailscaled.service" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
-      ExecStart = "${pkgs.tailscale}/bin/tailscale set --accept-dns=false";
+      ExecStart = pkgs.writeShellScript "tailscale-config" ''
+        # Don't accept DNS from Tailscale
+        ${pkgs.tailscale}/bin/tailscale set --accept-dns=false
+        # Don't accept subnet routes from other nodes
+        ${pkgs.tailscale}/bin/tailscale set --accept-routes=false
+      '';
     };
   };
 
