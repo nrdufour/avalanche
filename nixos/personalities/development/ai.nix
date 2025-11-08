@@ -23,8 +23,8 @@
     };
   };
 
-  # Ollama UI at port 3000
-  services.nextjs-ollama-llm-ui.enable = true;
+  # Open Web UI at port 8080
+  services.open-webui.enable = true;
 
   # Nginx proxy for Ollama UI
   services.nginx = {
@@ -37,7 +37,7 @@
     virtualHosts."ollama.internal" = {
       forceSSL = true;
       enableACME = true;
-      locations."/".proxyPass = "http://localhost:3000";
+      locations."/".proxyPass = "http://localhost:8080";
     };
   };
 
