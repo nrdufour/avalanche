@@ -16,6 +16,9 @@
 
     networking.hostName = "calypso";
 
+    # Allow SSH through firewall
+    services.openssh.openFirewall = true;
+
     sops = {
         defaultSopsFile = ../../../secrets/calypso/secrets.sops.yaml;
         secrets = {
