@@ -25,6 +25,23 @@
 
   # Ollama UI at port 3000
   services.nextjs-ollama-llm-ui.enable = true;
+
+  # Nginx proxy for Ollama UI
+  services.nginx = {
+    enable = true;
+    recommendedGzipSettings = true;
+    recommendedOptimisation = true;
+    recommendedProxySettings = true;
+    recommendedTlsSettings = true;
+
+    virtualHosts."ollama.internal" = {
+      forceSSL = true;
+      enableACME = true;
+      locations."/".proxyPass = "http://localhost:3000";
+    };
+  };
+
+  security.acme.certs."ollama.internal" = {};
   
   environment.systemPackages = with pkgs; [
     # Adding llama-cpp as is first to experiment
