@@ -73,9 +73,8 @@
       ],
       datasourceTemplate: 'docker',
     },
-  ],
-  regexManagers: [
     {
+      customType: 'regex',
       description: 'Update Docker images in Nix files with let bindings',
       fileMatch: ['\\.nix$'],
       matchStrings: [
@@ -130,7 +129,9 @@
     },
     {
       description: 'Limit actions/checkout to v4 for current Forgejo runners',
-      matchPackageNames: ['actions/checkout'],
+      matchPackageNames: [
+        'actions/checkout',
+      ],
       allowedVersions: '<5.0.0',
       automerge: false,
     },
