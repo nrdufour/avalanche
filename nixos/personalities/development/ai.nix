@@ -46,7 +46,14 @@
     virtualHosts."ollama.internal" = {
       forceSSL = true;
       enableACME = true;
-      locations."/".proxyPass = "http://localhost:8080";
+      locations."/" = {
+        proxyPass = "http://localhost:8080";
+        proxyWebsockets = true;
+      };
+      locations."/ws/" = {
+        proxyPass = "http://localhost:8080/ws/";
+        proxyWebsockets = true;
+      };
     };
   };
 
