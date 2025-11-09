@@ -1,6 +1,7 @@
 {
   pkgs,
   config,
+  lib,
   ...
 }:
 {
@@ -37,11 +38,11 @@
     };
   };
 
-  # Override open-webui service to disable private state directory
-  # and use /var/lib/open-webui directly instead
+  # Override open-webui service to use /var/lib/open-webui instead of /var/lib/private
   systemd.services.open-webui = {
     serviceConfig = {
-      StateDirectory = null;
+      StateDirectory = lib.mkForce "open-webui";
+      StateDirectoryMode = "0700";
       UMask = "0077";
     };
   };
