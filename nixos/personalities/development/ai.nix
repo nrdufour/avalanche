@@ -1,7 +1,6 @@
 {
   pkgs,
   config,
-  lib,
   ...
 }:
 {
@@ -27,8 +26,6 @@
   # Open Web UI at port 8080
   services.open-webui = {
     enable = true;
-    package = pkgs.unstable.open-webui;
-    openFirewall = true;
     environment = {
       ANONYMIZED_TELEMETRY = "False";
       DO_NOT_TRACK = "True";
@@ -37,28 +34,6 @@
       OLLAMA_BASE_URL = "http://127.0.0.1:11434";
     };
   };
-
-  # Override open-webui service to use /var/lib/open-webui instead of /var/lib/private
-  systemd.services.open-webui = {
-    serviceConfig = {
-      StateDirectory = lib.mkForce "open-webui";
-      StateDirectoryMode = "0700";
-      UMask = "0077";
-    };
-  };
-
-  # Create open-webui user
-  users.users.open-webui = {
-    isSystemUser = true;
-    group = "open-webui";
-  };
-
-  users.groups.open-webui = {};
-
-  # Ensure the data directory exists with proper permissions
-  systemd.tmpfiles.rules = [
-    "d /var/lib/open-webui 0700 open-webui open-webui - -"
-  ];
 
   # Nginx proxy for Ollama UI
   services.nginx = {
@@ -83,7 +58,7 @@
   };
 
   security.acme.certs."ollama.internal" = {};
-  
+
   environment.systemPackages = with pkgs; [
     # Adding llama-cpp as is first to experiment
     llama-cpp
