@@ -32,26 +32,24 @@
       ANONYMIZED_TELEMETRY = "False";
       DO_NOT_TRACK = "True";
       SCARF_NO_ANALYTICS = "True";
-      DATA_DIR = "/var/lib/open-webui";
       OLLAMA_API_BASE_URL = "http://127.0.0.1:11434/api";
       OLLAMA_BASE_URL = "http://127.0.0.1:11434";
     };
   };
 
-  # Ensure open-webui data directory has correct permissions
+  # Override open-webui service to disable private state directory
+  # and use /var/lib/open-webui directly instead
   systemd.services.open-webui = {
     serviceConfig = {
-      ReadWritePaths = [ "/var/lib/open-webui" ];
+      StateDirectory = null;
       UMask = "0077";
     };
   };
 
-  # Create open-webui user and ensure data directory ownership
+  # Create open-webui user
   users.users.open-webui = {
     isSystemUser = true;
     group = "open-webui";
-    home = "/var/lib/open-webui";
-    createHome = true;
   };
 
   users.groups.open-webui = {};
