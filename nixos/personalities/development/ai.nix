@@ -41,8 +41,24 @@
   systemd.services.open-webui = {
     serviceConfig = {
       ReadWritePaths = [ "/var/lib/open-webui" ];
+      UMask = "0077";
     };
   };
+
+  # Create open-webui user and ensure data directory ownership
+  users.users.open-webui = {
+    isSystemUser = true;
+    group = "open-webui";
+    home = "/var/lib/open-webui";
+    createHome = true;
+  };
+
+  users.groups.open-webui = {};
+
+  # Ensure the data directory exists with proper permissions
+  systemd.tmpfiles.rules = [
+    "d /var/lib/open-webui 0700 open-webui open-webui - -"
+  ];
 
   # Nginx proxy for Ollama UI
   services.nginx = {
