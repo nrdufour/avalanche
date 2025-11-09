@@ -26,6 +26,7 @@
   # Open Web UI at port 8080
   services.open-webui = {
     enable = true;
+    package = pkgs.unstable.open-webui;
     environment = {
       ANONYMIZED_TELEMETRY = "False";
       DO_NOT_TRACK = "True";
