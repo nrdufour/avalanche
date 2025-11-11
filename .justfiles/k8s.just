@@ -58,3 +58,38 @@ k8s-bootstrap cluster="main":
     kubectl --context {{cluster}} apply --server-side --kustomize {{kubernetes_dir}}/kubernetes/{{cluster}}/flux/config
 
     echo "Bootstrap complete!"
+
+# Force all ExternalSecrets to immediately refresh (clear sync time to trigger refresh)
+k8s-force-es-refresh:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    echo "Forcing all ExternalSecrets to refresh..."
+
+    # Get all ExternalSecrets across all namespaces
+    kubectl get externalsecrets --all-namespaces -o json | \
+        jq -r '.items[] | "\(.metadata.namespace) \(.metadata.name)"' | \
+        while read namespace name; do
+            echo "Refreshing $namespace/$name..."
+            # Patch the ExternalSecret to trigger immediate refresh by updating the spec
+            kubectl patch externalsecret "$name" -n "$namespace" \
+                --type merge -p '{"metadata":{"annotations":{"force-refresh":"'"$(date +%s)"'"}}}'
+        done
+
+    echo "All ExternalSecrets refresh triggered!"
+
+# Check status of all ExternalSecrets and their last refresh times
+k8s-check-es-status:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    echo "Checking ExternalSecrets status..."
+    echo ""
+
+    # Get all ExternalSecrets with their status information
+    kubectl get externalsecrets --all-namespaces \
+        -o custom-columns=NAMESPACE:.metadata.namespace,NAME:.metadata.name,STATUS:.status.conditions[0].type,READY:.status.conditions[0].status,REASON:.status.conditions[0].reason,LAST_CHECK:.status.lastCheck --sort-by=.metadata.namespace
+
+    echo ""
+    echo "For detailed status of a specific ExternalSecret, use:"
+    echo "  kubectl describe externalsecret <name> -n <namespace>"
