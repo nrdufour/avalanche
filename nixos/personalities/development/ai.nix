@@ -61,7 +61,7 @@
 
   environment.systemPackages = with pkgs; [
     # Let's try this little guy as well ;)
-    vllm
+    # vllm
 
     # Adding llama-cpp as is first to experiment
     llama-cpp
