@@ -13,6 +13,7 @@
       ./omada-controller.nix
       ./adguardhome
       ./tailscale.nix
+      ./android16-fix.nix
     ];
 
   networking.domain = "internal";
