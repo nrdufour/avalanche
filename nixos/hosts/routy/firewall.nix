@@ -142,6 +142,11 @@
       # ------------------------------
       # Log suspicious activity (rate limited to avoid log spam)
       iifname "wan0" limit rate 10/minute burst 5 packets log prefix "WAN-SUSPICIOUS: " level warn
+
+      # ------------------------------
+      # Fix for Android 16 rejecting DSCP CS5 marked packets from fly.dev
+      # Clear DSCP/ToS on packets from fly.dev IP ranges to tablet
+      ip saddr { 66.241.124.0/24, 199.38.181.0/24, 209.177.145.0/24 } ip dscp set cs0
     '';
   };
 
