@@ -73,7 +73,25 @@ All foundation work is complete and flake validation passes.
 
 **Objective**: Make NPU available to K3s worker nodes
 
-**STATUS**: ⏳ PENDING - Next phase
+**STATUS**: 🚫 BLOCKED - Kernel RKNPU Driver Not Enabled
+
+**BLOCKER** (discovered 2025-11-15):
+The Linux 6.17 kernel on opi01-03 does NOT have RKNPU driver support compiled in.
+- No `/dev/rknpu*` devices present
+- `CONFIG_ROCKCHIP_RKNPU` not in kernel config
+- See `docs/rknn-investigation-findings.md` § 3 for details and solution paths
+
+**Solution required before Phase 2 can proceed:**
+- Option A: Enable RKNPU in standard nixpkgs kernel (requires kernel config modification)
+- Option B: Switch to custom vendor kernel with RKNPU enabled
+- Option C: Build out-of-tree RKNPU module (complex, not recommended)
+
+**Blocking tasks:**
+1. Decide on kernel solution approach
+2. Implement kernel changes (whichever option chosen)
+3. Rebuild and redeploy to opi01-03
+4. Verify `/dev/rknpu*` devices appear
+5. Resume Phase 2 integration
 
 #### 2.1 Integrate into K3s Worker Profile
 - [ ] Update `nixos/profiles/role-k3s-worker.nix` OR create variant

@@ -138,6 +138,8 @@ The RKNPU driver is typically:
 
 File: `nixos/profiles/hw-orangepi5plus.nix`
 
+**Current kernel**: Linux 6.17 (standard nixpkgs `linux_6_17`)
+
 **Current hardware setup** (lines 16-24):
 ```nix
 services.udev.extraRules = ''
@@ -150,11 +152,59 @@ services.udev.extraRules = ''
 
 **Integration point**: Add similar udev rules for `/dev/rknpu*` devices here or in the RKNN module.
 
-### Kernel Module Status
+### ⚠️ CRITICAL BLOCKER: Kernel RKNPU Driver Not Enabled
 
-**Lines 88-104** show `initrd.availableKernelModules` - RKNPU is not currently listed (probably built-in).
+**Problem**: The current Linux 6.17 kernel on opi01-03 **does NOT have RKNPU driver support compiled in**.
 
-**Recommendation**: Add to `boot.kernelModules` in RKNN module if needed.
+**Verification** (2025-11-15):
+```
+opi01:~$ cat /proc/config.gz | gunzip | grep -i rknpu
+# No output - RKNPU not in kernel config
+
+opi01:~$ ls -la /dev/rknpu*
+# No such devices
+
+opi01:~$ cat /proc/device-tree/compatible
+# Confirms RK3588 hardware is present
+```
+
+**Root Cause**:
+- Standard nixpkgs `linux_6_17` kernel doesn't enable RKNPU by default
+- NixOS kernel configurations need explicit enablement
+- Device drivers for specialized hardware (NPU) are typically not enabled in generic kernels
+
+### Solution Paths
+
+To enable RKNPU support, choose one:
+
+**Option A: Enable in Standard Kernel (Recommended)**
+- Modify nixpkgs kernel configuration to enable `CONFIG_ROCKCHIP_RKNPU=y`
+- Requires either:
+  1. NixOS kernel config option (if available in nixpkgs)
+  2. Custom kernel patch
+  3. Use nixpkgs `linuxManualConfig` to customize kernel
+
+**Option B: Custom Vendor Kernel**
+- Use Rockchip's official vendor kernel with RKNPU pre-enabled
+- Already available in the codebase (commented out in hw-orangepi5plus.nix):
+  ```nix
+  # kernelPackages = pkgs.linuxPackagesFor (pkgs.callPackage ../pkgs/kernel/vendor.nix {});
+  ```
+- Risk: May lack latest security patches, but has hardware support
+
+**Option C: Out-of-Tree Kernel Module**
+- Build RKNPU driver as external kernel module
+- Complex, may have version conflicts
+- Not recommended without Option A/B as fallback
+
+### Next Steps for Phase 2
+
+Phase 2 integration is blocked until kernel RKNPU support is enabled. Must:
+1. Investigate kernel configuration options available in nixpkgs
+2. Either patch standard kernel OR switch to vendor kernel
+3. Rebuild and redeploy to opi01-03
+4. Re-verify with: `cat /proc/config.gz | gunzip | grep CONFIG_ROCKCHIP_RKNPU`
+5. Test NPU device appears: `ls -l /dev/rknpu*`
 
 ## 4. Implementation Strategy & Packaging Approach
 
