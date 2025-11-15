@@ -239,3 +239,7 @@ sudo kanidm group add-members <groupname> <username> --name idm_admin
 - **Always** test NixOS changes locally before `nix-deploy-all`
 - **Remember** hosts are accessed via `<hostname>.internal` (Tailscale DNS)
 - Kubernetes kubeconfig uses kube-vip VIP (10.1.0.5), not individual controller IPs
+
+### Android 16 & DSCP Marking Fix (routy)
+
+**Note**: routy applies a global DSCP clearing rule (`nixos/hosts/routy/android16-fix.nix`) that resets all DSCP markings to cs0 on the FORWARD chain. This was implemented to resolve Android 16 strict packet validation that rejects non-cs0 DSCP markings (affecting fly.dev, CDNs, and other services on port 443). While DSCP is largely ignored by ISPs and has minimal impact on home networks, be aware that this affects all traffic passing through routy and may have subtle impacts on QoS if explicitly configured elsewhere in the network.

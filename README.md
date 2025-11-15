@@ -147,6 +147,12 @@ flux get kustomizations
 - **K3s**: Lightweight Kubernetes distribution
 - **Just**: Command runner for deployment automation
 
+## Known Issues & Workarounds
+
+### Android 16 HTTPS Connectivity
+
+If you experience intermittent HTTPS failures (port 443) on Android 16 devices with services like fly.dev, CDNs, or other providers, this may be due to Android 16's stricter validation of DSCP (Differentiated Services Code Point) packet markings. The router (routy) includes a global DSCP clearing rule that normalizes all packets to cs0, resolving this issue. This is a network-wide mitigation that should be transparent to most users.
+
 ## Migration & Deployment Status
 
 **Phase 1: Migration** ✅ **COMPLETE**
