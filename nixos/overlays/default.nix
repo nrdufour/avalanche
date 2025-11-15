@@ -11,4 +11,9 @@
       config.allowUnfree = true;
     };
   };
+
+  # RKNN packages for NPU support on RK3588
+  rknn-packages = final: _prev: {
+    rknn = final.callPackage ../pkgs/rknn { };
+  };
 }

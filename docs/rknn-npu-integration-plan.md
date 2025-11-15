@@ -18,35 +18,62 @@ This document tracks the integration of Rockchip NPU (Neural Processing Unit) su
 - Enable opt-in NPU access for Kubernetes workloads
 - No immediate use cases; foundation for future development
 
+## Progress Status
+
+### ✅ Phase 1: COMPLETE (2025-11-15)
+
+All foundation work is complete and flake validation passes.
+
+**Completed:**
+- [x] Design Architecture - See `docs/rknn-nix-module-design.md`
+- [x] Investigation & Findings - See `docs/rknn-investigation-findings.md`
+- [x] Create `nixos/pkgs/rknn/runtime.nix` - librknnrt.so + headers from EZRKNN-Toolkit2
+- [x] Create `nixos/pkgs/rknn/toolkit-lite.nix` - Python 3.12 wheel + dependencies
+- [x] Create `nixos/pkgs/rknn/default.nix` - Meta-package
+- [x] Create `nixos/modules/nixos/rknn.nix` - Full NixOS module with:
+  - Conditional enable flag (hardware-safe)
+  - Selective component installation
+  - Device permissions via udev rules
+  - Kernel module loading support
+  - LD_LIBRARY_PATH configuration
+  - aarch64-only guard
+- [x] Add RKNN overlay to `nixos/overlays/default.nix`
+- [x] Register RKNN module in `nixos/modules/nixos/default.nix`
+- [x] Validate with `nix flake check` - All 16 hosts pass ✅
+
 ## Implementation Plan
 
 ### Phase 1: Foundation - Nix Packaging & Module
 
 **Objective**: Get RKNN components packaged in Nix and create a reusable module
 
+**STATUS**: ✅ COMPLETE
+
 #### 1.1 Design Architecture
-- [ ] Determine packaging strategy (pre-built binaries vs. building from source)
-- [ ] Plan library/header installation strategy
-- [ ] Design Python bindings packaging approach
-- [ ] Document dependency tree and system requirements
+- [x] Determine packaging strategy (pre-built binaries vs. building from source)
+- [x] Plan library/header installation strategy
+- [x] Design Python bindings packaging approach
+- [x] Document dependency tree and system requirements
 
 #### 1.2 Create Nix Packages
-- [ ] Create `rknn-runtime` package (RKNN library and headers)
-- [ ] Create `rknn-toolkit-lite` package (Python inference library)
-- [ ] Package supporting tools (RKNN benchmark, utilities)
-- [ ] Handle architecture-specific binaries (aarch64 only)
+- [x] Create `rknn-runtime` package (RKNN library and headers)
+- [x] Create `rknn-toolkit-lite` package (Python inference library)
+- [x] Package supporting tools (RKNN benchmark, utilities)
+- [x] Handle architecture-specific binaries (aarch64 only)
 
 #### 1.3 Create NixOS Module
-- [ ] Create `nixos/modules/nixos/rknn.nix`
+- [x] Create `nixos/modules/nixos/rknn.nix`
   - Package installation
   - Environment variable setup
   - Kernel driver configuration (if needed)
   - Configuration options (enable/disable, core selection)
-- [ ] Integration hooks for hardware profiles
+- [x] Integration hooks for hardware profiles
 
 ### Phase 2: Integration into Orange Pi Profile
 
 **Objective**: Make NPU available to K3s worker nodes
+
+**STATUS**: ⏳ PENDING - Next phase
 
 #### 2.1 Integrate into K3s Worker Profile
 - [ ] Update `nixos/profiles/role-k3s-worker.nix` OR create variant
@@ -64,6 +91,8 @@ This document tracks the integration of Rockchip NPU (Neural Processing Unit) su
 ### Phase 3: Kubernetes Integration
 
 **Objective**: Enable K8s workloads to use the NPU
+
+**STATUS**: ⏳ PENDING - After Phase 2
 
 #### 3.1 Research NPU Device Access
 - [ ] Investigate Kubernetes device plugin architecture
@@ -84,6 +113,8 @@ This document tracks the integration of Rockchip NPU (Neural Processing Unit) su
 ### Phase 4: Documentation
 
 **Objective**: Document for future reference and community contribution
+
+**STATUS**: ⏳ PENDING - Ongoing
 
 #### 4.1 Document Usage
 - [ ] Write "RKNN Module Usage Guide"
