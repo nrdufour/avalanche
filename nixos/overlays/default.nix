@@ -12,6 +12,9 @@
     };
   };
 
+  # Linux kernel with RKNPU driver support for RK3588 devices
+  linux-rknpu = import ./linux-rknpu.nix;
+
   # RKNN packages for NPU support on RK3588
   rknn-packages = final: _prev: {
     rknn = final.callPackage ../pkgs/rknn { };
