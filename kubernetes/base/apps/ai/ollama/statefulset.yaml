@@ -66,22 +66,9 @@ spec:
                   - /bin/sh
                   - -c
                   - |
-                    echo "Waiting for Ollama API to be ready..."
-                    for i in {1..60}; do
-                      if curl -f http://localhost:11434/api/tags > /dev/null 2>&1; then
-                        echo "Ollama API is ready!"
-                        break
-                      fi
-                      echo "Attempt $i: API not ready yet"
-                      sleep 2
-                    done
                     echo "Pulling TinyLlama model in background..."
-                    curl -X POST http://localhost:11434/api/pull \
-                      -H "Content-Type: application/json" \
-                      -d '{"name": "tinyllama"}' \
-                      --max-time 600 \
-                      > /dev/null 2>&1 &
-                    echo "Model pull request sent"
+                    ollama pull tinyllama > /dev/null 2>&1 &
+                    echo "Model pull started"
           livenessProbe:
             httpGet:
               path: /api/tags
