@@ -75,11 +75,13 @@ spec:
                       echo "Attempt $i: API not ready yet"
                       sleep 2
                     done
-                    echo "Pulling TinyLlama model..."
+                    echo "Pulling TinyLlama model in background..."
                     curl -X POST http://localhost:11434/api/pull \
                       -H "Content-Type: application/json" \
                       -d '{"name": "tinyllama"}' \
-                      -N || echo "Model pull initiated"
+                      --max-time 600 \
+                      > /dev/null 2>&1 &
+                    echo "Model pull request sent"
           livenessProbe:
             httpGet:
               path: /api/tags
