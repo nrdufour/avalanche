@@ -9,7 +9,7 @@ spec:
     - repoURL: https://forge.internal/nemo/avalanche.git
       targetRevision: HEAD
       ref: values
-    - repoURL: oci://quay.io/jetstack/cert-manager
+    - repoURL: oci://quay.io/jetstack/charts/cert-manager
       targetRevision: v1.19.1
       path: .
       helm:
