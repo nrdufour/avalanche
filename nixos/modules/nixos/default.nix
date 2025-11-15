@@ -1,7 +1,6 @@
 { lib, config, ... }: {
 
   imports = [
-    ./rknn.nix
     ./security
     ./services
     ./system
