@@ -19,9 +19,13 @@
         KERNEL=="event[0-9]*", SUBSYSTEM=="input", MODE="0660", GROUP="input"
     '';
 
-    # Ensure the 'input' group exists and add user to it
+    # Ensure input/video groups exist and add user to them
+    # input: for /dev/uinput access (input injection)
+    # video: for /dev/dri/* access (GPU frame capture for Remote Play)
     users.groups.input = {};
+    users.groups.video = {};
     users.extraGroups.input.members = [ "ndufour" ];
+    users.extraGroups.video.members = [ "ndufour" ];
 
     environment.systemPackages = with pkgs; [
         # Lutris platform
