@@ -11,6 +11,18 @@
     programs.gamemode.enable = true;
     programs.gamescope.enable = true;
 
+    # Sunshine: open-source remote play server for Moonlight clients
+    services.sunshine = {
+        enable = true;
+        autoStart = true;
+        capSysAdmin = true;
+        openFirewall = true;
+    };
+
+    # Avahi for Sunshine mDNS discovery
+    services.avahi.publish.enable = true;
+    services.avahi.publish.userServices = true;
+
     # Allow Steam to access input devices for remote play
     # /dev/uinput: for injecting input events
     # /dev/input/event*: for reading input events
@@ -34,8 +46,8 @@
 
         # for minecraft
         prismlauncher
-        
-        (atlauncher.override { 
+
+        (atlauncher.override {
             additionalLibs = [
                 xorg.libX11
                 xorg.libXcursor
