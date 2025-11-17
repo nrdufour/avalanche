@@ -13,5 +13,5 @@
   ];
 
   hardware.rtl-sdr.enable = true;
-  users.users.ndufour.extraGroups = [ "plugdev" ];
+  users.extraGroups.plugdev.members = [ "ndufour" ];
 }

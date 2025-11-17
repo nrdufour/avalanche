@@ -6,8 +6,8 @@
     virtualisation.libvirtd.enable = true;
     programs.virt-manager.enable = true;
 
-    # Make sure any users are included to vboxusers
-    users.users.ndufour.extraGroups = [ "libvirtd" ];
+    # Make sure any users are included to libvirtd
+    users.extraGroups.libvirtd.members = [ "ndufour" ];
 
     environment.systemPackages = with pkgs; [
         # Needed to simulate a TPM for windows 11 ...

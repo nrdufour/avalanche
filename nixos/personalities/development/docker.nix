@@ -2,6 +2,6 @@
 
   virtualisation.docker.enable = true;
 
-  users.users.ndufour.extraGroups = [ "docker" ];
+  users.extraGroups.docker.members = [ "ndufour" ];
 
 }
