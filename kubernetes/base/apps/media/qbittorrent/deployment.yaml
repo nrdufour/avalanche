@@ -116,7 +116,7 @@ spec:
 
         # Gluetun VPN sidecar
         - name: gluetun
-          image: ghcr.io/qdm12/gluetun:v3.40.2
+          image: ghcr.io/qdm12/gluetun:v3.40.1
           ports:
             - name: gluetun-http
               containerPort: 9999
