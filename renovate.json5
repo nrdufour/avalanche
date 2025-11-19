@@ -145,5 +145,16 @@
       allowedVersions: '<7.0.0',
       automerge: false,
     },
+    {
+      description: 'Block gluetun v3.40.2+ (breaks credential handling)',
+      matchDatasources: [
+        'docker',
+      ],
+      matchPackageNames: [
+        'ghcr.io/qdm12/gluetun',
+      ],
+      allowedVersions: '<3.40.2',
+      enabled: true,
+    },
   ],
 }
