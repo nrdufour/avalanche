@@ -10,6 +10,7 @@ on:
 jobs:
   build:
     runs-on: native
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v6
@@ -20,14 +21,12 @@ jobs:
 
       - run: nix flake update
 
-      - uses: stefanzweifel/git-auto-commit-action@v6
-        with:
-          commit_message: Bump flake.lock
-          branch: main
-          commit_options: '--no-verify --signoff'
-          file_pattern: flake.lock
-          commit_user_name: Flake Bot
-          commit_user_email: flakebot@ptinem.casa
-          commit_author: Flake Bot <flakebot@ptinem.casa>
-          skip_dirty_check: false    
-          skip_fetch: true
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "flakebot@ptinem.casa"
+          git config --local user.name "Flake Bot"
+          git add flake.lock
+          git diff --quiet && git diff --staged --quiet || (
+            git commit --no-verify --signoff -m "Bump flake.lock"
+            git push
+          )
