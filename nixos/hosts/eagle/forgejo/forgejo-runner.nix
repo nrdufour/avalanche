@@ -9,7 +9,7 @@
     lazydocker
     lazygit
     git
-    nodejs_24 # required by actions such as checkout
+    nodejs_22 # required by actions such as checkout
     openssl
   ];
 
@@ -87,7 +87,7 @@
           nixVersions.stable
           gitFull
           gnused
-          nodejs_24
+          nodejs_22
           wget
           docker
           gnutar
@@ -141,7 +141,7 @@
           nixVersions.stable
           gitFull
           gnused
-          nodejs_24
+          nodejs_22
           wget
           docker
           gnutar
