@@ -7,7 +7,6 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: ca-server-cluster-issuer
     cert-manager.io/common-name: radarr.internal
-    nginx.ingress.kubernetes.io/whitelist-source-range: 10.0.0.0/8
     gethomepage.dev/enabled: "true"
     gethomepage.dev/group: Media
     gethomepage.dev/name: Radarr

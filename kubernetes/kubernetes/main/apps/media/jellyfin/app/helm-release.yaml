@@ -80,7 +80,6 @@ spec:
           nginx.ingress.kubernetes.io/rewrite-target: /
           cert-manager.io/cluster-issuer: ca-server-cluster-issuer
           cert-manager.io/common-name: jellyfin.home.internal
-          nginx.ingress.kubernetes.io/whitelist-source-range: 10.0.0.0/8
         className: "nginx"
         hosts:
           - host: jellyfin.home.internal
