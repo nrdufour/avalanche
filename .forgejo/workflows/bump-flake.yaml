@@ -21,19 +21,14 @@ jobs:
 
       - run: nix flake update
 
-      - name: Commit and push changes
-        run: |
-          set -x  # Enable debug output
-          git config --local user.email "flakebot@ptinem.casa"
-          git config --local user.name "Flake Bot"
-          git add flake.lock
-          git diff --quiet && git diff --staged --quiet || (
-            git commit --no-verify --signoff -m "Bump flake.lock"
-            REMOTE_URL=$(git config --get remote.origin.url)
-            echo "Remote URL: $REMOTE_URL"
-            # Use SSH instead of HTTPS
-            ssh_url=$(echo "$REMOTE_URL" | sed 's|https://forge.internal/|ssh://git@forge.internal/|')
-            git remote set-url origin "$ssh_url"
-            git remote -v
-            timeout 60 git push || true
-          )
+      - uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: Bump flake.lock
+          branch: main
+          commit_options: '--no-verify --signoff'
+          file_pattern: flake.lock
+          commit_user_name: Flake Bot
+          commit_user_email: flakebot@ptinem.casa
+          commit_author: Flake Bot <flakebot@ptinem.casa>
+          skip_dirty_check: false    
+          skip_fetch: true
