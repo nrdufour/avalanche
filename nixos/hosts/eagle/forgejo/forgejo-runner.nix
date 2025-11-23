@@ -9,7 +9,7 @@
     lazydocker
     lazygit
     git
-    nodejs_22 # required by actions such as checkout
+    nodejs_24 # required by actions such as checkout
     openssl
   ];
 
@@ -76,7 +76,7 @@
         tokenFile = config.sops.secrets.forgejo_runner_token.path;
         labels = [
           "native:host"
-          "docker:docker://node:22-bookworm"
+          "docker:docker://node:24-bookworm"
         ];
         hostPackages = with pkgs; [
           bash
@@ -87,7 +87,7 @@
           nixVersions.stable
           gitFull
           gnused
-          nodejs_22
+          nodejs_24
           wget
           docker
           gnutar
@@ -130,7 +130,7 @@
         tokenFile = config.sops.secrets.forgejo_runner_token.path;
         labels = [
           "native:host"
-          "docker:docker://node:22-bookworm"
+          "docker:docker://node:24-bookworm"
         ];
         hostPackages = with pkgs; [
           bash
@@ -141,7 +141,7 @@
           nixVersions.stable
           gitFull
           gnused
-          nodejs_22
+          nodejs_24
           wget
           docker
           gnutar
