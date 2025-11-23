@@ -16,6 +16,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          persist-credentials: true
 
       - uses: cachix/install-nix-action@v31
 
@@ -30,5 +31,4 @@ jobs:
           commit_user_name: Flake Bot
           commit_user_email: flakebot@ptinem.casa
           commit_author: Flake Bot <flakebot@ptinem.casa>
-          skip_dirty_check: false    
-          skip_fetch: true
+          skip_dirty_check: false
