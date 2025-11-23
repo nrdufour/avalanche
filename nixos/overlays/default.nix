@@ -1,5 +1,5 @@
 { inputs, ... }:
-(import ./forgejo.nix { inherit inputs; }) // {
+{
   # NUR overlay
   nur = inputs.nur.overlays.default;
 
