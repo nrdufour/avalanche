@@ -130,22 +130,6 @@
       automerge: true,
     },
     {
-      description: 'Limit actions/checkout to v4 for current Forgejo runners',
-      matchPackageNames: [
-        'actions/checkout',
-      ],
-      allowedVersions: '<5.0.0',
-      automerge: false,
-    },
-    {
-      description: 'Limit stefanzweifel/git-auto-commit-action to v6 for current Forgejo runners',
-      matchPackageNames: [
-        'stefanzweifel/git-auto-commit-action',
-      ],
-      allowedVersions: '<7.0.0',
-      automerge: false,
-    },
-    {
       description: 'Block gluetun v3.40.2+ (breaks credential handling)',
       matchDatasources: [
         'docker',
