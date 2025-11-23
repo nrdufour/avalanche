@@ -22,6 +22,8 @@ jobs:
       - run: nix flake update
 
       - name: Commit and push changes
+        env:
+          GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
         run: |
           git config --local user.email "flakebot@ptinem.casa"
           git config --local user.name "Flake Bot"
