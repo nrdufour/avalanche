@@ -29,6 +29,11 @@ jobs:
           git add flake.lock
           git diff --quiet && git diff --staged --quiet || (
             git commit --no-verify --signoff -m "Bump flake.lock"
+            REMOTE_URL=$(git config --get remote.origin.url)
+            echo "Remote URL: $REMOTE_URL"
+            # Use SSH instead of HTTPS
+            ssh_url=$(echo "$REMOTE_URL" | sed 's|https://forge.internal/|ssh://git@forge.internal/|')
+            git remote set-url origin "$ssh_url"
             git remote -v
             timeout 60 git push || true
           )
