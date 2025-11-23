@@ -22,13 +22,13 @@ jobs:
       - run: nix flake update
 
       - name: Commit and push changes
-        env:
-          GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
         run: |
+          set -x  # Enable debug output
           git config --local user.email "flakebot@ptinem.casa"
           git config --local user.name "Flake Bot"
           git add flake.lock
           git diff --quiet && git diff --staged --quiet || (
             git commit --no-verify --signoff -m "Bump flake.lock"
-            git push
+            git remote -v
+            timeout 60 git push || true
           )
