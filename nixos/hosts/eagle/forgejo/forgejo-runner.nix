@@ -53,10 +53,13 @@
 
             ## Allow some path to be mounted
             ## See https://gitea.com/gitea/act_runner/src/branch/main/internal/pkg/config/config.example.yaml#L87
-            valid_volumes = ["/etc/ssl/certs/*"];
+            valid_volumes = [
+              "/etc/ssl/certs/*"
+              "/var/lib/gitea-runner/first/home"
+            ];
 
             # Mount the ssl certs directly
-            options = "--volume /etc/ssl/certs/ca-bundle.crt:/etc/ssl/certs/ca-certificates.crt:ro";
+            options = "--volume /etc/ssl/certs/ca-bundle.crt:/etc/ssl/certs/ca-certificates.crt:ro --volume /var/lib/gitea-runner/first/home:/var/lib/gitea-runner/first/home";
           };
           host = {
             workdir_parent = "${gitea-runner-directory}/action-cache-dir";
@@ -110,10 +113,13 @@
             
             ## Allow some path to be mounted
             ## See https://gitea.com/gitea/act_runner/src/branch/main/internal/pkg/config/config.example.yaml#L87
-            valid_volumes = ["/etc/ssl/certs/*"];
+            valid_volumes = [
+              "/etc/ssl/certs/*"
+              "/var/lib/gitea-runner/second/home"
+            ];
 
             # Mount the ssl certs directly
-            options = "--volume /etc/ssl/certs/ca-bundle.crt:/etc/ssl/certs/ca-certificates.crt:ro";
+            options = "--volume /etc/ssl/certs/ca-bundle.crt:/etc/ssl/certs/ca-certificates.crt:ro --volume /var/lib/gitea-runner/second/home:/var/lib/gitea-runner/second/home";
           };
           host = {
             workdir_parent = "${gitea-runner-directory}/action-cache-dir";
