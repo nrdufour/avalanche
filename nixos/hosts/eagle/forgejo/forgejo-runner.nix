@@ -53,10 +53,10 @@
 
             ## Allow some path to be mounted
             ## See https://gitea.com/gitea/act_runner/src/branch/main/internal/pkg/config/config.example.yaml#L87
-            valid_volumes = ["/etc/ssl/certs"];
+            valid_volumes = ["/etc/ssl/certs/*"];
 
             # Mount the ssl certs directly
-            options = "--volume /etc/ssl/certs:/etc/ssl/certs:ro";
+            options = "--volume /etc/ssl/certs/ca-bundle.crt:/etc/ssl/certs/ca-certificates.crt:ro";
           };
           host = {
             workdir_parent = "${gitea-runner-directory}/action-cache-dir";
@@ -110,10 +110,10 @@
             
             ## Allow some path to be mounted
             ## See https://gitea.com/gitea/act_runner/src/branch/main/internal/pkg/config/config.example.yaml#L87
-            valid_volumes = ["/etc/ssl/certs"];
+            valid_volumes = ["/etc/ssl/certs/*"];
 
             # Mount the ssl certs directly
-            options = "--volume /etc/ssl/certs:/etc/ssl/certs:ro";
+            options = "--volume /etc/ssl/certs/ca-bundle.crt:/etc/ssl/certs/ca-certificates.crt:ro";
           };
           host = {
             workdir_parent = "${gitea-runner-directory}/action-cache-dir";
