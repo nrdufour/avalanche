@@ -22,7 +22,7 @@ jobs:
 
       - run: nix flake update
 
-      - uses: stefanzweifel/git-auto-commit-action@v6
+      - uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: Bump flake.lock
           branch: main
@@ -32,3 +32,4 @@ jobs:
           commit_user_email: flakebot@ptinem.casa
           commit_author: Flake Bot <flakebot@ptinem.casa>
           skip_dirty_check: false
+          skip_fetch: false
