@@ -118,4 +118,4 @@ jobs:
           commit_user_email: flakebot@ptinem.casa
           commit_author: Flake Bot <flakebot@ptinem.casa>
           skip_dirty_check: false
-          skip_fetch: false
+          skip_fetch: true
