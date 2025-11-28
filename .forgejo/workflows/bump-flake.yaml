@@ -9,19 +9,104 @@ on:
 
 jobs:
   build:
-    runs-on: docker
-    container: ubuntu:latest
+    runs-on: native
     timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          persist-credentials: true
 
       - uses: cachix/install-nix-action@v31
 
       - run: nix flake update
+
+      - name: System Info
+        shell: bash
+        run: |
+          echo "=== System Info ==="
+          uname -a
+          echo "=== Time ==="
+          date
+          echo "=== Current Directory ==="
+          pwd
+          echo "=== Disk Space ==="
+          df -h
+
+      - name: Network Diagnostics
+        shell: bash
+        run: |
+          echo "=== TCP Connection Test (port 22) ==="
+          timeout 5 bash -c 'cat < /dev/null > /dev/tcp/forge.internal/22' && echo "SSH port reachable" || echo "SSH port unreachable"
+          echo "=== TCP Connection Test (port 443) ==="
+          timeout 5 bash -c 'cat < /dev/null > /dev/tcp/forge.internal/443' && echo "HTTPS port reachable" || echo "HTTPS port unreachable"
+          echo "=== TCP Connection Test (port 80) ==="
+          timeout 5 bash -c 'cat < /dev/null > /dev/tcp/forge.internal/80' && echo "HTTP port reachable" || echo "HTTP port unreachable"
+
+      - name: Git Configuration Test
+        shell: bash
+        env:
+          GIT_PAGER: cat
+        run: |
+          echo "=== Git Version ==="
+          git --version
+          echo "=== Git Config ==="
+          git config --list | head -30
+          echo "=== Git Credential Helper ==="
+          git config credential.helper || echo "No credential helper configured"
+          echo "=== Environment Variables (GIT_*) ==="
+          env | grep -i "^GIT_" || echo "No GIT_* environment variables"
+          echo "=== Remote URL ==="
+          git remote -v
+          echo "=== Current Branch ==="
+          git branch -a
+
+      - name: HTTPS Connectivity Test
+        shell: bash
+        run: |
+          echo "=== Testing HTTPS to forge.internal ==="
+          curl -v --connect-timeout 10 https://forge.internal/ 2>&1 | head -30 || echo "HTTPS curl failed"
+          echo "=== Testing HTTP to forge.internal ==="
+          curl -v --connect-timeout 10 http://forge.internal/ 2>&1 | head -30 || echo "HTTP curl failed"
+
+      - name: Git HTTPS Fetch Test
+        shell: bash
+        timeout-minutes: 5
+        run: |
+          echo "=== Testing git ls-remote with timeout ==="
+          timeout 60 git ls-remote origin || echo "git ls-remote timed out or failed"
+          echo "=== Testing git fetch with timeout ==="
+          timeout 60 git fetch origin main --dry-run || echo "git fetch timed out or failed"
+
+      - name: Credential Helper Diagnostics
+        shell: bash
+        run: |
+          echo "=== Testing git credential fill ==="
+          echo "url=https://forge.internal" | timeout 5 git credential fill 2>&1 || echo "Credential fill failed/timed out"
+          echo "=== Checking for .git-credentials file ==="
+          [ -f ~/.git-credentials ] && echo "~/.git-credentials exists" || echo "~/.git-credentials does not exist"
+          echo "=== Checking HOME directory ==="
+          ls -la ~/ 2>/dev/null | grep -E "(\.git|credential)" || echo "No .git* or credential files found"
+
+      - name: Git Push Simulation (dry-run)
+        shell: bash
+        timeout-minutes: 5
+        run: |
+          echo "=== Current git status ==="
+          git status
+          echo "=== Testing git push dry-run (60 sec timeout) ==="
+          timeout 60 git push --dry-run --verbose origin main 2>&1 || echo "Push simulation timed out or failed with exit code: $?"
+
+      - name: Connection Persistence Test
+        shell: bash
+        timeout-minutes: 15
+        run: |
+          echo "=== Testing sustained connection to forge.internal ==="
+          for i in {1..5}; do
+            echo "Attempt $i:"
+            timeout 30 git ls-remote origin || echo "  Attempt $i failed"
+            sleep 2
+          done
 
       - uses: stefanzweifel/git-auto-commit-action@v6
         with:
