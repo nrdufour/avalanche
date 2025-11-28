@@ -13,13 +13,24 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
+      - name: Check git config after checkout
+        shell: bash
+        run: |
+          echo "=== Git config ==="
+          git config --list | grep -E "(http|credential|core\.sshCommand)" || echo "No http/credential configs found"
+          echo "=== Git remote ==="
+          git remote -v
+          echo "=== GIT_* environment variables ==="
+          env | grep "^GIT_" || echo "No GIT_* vars"
+          echo "=== HOME and credentials files ==="
+          ls -la ~/ | grep -E "(\.git|credential)" || echo "No .git* or credential files"
+
       - run: |
           nix flake update
-          git status
 
       - name: Git Push Simulation (dry-run)
         shell: bash
