@@ -140,5 +140,16 @@
       allowedVersions: '<3.40.2',
       enabled: true,
     },
+    {
+      description: 'Pin actions/checkout to v5 (v6 incompatible with Forgejo runners)',
+      matchManagers: [
+        'github-actions',
+      ],
+      matchPackageNames: [
+        'actions/checkout',
+      ],
+      allowedVersions: '<6',
+      enabled: true,
+    },
   ],
 }
