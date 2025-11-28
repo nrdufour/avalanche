@@ -41,7 +41,7 @@ jobs:
           echo "=== Testing git push dry-run (60 sec timeout) ==="
           timeout 60 git push --dry-run --verbose origin main 2>&1 || echo "Push simulation timed out or failed with exit code: $?"
 
-      - uses: stefanzweifel/git-auto-commit-action@v6
+      - uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: Bump flake.lock
           branch: main
