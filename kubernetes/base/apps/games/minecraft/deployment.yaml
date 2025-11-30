@@ -57,9 +57,6 @@ spec:
               value: "10"
             - name: SIMULATION_DISTANCE
               value: "8"
-            # Use All Of Create Fabric modpack (includes Create + all dependencies)
-            - name: MODPACK
-              value: "https://cdn.modrinth.com/data/wkmHCNyM/versions/UughoMVX/All%20Of%20Create%20%5BFabric%5D%201.0.4.mrpack"
           volumeMounts:
             - name: data
               mountPath: /data
