@@ -1,0 +1,90 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minecraft-fabric
+  namespace: games
+  labels:
+    app: minecraft
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: minecraft
+  template:
+    metadata:
+      labels:
+        app: minecraft
+    spec:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: "OnRootMismatch"
+
+      containers:
+        - name: minecraft
+          image: itzg/minecraft-server:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: minecraft
+              containerPort: 25565
+              protocol: TCP
+          env:
+            - name: EULA
+              value: "TRUE"
+            - name: TYPE
+              value: "FABRIC"
+            - name: VERSION
+              value: "latest"
+            - name: MEMORY
+              value: "4G"
+            - name: JVM_OPTS
+              value: "-Xmx4G -Xms4G"
+            - name: MOTD
+              value: "Avalanche Fabric Server - Create Mod"
+            - name: DIFFICULTY
+              value: "normal"
+            - name: GAMEMODE
+              value: "survival"
+            - name: PVP
+              value: "true"
+            - name: ENABLE_COMMAND_BLOCK
+              value: "true"
+            - name: ALLOW_FLIGHT
+              value: "false"
+            - name: VIEW_DISTANCE
+              value: "10"
+            - name: SIMULATION_DISTANCE
+              value: "8"
+            # Fabric/mod specific
+            - name: FABRIC_LOADER_VERSION
+              value: "latest"
+            # Install Create mod
+            - name: MODS
+              value: "https://cdn.modrinth.com/data/J81smLqp/versions/latest/download"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 500m
+              memory: 4.5Gi
+            limits:
+              cpu: 2000m
+              memory: 5Gi
+          livenessProbe:
+            tcpSocket:
+              port: minecraft
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket:
+              port: minecraft
+            initialDelaySeconds: 30
+            periodSeconds: 10
+
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: minecraft-data
