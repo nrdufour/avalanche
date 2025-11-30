@@ -22,6 +22,9 @@ spec:
         fsGroup: 1000
         fsGroupChangePolicy: "OnRootMismatch"
 
+      nodeSelector:
+        opi.feature.node.kubernetes.io/5plus: "true"
+
       containers:
         - name: minecraft
           image: itzg/minecraft-server:latest
