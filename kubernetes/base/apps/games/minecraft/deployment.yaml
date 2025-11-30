@@ -22,6 +22,36 @@ spec:
         fsGroup: 1000
         fsGroupChangePolicy: "OnRootMismatch"
 
+      initContainers:
+        - name: download-mods
+          image: curlimages/curl:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              mkdir -p /data/mods
+
+              echo "Downloading Create Fabric mods..."
+
+              # Create Fabric mod
+              echo "Downloading Create Fabric..."
+              wget -q -O /data/mods/create-fabric-6.0.8.0+build.1734-mc1.20.1.jar \
+                "https://cdn.modrinth.com/data/Xbc0uyRg/versions/XwEwQH3o/create-fabric-6.0.8.0%2Bbuild.1734-mc1.20.1.jar"
+
+              # Fabric API (required by Create)
+              echo "Downloading Fabric API..."
+              wget -q -O /data/mods/fabric-api-0.92.6.jar \
+                "https://cdn.modrinth.com/data/P7dR8mSH/versions/rLH6dHQK/fabric-api-0.92.6%2B1.20.1.jar" || true
+
+              echo "Mods downloaded successfully!"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+
       containers:
         - name: minecraft
           image: itzg/minecraft-server:latest
