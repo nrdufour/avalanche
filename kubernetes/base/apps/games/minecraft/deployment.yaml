@@ -57,6 +57,9 @@ spec:
               value: "10"
             - name: SIMULATION_DISTANCE
               value: "8"
+            # Use Create Optimized Fabric modpack (includes all mods + dependencies)
+            - name: MODPACK
+              value: "https://mediafilez.forgecdn.net/files/5545/759/Create%20Optimized%20v2.4.zip"
           volumeMounts:
             - name: data
               mountPath: /data
