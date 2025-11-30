@@ -6,6 +6,8 @@ metadata:
   namespace: games
   labels:
     app: minecraft
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: minecraft.internal
 spec:
   type: LoadBalancer
   ports:
