@@ -60,9 +60,9 @@ spec:
             # Fabric/mod specific
             - name: FABRIC_LOADER_VERSION
               value: "latest"
-            # Install Create mod (Fabric version for 1.20.1)
+            # Install Create mod (Fabric version 6.0.8.0 for 1.20.1)
             - name: MODS
-              value: "https://cdn.modrinth.com/data/create-fabric/versions/latest/download"
+              value: "https://cdn.modrinth.com/data/Xbc0uyRg/versions/XwEwQH3o/create-fabric-6.0.8.0%2Bbuild.1734-mc1.20.1.jar"
           volumeMounts:
             - name: data
               mountPath: /data
