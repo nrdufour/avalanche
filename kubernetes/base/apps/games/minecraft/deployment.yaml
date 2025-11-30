@@ -42,7 +42,7 @@ spec:
             - name: JVM_OPTS
               value: "-Xmx4G -Xms4G"
             - name: MOTD
-              value: "Avalanche Fabric Server - Create Mod"
+              value: "Avalanche Create Fabric Server"
             - name: DIFFICULTY
               value: "normal"
             - name: GAMEMODE
@@ -57,12 +57,9 @@ spec:
               value: "10"
             - name: SIMULATION_DISTANCE
               value: "8"
-            # Fabric/mod specific
-            - name: FABRIC_LOADER_VERSION
-              value: "latest"
-            # Install Create mod (Fabric version 6.0.8.0 for 1.20.1)
-            - name: MODS
-              value: "https://cdn.modrinth.com/data/Xbc0uyRg/versions/XwEwQH3o/create-fabric-6.0.8.0%2Bbuild.1734-mc1.20.1.jar"
+            # Use All Of Create Fabric modpack (includes Create + all dependencies)
+            - name: MODPACK
+              value: "https://cdn.modrinth.com/data/wkmHCNyM/versions/UughoMVX/All%20Of%20Create%20%5BFabric%5D%201.0.4.mrpack"
           volumeMounts:
             - name: data
               mountPath: /data
