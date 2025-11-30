@@ -66,10 +66,10 @@ spec:
               mountPath: /data
           resources:
             requests:
-              cpu: 500m
+              cpu: 1000m
               memory: 4.5Gi
             limits:
-              cpu: 2000m
+              cpu: 4000m
               memory: 5Gi
           livenessProbe:
             tcpSocket:
