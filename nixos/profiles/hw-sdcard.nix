@@ -8,5 +8,5 @@
     "${nixpkgs}/nixos/modules/installer/sd-card/sd-image-aarch64.nix"
   ];
 
-  sdImage.imageName = "${config.networking.hostName}.img";
+  image.fileName = "${config.networking.hostName}.img";
 }

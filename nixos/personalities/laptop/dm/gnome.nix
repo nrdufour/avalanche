@@ -6,16 +6,13 @@
     gtk.iconCache.enable = true;
 
     services = {
-        xserver = {
+        desktopManager.gnome = {
             enable = true;
-            desktopManager.gnome = {
-                enable = true;
-            };
-            displayManager.gdm = {
-                enable = true;
-                wayland = true;
-                autoSuspend = false;
-            };
+        };
+        displayManager.gdm = {
+            enable = true;
+            wayland = true;
+            autoSuspend = false;
         };
         geoclue2.enable = true;
     };

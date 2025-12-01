@@ -8,7 +8,7 @@
             # See example flake at https://github.com/nix-community/nix-vscode-extensions/blob/master/template/flake.nix
 
             vscodeExtensions = let
-                inherit (inputs.nix-vscode-extensions.extensions.${pkgs.system}) vscode-marketplace;
+                inherit (inputs.nix-vscode-extensions.extensions.${pkgs.stdenv.hostPlatform.system}) vscode-marketplace;
             in
                 with vscode-marketplace; [
                     ## Themes

@@ -12,9 +12,8 @@
         packages = with pkgs; [
             noto-fonts
             noto-fonts-cjk-sans
-            noto-fonts-emoji
-            noto-fonts-extra
-            ubuntu_font_family
+            noto-fonts-color-emoji
+            ubuntu-classic
             fira-code
             fira-code-symbols
         ]

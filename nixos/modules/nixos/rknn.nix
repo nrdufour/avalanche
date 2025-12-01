@@ -4,7 +4,7 @@ with lib;
 
 let
   cfg = config.mySystem.rknn;
-  isAarch64 = pkgs.stdenv.isAarch64;
+  isAarch64 = pkgs.stdenv.hostPlatform.isAarch64;
   isRK3588 = lib.hasInfix "rk3588" (builtins.readFile /proc/device-tree/compatible or "");
 in
 

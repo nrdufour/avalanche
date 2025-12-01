@@ -13,7 +13,7 @@
     ];
 
     # Prevent the laptop to suspend when the lid is closed and still on external power
-    services.logind.lidSwitchExternalPower = "ignore";
+    services.logind.settings.Login.HandleLidSwitchExternalPower = "ignore";
 
     environment.systemPackages = with pkgs; [
         inkscape

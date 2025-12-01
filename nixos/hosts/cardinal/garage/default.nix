@@ -48,7 +48,7 @@
     enable = true;
 
     ## Package has to be explicitly setup
-    package = pkgs.garage_2_1_0;
+    package = pkgs.garage_2;
 
     environmentFile = config.sops.templates."garage.env".path;
     
