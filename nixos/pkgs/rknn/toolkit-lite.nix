@@ -39,7 +39,7 @@ buildPythonPackage {
   meta = with lib; {
     description = "Rockchip RKNN Toolkit Lite - Python API for NPU inference";
     homepage = "https://github.com/airockchip/rknn-toolkit2";
-    license = licenses.proprietary;
+    license = licenses.unfree;
     platforms = ["aarch64-linux"];
     maintainers = with maintainers; [];
   };

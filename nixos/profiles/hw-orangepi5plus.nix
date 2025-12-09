@@ -37,9 +37,10 @@ in
       "btrfs"
     ];
 
-    ## Setting the kernel at 6.17 (updated from 6.16 which reached EOL)
+    ## Setting the kernel at 6.18 (updated from 6.17)
     ## Rockchip support has been available since 6.13
-    kernelPackages = pkgs.linuxKernel.packages.linux_6_17;
+    ## 6.18 brings improved RKNN NPU support for RK3588
+    kernelPackages = pkgs.linuxKernel.packages.linux_6_18;
 
     ## Commenting this out for now with 6.16 enabled
     # Switching back to 6.1.75 for now to have mali drivers present
@@ -151,6 +152,15 @@ in
     # dump some info about opencl
     clinfo
   ];
+
+  # Enable RKNN NPU support for RK3588
+  # Now available with kernel 6.18+ via DRM_ACCEL_ROCKET driver
+  mySystem.rknn = {
+    enable = true;
+    enableRuntime = true;
+    enableToolkitLite = true;
+    loadKernelModule = true;
+  };
 
   # The orange pis use an SSD
   services.fstrim.enable = true;

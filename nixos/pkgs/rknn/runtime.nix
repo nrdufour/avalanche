@@ -45,7 +45,7 @@ stdenv.mkDerivation {
   meta = with lib; {
     description = "Rockchip RKNN runtime library for NPU inference on RK3588 and similar SoCs";
     homepage = "https://github.com/airockchip/rknn-toolkit2";
-    license = licenses.proprietary;
+    license = licenses.unfree;
     platforms = ["aarch64-linux"];
     maintainers = with maintainers; [];
   };

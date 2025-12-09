@@ -1,4 +1,7 @@
 { inputs, ... }:
+let
+  rknnOverlays = import ./rknn-packages.nix { inherit inputs; };
+in
 {
   # NUR overlay
   nur = inputs.nur.overlays.default;
@@ -11,4 +14,7 @@
       config.allowUnfree = true;
     };
   };
+
+  # RKNN packages overlay for RK3588 NPU support
+  rknn-packages = rknnOverlays.rknn-packages;
 }

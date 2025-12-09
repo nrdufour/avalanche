@@ -5,7 +5,11 @@ with lib;
 let
   cfg = config.mySystem.rknn;
   isAarch64 = pkgs.stdenv.hostPlatform.isAarch64;
-  isRK3588 = lib.hasInfix "rk3588" (builtins.readFile /proc/device-tree/compatible or "");
+  deviceTreePath = /proc/device-tree/compatible;
+  isRK3588 =
+    if builtins.pathExists deviceTreePath
+    then lib.hasInfix "rk3588" (builtins.readFile deviceTreePath)
+    else false;
 in
 
 {
@@ -51,10 +55,9 @@ in
 
     # Install runtime library and toolkit lite
     environment.systemPackages =
-      (mkIf cfg.enableRuntime [ cfg.runtimePackage ]) ++
-      (mkIf cfg.enableToolkitLite [
-        (pkgs.python312.withPackages (ps: [ cfg.toolkitLitePackage ]))
-      ]);
+      (lib.optional cfg.enableRuntime cfg.runtimePackage) ++
+      (lib.optional cfg.enableToolkitLite
+        (pkgs.python312.withPackages (ps: [ cfg.toolkitLitePackage ])));
 
     # Set library path for runtime discovery
     environment.variables = mkIf cfg.enableRuntime {
