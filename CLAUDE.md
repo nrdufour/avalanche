@@ -72,8 +72,8 @@ just nix-list-hosts
 # Deploy to remote host
 just nix-deploy <hostname>
 
-# Deploy locally (workstation)
-just nix-switch <hostname>
+# Deploy locally (current machine only)
+just nix-switch
 
 # Deploy to all hosts (with confirmation)
 just nix-deploy-all

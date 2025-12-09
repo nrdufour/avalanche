@@ -16,9 +16,9 @@ nix-list-hosts:
 nix-deploy host:
     nixos-rebuild switch -j auto --use-remote-sudo --build-host {{host}}.internal --target-host {{host}}.internal --flake ".#{{host}}" --fast
 
-# Switch to a configuration locally (for current machine)
-nix-switch host:
-    sudo nixos-rebuild switch --flake ".#{{host}}"
+# Switch to a configuration locally (for current machine only)
+nix-switch:
+    sudo nixos-rebuild switch --flake ".#"
 
 # Deploy flake to all nodes (with confirmation)
 nix-deploy-all:
