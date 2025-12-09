@@ -10,7 +10,7 @@ spec:
       targetRevision: HEAD
       ref: values
     - repoURL: oci://quay.io/jetstack/charts/cert-manager
-      targetRevision: v1.19.1
+      targetRevision: v1.19.2
       path: .
       helm:
         releaseName: cert-manager
