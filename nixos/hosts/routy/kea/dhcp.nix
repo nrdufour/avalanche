@@ -236,6 +236,22 @@ in
           }
           // leaseOption
         )
+        (
+          {
+            id = 3;
+            interface = "lab1";
+            subnet = "10.2.0.1/24";
+            pools = [ { pool = "10.2.0.100 - 10.2.0.200"; } ];
+            option-data = [
+              {
+                name = "routers";
+                data = "10.1.0.1";
+              }
+            ] ++ commonDhcpOptions;
+            reservations = [];
+          }
+          // leaseOption
+        )
       ];
 
     };
