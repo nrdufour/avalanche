@@ -4,7 +4,6 @@
     ./security
     ./services
     ./system
-    ./rknn.nix
   ];
 
   options.mySystem.domain = lib.mkOption {

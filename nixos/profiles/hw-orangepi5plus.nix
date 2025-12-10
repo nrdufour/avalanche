@@ -153,15 +153,14 @@ in
     clinfo
   ];
 
-  # Enable RKNN NPU support for RK3588
-  # Kernel 6.18+ uses mainline rocket driver (DRM_ACCEL framework)
-  # All 3 NPU cores accessible via /dev/accel/accel0
-  mySystem.rknn = {
-    enable = true;
-    enableRuntime = true;
-    enableToolkitLite = true;
-    loadKernelModule = false; # Not needed - using mainline rocket driver
-  };
+  # RK3588 NPU Support via Mesa Teflon
+  # - Kernel 6.18+ includes mainline rocket driver (DRM_ACCEL framework)
+  # - All 3 NPU cores accessible via /dev/accel/accel0
+  # - Mesa 25.2+ includes Teflon TensorFlow Lite delegate (libteflon.so)
+  # - See docs/rknn-npu-integration-plan.md for usage guide
+  #
+  # No additional configuration needed - Mesa Teflon is available system-wide
+  # and TFLite runtime will auto-discover the delegate.
 
   # The orange pis use an SSD
   services.fstrim.enable = true;
