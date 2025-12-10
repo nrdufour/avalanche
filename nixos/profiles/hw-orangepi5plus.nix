@@ -37,9 +37,9 @@ in
       "btrfs"
     ];
 
-    ## Setting the kernel at 6.18 (updated from 6.17)
-    ## Rockchip support has been available since 6.13
-    ## 6.18 brings improved RKNN NPU support for RK3588
+    ## Kernel 6.18 brings improved RKNN NPU support for RK3588 via rocket driver
+    ## All 3 NPU cores detected and working via DRM_ACCEL framework (/dev/accel/accel0)
+    ## 2.5G networking works fine with mainline r8169 driver on RTL8125B
     kernelPackages = pkgs.linuxKernel.packages.linux_6_18;
 
     ## Commenting this out for now with 6.16 enabled
@@ -154,12 +154,13 @@ in
   ];
 
   # Enable RKNN NPU support for RK3588
-  # Now available with kernel 6.18+ via DRM_ACCEL_ROCKET driver
+  # Kernel 6.18+ uses mainline rocket driver (DRM_ACCEL framework)
+  # All 3 NPU cores accessible via /dev/accel/accel0
   mySystem.rknn = {
     enable = true;
     enableRuntime = true;
     enableToolkitLite = true;
-    loadKernelModule = true;
+    loadKernelModule = false; # Not needed - using mainline rocket driver
   };
 
   # The orange pis use an SSD

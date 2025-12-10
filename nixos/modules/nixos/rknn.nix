@@ -5,11 +5,6 @@ with lib;
 let
   cfg = config.mySystem.rknn;
   isAarch64 = pkgs.stdenv.hostPlatform.isAarch64;
-  deviceTreePath = /proc/device-tree/compatible;
-  isRK3588 =
-    if builtins.pathExists deviceTreePath
-    then lib.hasInfix "rk3588" (builtins.readFile deviceTreePath)
-    else false;
 in
 
 {
@@ -48,11 +43,6 @@ in
   };
 
   config = mkIf (cfg.enable && isAarch64) {
-    # Guard against non-RK3588 hardware
-    warnings = mkIf (!isRK3588) [
-      "RKNN module is enabled but device does not appear to be RK3588-based. NPU hardware may not be available."
-    ];
-
     # Install runtime library and toolkit lite
     environment.systemPackages =
       (lib.optional cfg.enableRuntime cfg.runtimePackage) ++
