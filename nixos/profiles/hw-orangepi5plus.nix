@@ -1,7 +1,6 @@
 {
   lib,
   config,
-  nixpkgs,
   pkgs,
   ...
 }:
@@ -13,7 +12,7 @@ in
     ./hw-sdcard.nix
   ];
 
-  # Used to access video devices for jellyfin
+  # Used to access video devices for jellyfin and NPU
   services.udev.extraRules = ''
     KERNEL=="mpp_service", MODE="0660", GROUP="video"
     KERNEL=="rga", MODE="0660", GROUP="video"
@@ -21,6 +20,9 @@ in
     KERNEL=="system-dma32", MODE="0666", GROUP="video"
     KERNEL=="system-uncached", MODE="0666", GROUP="video"
     KERNEL=="system-uncached-dma32", MODE="0666", GROUP="video" RUN+="${pkgs.coreutils-full}/bin/chmod a+rw /dev/dma_heap"
+
+    # Create DRI render node symlink for NPU accel device so Mesa Teflon can find it
+    KERNEL=="accel0", SUBSYSTEM=="accel", MODE="0666", GROUP="render", SYMLINK+="dri/renderD180"
   '';
 
   boot = {
@@ -137,7 +139,9 @@ in
 
     graphics = {
       enable = true;
-      extraPackages = [ pkgs.mesa.opencl ];
+      # Use Mesa 25.3+ from unstable for rocket NPU driver support
+      package = pkgs.unstable.mesa;
+      extraPackages = [ pkgs.unstable.mesa.opencl ];
     };
     enableRedistributableFirmware = lib.mkForce true;
     firmware = [
@@ -151,6 +155,14 @@ in
     ocl-icd
     # dump some info about opencl
     clinfo
+
+    # Python for NPU testing with TensorFlow Lite (from unstable for compatibility)
+    (pkgs.unstable.python3.withPackages (ps: with ps; [
+      numpy
+      pillow
+      # TensorFlow Lite will be available via tensorflow-bin
+      tensorflow-bin
+    ]))
   ];
 
   # RK3588 NPU Support via Mesa Teflon
@@ -161,6 +173,9 @@ in
   #
   # No additional configuration needed - Mesa Teflon is available system-wide
   # and TFLite runtime will auto-discover the delegate.
+
+  # Add users to render group for NPU access
+  users.users.ndufour.extraGroups = [ "render" ];
 
   # The orange pis use an SSD
   services.fstrim.enable = true;
