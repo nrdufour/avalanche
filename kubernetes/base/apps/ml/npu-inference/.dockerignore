@@ -1,0 +1,30 @@
+# Git
+.git
+.gitignore
+
+# NixOS
+result
+result-*
+.direnv
+.envrc
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.pytest_cache
+
+# Kubernetes
+*.yaml
+*.yml
+kustomization.yaml
+
+# Documentation
+*.md
+docs/
+
+# Secrets
+secrets/
+*.age
+*.sops.yaml
