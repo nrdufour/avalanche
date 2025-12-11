@@ -990,9 +990,51 @@ rknn.release()
    - Test multi-core NPU performance
    - Benchmark additional models (MobileNetV2, EfficientNet-Lite)
 
+## Future Use Case: Garden Camera Monitoring
+
+**Goal**: Use NPU for wildlife/animal detection from garden monitoring camera.
+
+**Current Limitation**: MobileNetV1 only does image classification (tells you "this is a cat" but not WHERE the cat is). Does not provide bounding boxes or object locations.
+
+**Solution**: SSDLite MobileDet model for object detection:
+- Detects multiple objects in video frames
+- Provides bounding boxes (x, y, width, height)
+- Runs at 30 FPS on single NPU core
+- Trained on COCO dataset (80 classes including: cat, dog, bird, person, etc.)
+
+**Workflow**:
+1. Camera captures video stream (RTSP/HTTP)
+2. Extract frames (1-5 FPS for efficiency, or 30 FPS max)
+3. Send frames to NPU object detection service
+4. Get detected objects with bounding boxes
+5. Log/alert when animals detected in garden
+
+**Example Output**:
+```json
+{
+  "detections": [
+    {"class": "cat", "bbox": [100, 150, 200, 250], "confidence": 0.89},
+    {"class": "bird", "bbox": [450, 80, 500, 120], "confidence": 0.76}
+  ],
+  "inference_time_ms": 33.3
+}
+```
+
+**Implementation Plan** (Future - After Phase 3.3):
+1. Download SSDLite MobileDet TFLite model
+2. Add `/detect` endpoint to inference service
+3. Parse detection output (boxes, classes, scores)
+4. Create video frame extraction script
+5. Test with real camera stream
+6. Deploy to Kubernetes
+
+**Status**: Documented for future implementation. Focus on Phase 3.3 (K8s deployment of image classification) first.
+
 ## Notes
 
-- This is exploratory; no immediate production use cases
+- **Current Status**: Exploratory project with identified production use case (garden camera monitoring)
+- **Planned Use Case**: Wildlife detection from garden camera using object detection (SSDLite MobileDet)
+- **Current Phase**: Image classification working; object detection to be added after K8s deployment
 - NPU support is different from Ollama (LLM inference) - focused on computer vision and general ML
 - Mainline approach ensures long-term support and community contributions
 - Mesa Teflon is actively developed; expect operation coverage to expand
