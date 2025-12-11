@@ -9,7 +9,7 @@ This document tracks the integration of Rockchip NPU (Neural Processing Unit) su
 - **Hardware**: Orange Pi 5 Plus (RK3588 SoC with integrated 6 TOPS NPU)
 - **Nodes affected**: opi01-03 (K3s controller nodes)
 - **Kernel**: Linux 6.18+ with mainline `rocket` driver
-- **Userspace**: Mesa 25.2+ with Teflon TensorFlow Lite delegate
+- **Userspace**: Mesa 25.3+ with Teflon TensorFlow Lite delegate (rocket driver added in 25.3)
 - **Primary use case**: Edge ML inference (computer vision, real-time processing)
 
 ## Critical Architecture Decision
@@ -51,7 +51,7 @@ The RK3588 NPU can be accessed through **two mutually exclusive software stacks*
   ```
 - NPU device exposed via DRM accelerator framework: `/dev/accel/accel0` ✅
 - Device permissions configured (mode 0666, group render)
-- Mesa 25.2.6 with Teflon delegate installed: `/nix/store/.../lib/libteflon.so` ✅
+- Mesa 25.3.x (from nixpkgs-unstable) with rocket Gallium driver and Teflon delegate ✅
 
 **Completed:**
 - [x] Updated `nixos/profiles/hw-orangepi5plus.nix` to kernel 6.18
@@ -80,12 +80,33 @@ ssh opi01.internal 'find /nix/store -name "libteflon.so" 2>/dev/null | head -1'
 
 **Objective**: Validate NPU acceleration with TensorFlow Lite models.
 
-**Current Status**: Ready for testing, Mesa Teflon installed.
+**Current Status**: Configuration complete, pending deployment and testing.
+
+**Key Discovery (2025-12-10)**:
+Mesa 25.3+ is **required** for rocket Gallium driver support. The rocket driver was merged into Mesa 25.3 in October 2025. Earlier versions (25.2.x) do not include the rocket driver, causing "Couldn't open kernel device" errors when Teflon attempts to access the NPU.
+
+**Configuration Changes (2025-12-10)**:
+- [x] Upgraded Mesa to 25.3.x from nixpkgs-unstable (includes rocket Gallium driver)
+- [x] Upgraded Python + TensorFlow from nixpkgs-unstable for compatibility
+- [x] Added Python with numpy, pillow, tensorflow-bin to opi01-03
+- [x] Added user to `render` group for `/dev/accel/accel0` access
+- [x] Created udev rule: `/dev/dri/renderD180` → `/dev/accel/accel0` symlink (for Mesa Teflon device discovery)
+- [x] Created test script `tflite-npu-test.py` with automatic Teflon library detection
+
+**Known Issues**:
+- Test script may find old Mesa 25.2.x in `/nix/store` instead of current system's Mesa 25.3.x
+- Need to improve library detection to query current system profile first
+
+**Next Steps**:
+- [ ] Fix test script to use current system Mesa (query `/run/current-system`)
+- [ ] Verify Mesa 25.3 deployed with rocket driver: `ls /nix/store/*mesa*/lib/dri/rocket_dri.so`
+- [ ] Download MobileNetV1 model and run inference test
+- [ ] Verify NPU acceleration is working
 
 #### 2.1 Setup TensorFlow Lite Runtime
-- [ ] Install tflite-runtime Python package on Orange Pi nodes
+- [x] Install TensorFlow Lite on Orange Pi nodes (via NixOS configuration)
 - [ ] Download test models (MobileNetV1, SSDLite MobileDet)
-- [ ] Create basic inference test script
+- [x] Create basic inference test script (`tflite-npu-test.py`)
 
 #### 2.2 Test NPU Acceleration
 - [ ] Run MobileNetV1 inference with Teflon delegate
@@ -100,75 +121,42 @@ ssh opi01.internal 'find /nix/store -name "libteflon.so" 2>/dev/null | head -1'
 
 **Testing Guide**:
 
-1. **Install TFLite Runtime**:
-```bash
-ssh opi01.internal
-python -m pip install --user tflite-runtime==2.13.0 pillow numpy
-```
+1. **Prerequisites** (already configured via NixOS):
+   - Python 3 with numpy, pillow, tensorflow-bin (from nixpkgs-unstable)
+   - Mesa 25.3.x with rocket Gallium driver and Teflon delegate
+   - User in `render` group for NPU access
+   - udev rule creating `/dev/dri/renderD180` symlink
 
 2. **Download MobileNetV1 Model**:
 ```bash
+ssh opi01.internal
+cd ~
 wget https://storage.googleapis.com/download.tensorflow.org/models/mobilenet_v1_2018_08_02/mobilenet_v1_1.0_224_quant.tgz
 tar -xzf mobilenet_v1_1.0_224_quant.tgz
 ```
 
-3. **Create Test Script** (`tflite-npu-test.py`):
-```python
-#!/usr/bin/env python3
-import tflite_runtime.interpreter as tflite
-import numpy as np
-import time
-import subprocess
+3. **Run Test Script**:
+The test script `tflite-npu-test.py` is available in the repository root and has been copied to opi01.
 
-# Find libteflon.so
-result = subprocess.run(
-    ['find', '/nix/store', '-name', 'libteflon.so'],
-    capture_output=True, text=True
-)
-TEFLON_LIB = result.stdout.strip().split('\n')[0]
-print(f"Using Teflon delegate: {TEFLON_LIB}")
+```bash
+# Run with debug output to see Teflon logs
+TEFLON_DEBUG=verbose python3 ~/tflite-npu-test.py
 
-# Create interpreter with Teflon delegate
-delegates = [tflite.load_delegate(TEFLON_LIB)]
-interpreter = tflite.Interpreter(
-    model_path="mobilenet_v1_1.0_224_quant.tflite",
-    experimental_delegates=delegates
-)
-
-interpreter.allocate_tensors()
-
-# Get input/output details
-input_details = interpreter.get_input_details()
-output_details = interpreter.get_output_details()
-
-# Create dummy input (224x224x3 uint8 for MobileNetV1)
-input_shape = input_details[0]['shape']
-dummy_input = np.random.randint(0, 256, input_shape, dtype=np.uint8)
-
-# Warm-up run
-interpreter.set_tensor(input_details[0]['index'], dummy_input)
-interpreter.invoke()
-
-# Benchmark 10 inferences
-print("Running 10 inference iterations...")
-times = []
-for i in range(10):
-    start = time.time()
-    interpreter.set_tensor(input_details[0]['index'], dummy_input)
-    interpreter.invoke()
-    output = interpreter.get_tensor(output_details[0]['index'])
-    elapsed = (time.time() - start) * 1000
-    times.append(elapsed)
-    print(f"  Iteration {i+1}: {elapsed:.2f}ms")
-
-avg_time = sum(times) / len(times)
-print(f"\n✓ Average inference time: {avg_time:.2f}ms")
-print(f"✓ Output shape: {output.shape}")
+# Or run normally
+python3 ~/tflite-npu-test.py
 ```
 
-4. **Run with Debug Output**:
+The script will:
+- Automatically find and load the Teflon delegate from current system Mesa
+- Load MobileNetV1 quantized model
+- Run 10 inference iterations with random input
+- Report average inference time (target: <50ms, ideal: 16-21ms)
+- Indicate success if performance meets expectations
+
+4. **Verify NPU Usage**:
+Check kernel logs for NPU activity during inference:
 ```bash
-TEFLON_DEBUG=verbose python tflite-npu-test.py
+sudo dmesg -w | grep -i rocket
 ```
 
 ### Phase 3: Kubernetes Integration
