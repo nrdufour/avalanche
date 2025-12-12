@@ -1,0 +1,63 @@
+name: Basic Tests
+
+on:
+  workflow_dispatch:
+
+jobs:
+  # Test 1: Native runner (baseline - should work)
+  test-native:
+    runs-on: native
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: List files
+        run: ls -la
+
+      - name: Show environment
+        run: |
+          echo "PWD: $PWD"
+          echo "USER: $USER"
+          echo "HOME: $HOME"
+          uname -a
+
+  # Test 2: Docker runner (simple test - might fail)
+  test-docker-simple:
+    runs-on: docker
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: List files
+        run: ls -la
+
+      - name: Show environment
+        run: |
+          echo "PWD: $PWD"
+          echo "USER: $USER"
+          echo "HOME: $HOME"
+          uname -a
+
+  # Test 3: Native but with some pesky actions maybe ?
+  test-native-with-actions:
+    runs-on: native
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-config: /etc/buildkit/buildkitd.toml
+
+      - name: Verify setup
+        run: |
+          echo "Docker Buildx setup completed"
+          docker version || echo "Docker not available"
+          docker buildx version || echo "Buildx not available"
