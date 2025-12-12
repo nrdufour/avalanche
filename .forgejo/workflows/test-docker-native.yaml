@@ -1,0 +1,52 @@
+name: Test Docker Actions on Native Runner
+
+on:
+  workflow_dispatch:
+
+jobs:
+  # This mimics the bitwarden-cli workflow setup
+  # Uses native runner (has Docker) with Docker setup actions
+  test-docker-actions-native:
+    runs-on: native
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkpoint - Start
+        run: echo "Starting at $(date -Iseconds)"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Checkpoint - After checkout
+        run: echo "Checkout completed at $(date -Iseconds)"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Checkpoint - After QEMU
+        run: echo "QEMU setup completed at $(date -Iseconds)"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-config: /etc/buildkit/buildkitd.toml
+
+      - name: Checkpoint - After Buildx
+        run: echo "Buildx setup completed at $(date -Iseconds)"
+
+      - name: Verify Docker setup
+        run: |
+          echo "Verification at $(date -Iseconds)"
+          docker version
+          docker buildx version
+          docker buildx ls
+
+      - name: Test simple build (no registry push)
+        run: |
+          echo "Building test image at $(date -Iseconds)"
+          cat > Dockerfile.test <<'EOF'
+FROM alpine:latest
+RUN echo "Test image"
+EOF
+          docker buildx build --platform linux/arm64 -t test:latest -f Dockerfile.test . --load
+          echo "Build completed at $(date -Iseconds)"
