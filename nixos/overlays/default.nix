@@ -11,4 +11,10 @@
       config.allowUnfree = true;
     };
   };
+
+  # Custom forgejo-runner v12.1.2 overlay
+  # Overrides the default forgejo-runner with v12.1.2 which includes critical bug fixes
+  forgejo-runner-12 = final: prev: {
+    forgejo-runner-12 = final.callPackage ../pkgs/forgejo-runner-12 { };
+  };
 }

@@ -37,7 +37,11 @@
 
   services.gitea-actions-runner = {
     # It's forgejo, not gitea ;-)
-    package = pkgs.unstable.forgejo-runner;
+    # Using custom v12.1.2 package to fix critical bugs:
+    # - Job finalization hanging
+    # - CPU spinning during action preparation
+    # - Docker >28.1 compatibility issues
+    package = pkgs.forgejo-runner-12;
 
     instances = {
 
