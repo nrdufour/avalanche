@@ -69,3 +69,4 @@ jobs:
           echo "Docker Buildx setup completed"
           docker version || echo "Docker not available"
           docker buildx version || echo "Buildx not available"
+          docker build -f kubernetes/base/apps/ml/npu-inference/Dockerfile -t test kubernetes/base/apps/ml/npu-inference
