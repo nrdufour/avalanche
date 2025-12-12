@@ -44,9 +44,7 @@ jobs:
       - name: Test simple build (no registry push)
         run: |
           echo "Building test image at $(date -Iseconds)"
-          cat > Dockerfile.test <<'EOF'
-FROM alpine:latest
-RUN echo "Test image"
-EOF
+          echo 'FROM alpine:latest' > Dockerfile.test
+          echo 'RUN echo "Test image"' >> Dockerfile.test
           docker buildx build --platform linux/arm64 -t test:latest -f Dockerfile.test . --load
           echo "Build completed at $(date -Iseconds)"
