@@ -2,32 +2,74 @@
 
 **Date:** 2025-12-12
 **Host:** eagle.internal
-**Status:** Ready for deployment
+**Status:** ⚠️ **DEPLOYED - ISSUES PERSIST**
+**Updated:** 2025-12-12 (Post-deployment analysis)
 
 ## Executive Summary
 
-Upgrading forgejo runners from v11.3.1 to v12.1.2 to fix critical bugs causing job failures. The upgrade uses a custom NixOS package built from official Forgejo binaries since nixpkgs doesn't yet have v12.x.
+⚠️ **CRITICAL UPDATE:** The upgrade to v12.1.2 was successfully deployed, but **DID NOT fix the job finalization and CPU spinning issues**. Extensive testing reveals the problems are **specific to workflows using `docker/setup-qemu-action@v3` and `docker/setup-buildx-action@v3`**.
 
-## Critical Issues Fixed by v12.1.2
+**Key Findings:**
+- ✅ Upgrade completed successfully (both runners running v12.1.2)
+- ❌ Job finalization bug still occurs with Docker setup actions
+- ✅ Simple workflows (checkout, git operations) work perfectly
+- ❌ Workflows with Docker build actions fail despite all steps succeeding
+- **Root cause identified:** Specific to docker/setup-qemu-action and docker/setup-buildx-action
+
+## Deployment Results
+
+### Test Workflow Results
+
+Comprehensive testing with multiple workflows revealed the exact failure pattern:
+
+| Workflow | Runner Label | Actions Used | Setup Time | Steps Result | Job Result | Notes |
+|----------|--------------|--------------|------------|--------------|------------|-------|
+| bump-flake | native | checkout, git-auto-commit | <5s | ✅ All passed | ✅ Success | Works perfectly |
+| test-native | native | checkout only | <5s | ✅ All passed | ✅ Success | Baseline test |
+| test-docker-simple | docker | checkout only | <10s | ✅ All passed | ✅ Success | Docker container works |
+| **test-docker-actions-native** | **native** | **checkout + docker/setup-qemu@v3 + docker/setup-buildx@v3** | **1m43s** | **✅ All passed** | **❌ FAILED** | **Bug reproduced** |
+| bitwarden-cli | native | checkout + docker/setup-qemu@v3 + docker/setup-buildx@v3 + build-push@v5 | 8m+ | ✅ All passed | ❌ FAILED | Original issue |
+
+**Pattern Identified:** Jobs using **docker/setup-qemu-action@v3** and **docker/setup-buildx-action@v3** fail at job finalization stage despite all workflow steps (including post-cleanup) completing successfully.
+
+### Symptoms Observed Post-Deployment
+
+1. **Job Finalization Failure:**
+   - All workflow steps execute successfully (✅)
+   - All post-cleanup steps execute successfully (✅)
+   - Runner **never logs "Cleaning up network for job"** message
+   - Job status incorrectly reported as "failed" (❌)
+   - Runner logs show task start but no completion entry
+
+2. **Silent Runner Failure:**
+   ```
+   Dec 12 09:16:50 eagle act_runner[102844]: time="2025-12-12T09:16:50-05:00" level=info msg="task 6771 repo is nemo/avalanche"
+   [NO FURTHER LOGS - RUNNER SILENTLY FAILED TO FINALIZE JOB]
+   ```
+
+3. **Cache Growth:**
+   - First runner: 25K (healthy)
+   - Second runner: 559MB (bloated during Docker action testing)
+
+## Issues v12.1.2 Was Expected to Fix (BUT DIDN'T)
 
 ### 1. Job Finalization Hanging
-- **Symptom:** Jobs complete successfully but are marked as failed with "context canceled"
+- **Symptom:** Jobs complete successfully but are marked as failed
 - **Root cause:** Runner never logs "Cleaning up network for job" message
-- **Impact:** All workflow runs fail despite successful execution
-- **Fix:** v12.1.2 resolves job cleanup logic
+- **Impact:** All workflow runs using Docker setup actions fail despite successful execution
+- **Expected Fix:** v12.1.2 was assumed to resolve job cleanup logic
+- **Actual Result:** ❌ **ISSUE PERSISTS** - Runner still fails to finalize jobs with docker/setup-qemu and docker/setup-buildx actions
 
 ### 2. CPU Spinning During Action Preparation
 - **Symptom:** Multiple runner threads consuming 50-60% CPU during setup phase
-- **Evidence from investigation:**
-  - Thread 95708: 19% CPU, 1:12 CPU time
-  - Thread 95423: 13% CPU, 1:13 CPU time
-  - Thread 95417: 10% CPU, 0:57 CPU time
-- **Impact:** Jobs stuck after downloading ~2,834 files, setup taking 3m48s-4m20s
-- **Fix:** v12.1.2 includes performance improvements during action preparation
+- **Impact:** Jobs stuck after downloading actions, setup taking excessive time
+- **Expected Fix:** v12.1.2 was assumed to include performance improvements
+- **Actual Result:** ❌ **ISSUE PERSISTS** - CPU spinning still observed during Docker action preparation
 
-### 3. Docker >28.1 Compatibility
+### 3. Docker >28.1 Compatibility (ACTUALLY FIXED)
 - **Issue:** "incorrect container platform option 'any'" error with modern Docker
-- **Fix:** v12.1.2 adds compatibility with Docker 28.1+
+- **Actual Result:** ✅ **FIXED** - This is the only issue v12.1.2 release notes mention fixing
+- **Note:** This was the ONLY fix documented in v12.1.2 release notes; job finalization and CPU bugs were never mentioned
 
 ## Current Runner Configuration Analysis
 
@@ -401,23 +443,163 @@ When nixpkgs eventually updates to v12.x:
 - **NixOS gitea-actions-runner module:** https://search.nixos.org/options?query=services.gitea-actions-runner
 - **Current nixpkgs package:** https://github.com/NixOS/nixpkgs/blob/nixos-unstable/pkgs/by-name/fo/forgejo-runner/package.nix
 
-## Success Criteria
+## Success Criteria (Post-Deployment Assessment)
 
-The upgrade is successful when:
-
+### Deployment Success
 - [x] Package builds successfully on eagle (VERIFIED)
-- [ ] Both runner services start without errors
-- [ ] Version shows as v12.1.2 (`forgejo-runner --version`)
-- [ ] Test workflow completes with "succeeded" status (not "context canceled")
-- [ ] Setup phase completes in <30s (with warm cache)
-- [ ] CPU usage during setup is <20% (not 50-60%)
-- [ ] Logs show "Cleaning up network for job" message
-- [ ] Cache remains stable (<100MB) after 5+ workflow runs
+- [x] Both runner services start without errors (VERIFIED - both running v12.1.2)
+- [x] Version shows as v12.1.2 (VERIFIED via `forgejo-runner --version`)
+
+### Functional Success (❌ FAILED)
+- [x] Simple workflows complete successfully (bump-flake, test-native, test-docker-simple)
+- [❌] **FAILED:** Docker setup action workflows complete with "succeeded" status
+  - **Result:** Jobs using docker/setup-qemu-action@v3 and docker/setup-buildx-action@v3 marked as failed
+- [❌] **FAILED:** Setup phase completes in <30s with warm cache
+  - **Result:** test-docker-actions-native took 1m43s, bitwarden-cli took 8m+
+- [❌] **FAILED:** CPU usage during setup is <20%
+  - **Result:** CPU spinning still observed during action preparation
+- [❌] **FAILED:** Logs show "Cleaning up network for job" message
+  - **Result:** Runner silently fails to log job completion
+- [~] **PARTIAL:** Cache stability - First runner 25K (good), Second runner 559MB (bloated)
+
+**Overall Upgrade Assessment:** ⚠️ **DEPLOYMENT SUCCESSFUL, BUT CORE ISSUES PERSIST**
+
+## Updated Recommendations (Post-Testing)
+
+### Immediate Actions
+
+1. **Clear Second Runner Cache:**
+   ```bash
+   ssh eagle.internal "
+     sudo systemctl stop gitea-runner-second.service
+     sudo rm -rf /var/lib/gitea-runner/second/action-cache-dir/*
+     sudo systemctl start gitea-runner-second.service
+   "
+   ```
+
+2. **Monitor Cache Growth:**
+   ```bash
+   watch -n 60 'ssh eagle.internal "sudo du -sh /var/lib/gitea-runner/*/action-cache-dir/"'
+   ```
+
+### Short-term Options
+
+**Option A: Keep v12.1.2, Workaround Docker Actions Issue**
+- Pros: Already deployed, simple workflows work fine
+- Cons: Bitwarden-cli builds still fail
+- Actions:
+  1. Try disabling cache to see if it helps
+  2. Test alternative Docker build approaches (docker buildx directly without setup actions)
+  3. Report bug to Forgejo with test case
+
+**Option B: Rollback to v11.3.1**
+- Pros: Known behavior, no worse than before
+- Cons: Same issues exist in v11.3.1, wasted upgrade effort
+- Actions:
+  ```bash
+  # Revert commits
+  git revert HEAD~3..HEAD  # Revert test workflows and upgrade
+  git push
+  just nix-deploy eagle
+  ```
+
+**Option C: Try Configuration Workarounds**
+- Pros: May fix issues without changing versions
+- Cons: Unknown if effective, requires testing
+- Actions to test:
+  1. Disable cache (`cache.enabled = false`)
+  2. Add task finalization retry config (v12.0.0 feature)
+  3. Increase timeouts for action fetching
+
+### Long-term Solutions
+
+1. **Report Bug to Forgejo:**
+   - File issue at https://code.forgejo.org/forgejo/runner/issues
+   - Provide minimal reproduction case (test-docker-actions-native workflow)
+   - Include evidence: all steps succeed, runner never logs completion
+   - Reference similar issues found in testing
+
+2. **Alternative Build Approach for bitwarden-cli:**
+   - **Option 1:** Use `docker buildx` directly without setup-qemu/setup-buildx actions
+   - **Option 2:** Build locally and push image separately
+   - **Option 3:** Use different CI/CD platform for Docker builds (Drone, GitLab CI)
+
+3. **Monitor Forgejo Updates:**
+   - Watch for v12.2.x or v13.x releases mentioning job finalization fixes
+   - When nixpkgs updates to v12.x, migrate from custom package to upstream
+
+### Testing Framework Established
+
+The test workflows created provide a reproducible test suite:
+
+- `.forgejo/workflows/test-docker.yaml` - Tests native vs docker runner labels
+- `.forgejo/workflows/test-docker-native.yaml` - Reproduces Docker setup action bug
+
+These can be used to:
+- Verify future runner version upgrades
+- Test configuration changes
+- Provide bug reports to Forgejo maintainers
+
+## Known Issues and Limitations (Updated)
+
+### Critical Issues
+
+1. **Docker Setup Actions Cause Job Finalization Failure (v12.1.2):**
+   - Affects: Workflows using docker/setup-qemu-action@v3 and docker/setup-buildx-action@v3
+   - Symptom: All steps succeed, job marked as failed
+   - Root cause: Runner fails to finalize job, never logs completion
+   - Workaround: None identified yet
+   - Status: ❌ **BLOCKING bitwarden-cli builds**
+
+2. **Cache Unbounded Growth:**
+   - Second runner cache grew to 559MB during Docker action testing
+   - No automatic cleanup mechanism
+   - Manual intervention required
+   - Workaround: Periodic manual cache clearing
+
+### Package Limitations
+
+1. **ARM64 only:** Current package only supports `aarch64-linux` (eagle's architecture)
+   - If runners move to x86_64, update package to use `forgejo-runner-12.1.2-linux-amd64`
+
+2. **Binary-only package:** Not building from source
+   - Pro: Faster deployment, official tested binary
+   - Con: Less transparency than source build, requires trusting Forgejo binaries
+
+3. **autoPatchelfHook dependency:** Binary requires patching for NixOS
+   - Should work automatically, but if runner fails to start, check: `ldd /nix/store/*/bin/forgejo-runner`
+
+## References (Updated)
+
+### Investigation & Testing
+- **Original investigation:** `/home/ndufour/Documents/code/projects/bitwarden-cli/RUNNER_INVESTIGATION.md`
+- **Test workflows:** `.forgejo/workflows/test-docker*.yaml` in avalanche repo
+
+### Forgejo Resources
+- **Runner releases:** https://code.forgejo.org/forgejo/runner/releases
+- **v12.1.2 release notes:** https://code.forgejo.org/forgejo/runner/releases/tag/v12.1.2 (only mentions Docker >28.1 fix)
+- **Runner issues:** https://code.forgejo.org/forgejo/runner/issues
+- **Configuration example:** https://code.forgejo.org/forgejo/runner/src/branch/main/internal/pkg/config/config.example.yaml
+
+### Related Issues Found
+- **Runner stuck in Set up job:** https://www.synoforum.com/threads/forgejo-runner-stuck-in-set-up-job.14950/
+- **Docker setup-buildx issues:** https://github.com/docker/setup-buildx-action/discussions/343
+- **Forgejo runner Docker connectivity:** https://code.forgejo.org/forgejo/runner/issues/153
+
+### NixOS Resources
+- **NixOS gitea-actions-runner module:** https://search.nixos.org/options?query=services.gitea-actions-runner
+- **Current nixpkgs package:** https://github.com/NixOS/nixpkgs/blob/nixos-unstable/pkgs/by-name/fo/forgejo-runner/package.nix
 
 ## Approval & Sign-off
 
 **Prepared by:** Claude Code
-**Reviewed by:** _[User to approve]_
-**Approved for deployment:** ☐ Yes ☐ No ☐ With modifications
+**Deployment Date:** 2025-12-12
+**Deployed by:** User
+**Status:** ✅ Deployed, ⚠️ Core issues persist
 
-**Notes:**
+**Post-Deployment Notes:**
+- Upgrade to v12.1.2 completed successfully
+- Runners operational but job finalization bug remains
+- Specific to docker/setup-qemu-action and docker/setup-buildx-action
+- Simple workflows work perfectly
+- Further investigation or alternative approaches needed for Docker builds
