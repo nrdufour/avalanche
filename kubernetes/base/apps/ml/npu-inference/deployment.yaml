@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: npu-inference
+  labels:
+    app.kubernetes.io/name: npu-inference
+spec:
+  revisionHistoryLimit: 3
+  replicas: 1
+  strategy:
+    type: Recreate  # Only one replica can use NPU at a time
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: npu-inference
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: npu-inference
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: opi01  # Target specific NPU node
+      containers:
+        - name: inference
+          image: "forge.internal/nemo/npu-inference:latest"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          securityContext:
+            privileged: true  # Required for NPU device access (Phase 3.1)
+          volumeMounts:
+            - name: npu-device
+              mountPath: /dev/accel
+            - name: dri-device
+              mountPath: /dev/dri
+            - name: mesa-libs
+              mountPath: /mesa-libs
+              readOnly: true
+            - name: nix-store
+              mountPath: /nix/store
+              readOnly: true
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: npu-device
+          hostPath:
+            path: /dev/accel
+            type: Directory
+        - name: dri-device
+          hostPath:
+            path: /dev/dri
+            type: Directory
+        - name: mesa-libs
+          hostPath:
+            path: /run/opengl-driver/lib
+            type: Directory
+        - name: nix-store
+          hostPath:
+            path: /nix/store
+            type: Directory

@@ -3,12 +3,4 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ai
-  - self-hosted
-  - home-automation
-  - cnpg-system
-  # - tests
-  - irc
-  - media
-  - games
-  - ml
+  - npu-inference-app.yaml

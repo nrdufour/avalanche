@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: npu-inference
+  labels:
+    app.kubernetes.io/name: npu-inference
+  annotations:
+    gethomepage.dev/description: NPU-accelerated ML inference service
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/group: ML
+    gethomepage.dev/icon: mdi-brain
+    gethomepage.dev/name: NPU Inference
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"  # Allow larger image uploads
+    cert-manager.io/cluster-issuer: ca-server-cluster-issuer
+    cert-manager.io/common-name: npu-inference.internal
+spec:
+  tls:
+    - hosts:
+        - npu-inference.internal
+      secretName: npu-inference-ing-cert
+  ingressClassName: nginx
+  rules:
+    - host: "npu-inference.internal"
+      http:
+        paths:
+          - path: "/"
+            pathType: Prefix
+            backend:
+              service:
+                name: npu-inference
+                port:
+                  number: 80
