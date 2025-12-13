@@ -45,6 +45,24 @@ output_details = None
 model_loaded = False
 inference_count = 0
 total_inference_time = 0.0
+imagenet_labels = []
+
+def load_imagenet_labels(labels_path='/app/models/imagenet_labels.txt'):
+    """Load ImageNet class labels from file"""
+    global imagenet_labels
+
+    try:
+        if os.path.exists(labels_path):
+            with open(labels_path, 'r') as f:
+                imagenet_labels = [line.strip() for line in f.readlines()]
+            logger.info(f"✓ Loaded {len(imagenet_labels)} ImageNet labels")
+            return True
+        else:
+            logger.warning(f"ImageNet labels not found at {labels_path}")
+            return False
+    except Exception as e:
+        logger.error(f"Failed to load ImageNet labels: {e}")
+        return False
 
 def find_teflon_library():
     """Find Teflon library using multiple strategies"""
@@ -261,13 +279,16 @@ def infer():
         output_flat = output.flatten()
         top5_indices = np.argsort(output_flat)[-5:][::-1]
 
-        predictions = [
-            {
+        predictions = []
+        for idx in top5_indices:
+            pred = {
                 'class_id': int(idx),
                 'score': float(output_flat[idx])
             }
-            for idx in top5_indices
-        ]
+            # Add label if available
+            if imagenet_labels and 0 <= idx < len(imagenet_labels):
+                pred['label'] = imagenet_labels[idx]
+            predictions.append(pred)
 
         result = {
             'success': True,
@@ -310,6 +331,11 @@ if __name__ == '__main__':
     # Load model on startup
     logger.info("Starting NPU Inference Server...")
 
+    # Load ImageNet labels
+    labels_path = os.getenv('LABELS_PATH', '/app/models/imagenet_labels.txt')
+    load_imagenet_labels(labels_path)
+
+    # Load model
     model_path = os.getenv('MODEL_PATH', '/app/models/mobilenet_v1_1.0_224_quant.tflite')
 
     if load_model(model_path):

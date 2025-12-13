@@ -17,13 +17,15 @@ RUN pip install --no-cache-dir \
 # Create app directory
 WORKDIR /app
 
-# Download MobileNetV1 quantized model at build time
+# Download MobileNetV1 quantized model and ImageNet labels at build time
 RUN mkdir -p /app/models && \
     cd /app/models && \
     wget -q https://storage.googleapis.com/download.tensorflow.org/models/mobilenet_v1_2018_08_02/mobilenet_v1_1.0_224_quant.tgz && \
     tar --no-same-owner -xzf mobilenet_v1_1.0_224_quant.tgz && \
     rm mobilenet_v1_1.0_224_quant.tgz && \
-    echo "Model downloaded: $(ls -lh mobilenet_v1_1.0_224_quant.tflite)"
+    wget -q -O imagenet_labels.txt https://storage.googleapis.com/download.tensorflow.org/data/ImageNetLabels.txt && \
+    echo "Model downloaded: $(ls -lh mobilenet_v1_1.0_224_quant.tflite)" && \
+    echo "Labels downloaded: $(wc -l < imagenet_labels.txt) lines"
 
 # Copy inference server application
 COPY scripts/npu/inference-server.py /app/server.py
