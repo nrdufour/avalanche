@@ -388,6 +388,8 @@ curl -X POST -F "image=@test.jpg" http://npu-inference.ml.svc.cluster.local/infe
 
 ### Monitoring
 
+**Prometheus Metrics**:
+
 Metrics are automatically scraped by Prometheus via ServiceMonitor:
 
 ```bash
@@ -395,7 +397,24 @@ Metrics are automatically scraped by Prometheus via ServiceMonitor:
 # npu_inference_total - Total number of inferences
 # npu_inference_time_seconds_avg - Average inference time
 # npu_inference_time_seconds_total - Cumulative inference time
+
+# View metrics directly
+curl -sk https://npu-inference.internal/metrics
 ```
+
+**Grafana Dashboard**:
+
+A pre-configured Grafana dashboard is automatically deployed showing:
+- Total inference count
+- Average inference time (with thresholds: green <20ms, yellow <50ms, red >50ms)
+- Inference rate (requests per second)
+- Inference count over time graph
+- Inference latency over time graph
+
+Access the dashboard in Grafana:
+1. Navigate to Grafana (typically at `https://grafana.internal`)
+2. Search for "NPU Inference Service" dashboard
+3. Dashboard UID: `npu-inference`
 
 ### Deployment Details
 
