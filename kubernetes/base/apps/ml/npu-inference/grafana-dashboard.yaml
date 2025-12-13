@@ -3,9 +3,8 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: npu-inference-dashboard
-  namespace: observability
+  namespace: home-automation
   labels:
-    app: kube-prometheus-stack-grafana
     grafana_dashboard: "1"
 data:
   npu-inference.json: |
