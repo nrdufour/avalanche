@@ -522,6 +522,22 @@ curl http://localhost:8080/metrics
 - 95th percentile: <20ms
 - Throughput: ~60-70 requests/second (single NPU core)
 
+## Adding Additional Models
+
+The service currently uses **MobileNetV1** (2017, 70.6% accuracy) for validation and testing.
+
+**For better accuracy**, consider adding **EfficientNet-Lite4** (2020, 80.4% accuracy):
+- Step-by-step guide: `docs/npu-adding-models.md`
+- Expected inference time: ~30ms (vs 16ms for MobileNetV1)
+- Trade-off: +10% accuracy for +14ms latency
+- Still well under <50ms target
+
+The guide covers:
+- Downloading and adding EfficientNet-Lite models
+- Updating the Dockerfile and inference server
+- Testing and comparing multiple models
+- Alternative model options and compatibility requirements
+
 ## License
 
 Part of the Avalanche infrastructure repository.

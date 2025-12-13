@@ -1014,23 +1014,30 @@ curl -sk https://npu-inference.internal/metrics
 ```
 
 **Optional Future Enhancements** (Phase 3.5+):
-1. **Object Detection** (Garden camera use case):
+1. **Better Classification Model** (Documented):
+   - **Guide available**: `docs/npu-adding-models.md`
+   - Add EfficientNet-Lite4 (80.4% accuracy vs MobileNetV1's 70.6%)
+   - Expected performance: ~30ms inference (vs 16ms for MobileNetV1)
+   - Trade-off: +10% accuracy for +14ms latency (still <50ms target)
+   - Multiple variants available (Lite0-Lite4) for different speed/accuracy needs
+
+2. **Object Detection** (Garden camera use case):
    - Download SSDLite MobileDet TFLite model
    - Add `/detect` endpoint to inference service
    - Test 30 FPS object detection with bounding boxes
    - Deploy wildlife camera monitoring
 
-2. **Advanced Features**:
+3. **Advanced Features**:
    - Implement Kubernetes device plugin for multi-tenant NPU scheduling
    - Test multi-core NPU performance (3 cores available)
-   - Add Grafana dashboard for NPU workload visualization
-   - Benchmark additional models (MobileNetV2, EfficientNet-Lite)
+   - Multi-model comparison endpoint (MobileNetV1 vs EfficientNet-Lite)
+   - Model versioning and A/B testing
 
-3. **Production Hardening**:
+4. **Production Hardening**:
    - Move from privileged container to unprivileged with device grants
-   - Implement model versioning and A/B testing
    - Add request queuing for high load scenarios
    - Create model zoo with multiple quantized models
+   - Implement model hot-swapping without pod restart
 
 ## Future Use Case: Garden Camera Monitoring
 
