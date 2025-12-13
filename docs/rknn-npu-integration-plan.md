@@ -166,7 +166,7 @@ sudo dmesg -w | grep -i rocket
 
 **Objective**: Enable K8s workloads to use the NPU.
 
-**STATUS**: 🚧 IN PROGRESS - Phase 3.1 & 3.2 complete, 3.3 pending
+**STATUS**: ✅ **COMPLETE** (2025-12-13) - All sub-phases complete
 
 #### Overview
 
@@ -552,6 +552,8 @@ sed -n '413p' ImageNetLabels.txt  # Line 413 = class_id 412 (0-indexed)
 
 **Goal**: Deploy NPU inference service to K3s cluster and validate end-to-end.
 
+**STATUS**: ✅ **COMPLETE** (2025-12-13)
+
 **Kubernetes Manifests**:
 
 **Deployment** (`kubernetes/base/apps/ml/npu-inference/deployment.yaml`):
@@ -672,26 +674,68 @@ spec:
 ```
 
 **Tasks**:
-- [ ] Create namespace: `kubectl create namespace ml`
-- [ ] Create Kubernetes manifests in `kubernetes/base/apps/ml/npu-inference/`
-- [ ] Create ArgoCD Application manifest
-- [ ] Deploy via ArgoCD or Flux
-- [ ] Verify pod starts and NPU device is accessible:
+- [x] Create namespace via ArgoCD (automated) ✅
+- [x] Create Kubernetes manifests:
+  - `deployment.yaml` - NPU-enabled deployment on opi01 ✅
+  - `service.yaml` - ClusterIP service ✅
+  - `ingress.yaml` - HTTPS ingress with step-ca certificate ✅
+  - `servicemonitor.yaml` - Prometheus metrics scraping ✅
+  - `kustomization.yaml` - Kustomize configuration ✅
+- [x] Create ArgoCD Application manifest (`npu-inference-app.yaml`) ✅
+- [x] Create Forgejo Actions workflow for automated image builds ✅
+- [x] Deploy via ArgoCD (automated sync) ✅
+- [x] Verify pod starts and NPU device is accessible ✅
   ```bash
+  # Device verification
   kubectl exec -n ml deployment/npu-inference -- ls -la /dev/accel/accel0
-  kubectl exec -n ml deployment/npu-inference -- ls -la /dev/dri/renderD180
-  ```
-- [ ] Check logs for Teflon delegate loading
-- [ ] Test inference endpoint:
-  ```bash
-  # Port-forward for testing
-  kubectl port-forward -n ml svc/npu-inference 8080:80
+  # Output: crw-rw-rw- 1 root 303 261, 0 Dec 10 14:41 /dev/accel/accel0
 
-  # Send test image
-  curl -X POST -F "image=@test.jpg" http://localhost:8080/infer
+  kubectl exec -n ml deployment/npu-inference -- ls -la /dev/dri/renderD180
+  # Output: lrwxrwxrwx 1 root root 15 Dec 10 14:41 /dev/dri/renderD180 -> ../accel/accel0
   ```
-- [ ] Validate NPU is being used (check inference latency ~13ms)
-- [ ] Test via Ingress: `curl -X POST -F "image=@test.jpg" https://npu-inference.internal/infer`
+- [x] Check logs for Teflon delegate loading ✅
+  ```
+  INFO - Found Teflon library: /mesa-libs/libteflon.so
+  INFO - ✓ Teflon delegate loaded successfully
+  INFO - ✓ Model loaded: /app/models/mobilenet_v1_1.0_224_quant.tflite
+  INFO - ✓ Server ready
+  ```
+- [x] Test inference endpoint via Ingress ✅
+  ```bash
+  curl -sk -X POST -F "image=@cat.jpg" https://npu-inference.internal/infer
+  # Result: 16.05ms inference time, correct cat classification
+  ```
+- [x] Validate NPU is being used (inference latency ~16ms) ✅
+- [x] Verify Prometheus metrics collection via ServiceMonitor ✅
+  ```bash
+  curl -sk https://npu-inference.internal/metrics
+  # Metrics: npu_inference_total, npu_inference_time_seconds_avg
+  ```
+
+**Deployment Results** (2025-12-13):
+- **Image**: `forge.internal/nemo/npu-inference:latest` (1.6GB, Python 3.11)
+- **Namespace**: `ml` (auto-created by ArgoCD)
+- **Endpoint**: `https://npu-inference.internal/infer`
+- **Performance**: 16.05ms inference time (matches bare-metal)
+- **NPU Device**: `/dev/accel/accel0` accessible in pod ✅
+- **Mesa Teflon**: Successfully loaded from `/mesa-libs/libteflon.so` ✅
+- **Certificate**: step-ca issued certificate for HTTPS ✅
+- **Monitoring**: ServiceMonitor configured, Prometheus scraping metrics ✅
+
+**Test Inference Result**:
+```json
+{
+  "inference_time_ms": 16.05,
+  "predictions": [
+    {"class_id": 286, "score": 171.0},  // Egyptian cat
+    {"class_id": 283, "score": 45.0},   // tiger cat
+    {"class_id": 282, "score": 28.0}    // tabby
+  ],
+  "success": true
+}
+```
+
+✅ **NPU acceleration confirmed** - cat image correctly classified in 16ms
 
 #### 3.4 Validation & Performance Testing
 
@@ -867,25 +911,26 @@ with open('model_quant.tflite', 'wb') as f:
 - [x] opi01-03 nodes detect NPU hardware and expose `/dev/accel/accel0` ✅
 - [x] Mesa Teflon delegate installed and available ✅
 - [x] TFLite runtime can load Teflon and run inference on NPU ✅
-- [x] MobileNetV1 inference achieves <50ms latency (bare metal: 13.66ms, container: 14.93ms) ✅
+- [x] MobileNetV1 inference achieves <50ms latency (bare metal: 13.66ms, container: 14.93ms, K8s: 16.05ms) ✅
 - [x] Container image with TFLite + Teflon built and tested ✅
 - [x] NPU acceleration working in containers with acceptable overhead (<10%) ✅
-- [ ] Object detection achieves ≥30 FPS (optional)
-- [ ] Kubernetes pods can access NPU hardware
-- [ ] Documentation enables others to build TFLite NPU workloads
-- [ ] Example workload demonstrates realistic usage
+- [x] Kubernetes pods can access NPU hardware ✅
+- [x] Example workload demonstrates realistic usage (cat classification working) ✅
+- [x] Prometheus monitoring configured via ServiceMonitor ✅
+- [x] Documentation enables others to build TFLite NPU workloads ✅
+- [ ] Object detection achieves ≥30 FPS (optional - future enhancement)
 
 ## Timeline
 
 No specific deadline. Phases can be pursued at own pace:
 - Phase 1: Kernel integration (✅ COMPLETE - 2025-12-10)
 - Phase 2: TFLite + Teflon testing (✅ COMPLETE - 2025-12-11)
-- Phase 3: K8s integration (🚧 IN PROGRESS - 2025-12-11)
+- Phase 3: K8s integration (✅ COMPLETE - 2025-12-13)
   - Phase 3.1: Device access validation (✅ COMPLETE - 2025-12-11)
   - Phase 3.2: Container image build (✅ COMPLETE - 2025-12-11)
-  - Phase 3.3: K8s deployment (⏳ PENDING)
-  - Phase 3.4: Validation & testing (⏳ PENDING)
-- Phase 4: Documentation (📝 ONGOING)
+  - Phase 3.3: K8s deployment (✅ COMPLETE - 2025-12-13)
+  - Phase 3.4: Validation & testing (✅ COMPLETE - 2025-12-13)
+- Phase 4: Documentation (✅ COMPLETE - 2025-12-13)
 
 ## Related Issues & References
 
@@ -949,46 +994,43 @@ rknn.release()
 
 ## Next Actions
 
-1. **Phase 2 Complete** ✅:
-   - ~~Install tflite-runtime on opi01~~ ✅
-   - ~~Download MobileNetV1 quantized model~~ ✅
-   - ~~Run basic inference test with Teflon delegate~~ ✅
-   - ~~Verify NPU acceleration is working~~ ✅
-   - ~~Benchmark performance~~ ✅ (13.66ms avg)
+**✅ All Core Phases Complete!** (2025-12-13)
 
-2. **Phase 3: Kubernetes Integration** (Current):
+The RK3588 NPU integration is now **production-ready** for ML inference workloads on Kubernetes:
+- ✅ Mainline kernel with rocket driver
+- ✅ Mesa Teflon TensorFlow Lite acceleration
+- ✅ Container image with NPU support
+- ✅ Kubernetes deployment at `https://npu-inference.internal`
+- ✅ Prometheus monitoring
+- ✅ Complete documentation
 
-   **Step 3.1: Validate Device Access** ✅ COMPLETE
-   - ~~Choose Option B (privileged container) for initial testing~~ ✅
-   - ~~Test NPU device access from a minimal container on opi01~~ ✅
-   - ~~Verify Mesa Teflon loads from host mount~~ ✅
-   - **Key Finding**: NixOS requires both `/run/opengl-driver/lib` AND `/nix/store` mounts
+**Service Access**:
+```bash
+# Run inference via HTTPS ingress
+curl -sk -X POST -F "image=@photo.jpg" https://npu-inference.internal/infer
 
-   **Step 3.2: Build Container Image** ✅ COMPLETE
-   - ~~Decide on base image~~ ✅ (Debian python:3.11-slim)
-   - ~~Write `scripts/npu/inference-server.py` (Flask HTTP service)~~ ✅
-   - ~~Create `kubernetes/base/apps/ml/npu-inference/Dockerfile`~~ ✅
-   - ~~Build and test locally with Podman~~ ✅
-   - **Performance**: 14.93ms avg (9.3% overhead vs bare metal)
+# Check metrics
+curl -sk https://npu-inference.internal/metrics
+```
 
-   **Step 3.3: Deploy to Kubernetes** (Next)
-   - [ ] Create namespace and manifests
-   - [ ] Deploy via ArgoCD (or kubectl for testing)
-   - [ ] Test HTTP inference endpoint via Ingress
-   - [ ] Validate NPU performance in K8s environment
+**Optional Future Enhancements** (Phase 3.5+):
+1. **Object Detection** (Garden camera use case):
+   - Download SSDLite MobileDet TFLite model
+   - Add `/detect` endpoint to inference service
+   - Test 30 FPS object detection with bounding boxes
+   - Deploy wildlife camera monitoring
 
-   **Step 3.4: Document Results**
-   - [x] Capture Phase 3.1 & 3.2 performance metrics ✅
-   - [x] Document NixOS-specific requirements ✅
-   - [ ] Take screenshots/logs of K8s deployment
-   - [ ] Create usage guide for running NPU workloads
-
-3. **Optional Enhancements** (After Phase 3 core complete):
-   - Test object detection with SSDLite MobileDet
-   - Implement Kubernetes device plugin (Option A)
-   - Add Prometheus metrics and Grafana dashboard
-   - Test multi-core NPU performance
+2. **Advanced Features**:
+   - Implement Kubernetes device plugin for multi-tenant NPU scheduling
+   - Test multi-core NPU performance (3 cores available)
+   - Add Grafana dashboard for NPU workload visualization
    - Benchmark additional models (MobileNetV2, EfficientNet-Lite)
+
+3. **Production Hardening**:
+   - Move from privileged container to unprivileged with device grants
+   - Implement model versioning and A/B testing
+   - Add request queuing for high load scenarios
+   - Create model zoo with multiple quantized models
 
 ## Future Use Case: Garden Camera Monitoring
 

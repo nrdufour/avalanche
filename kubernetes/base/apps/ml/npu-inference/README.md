@@ -353,7 +353,89 @@ MobileNetV1 is trained on **ImageNet-1000** which includes:
 
 ## Deploying to Kubernetes
 
-See Phase 3.3 in `docs/rknn-npu-integration-plan.md` for Kubernetes deployment manifests and instructions.
+The service is deployed to the K3s cluster via ArgoCD in the `ml` namespace.
+
+### Accessing the Service
+
+**Via Ingress** (recommended):
+```bash
+# Health check
+curl -sk https://npu-inference.internal/health | jq .
+
+# Run inference
+curl -sk -X POST -F "image=@myimage.jpg" https://npu-inference.internal/infer | jq .
+
+# Check metrics
+curl -sk https://npu-inference.internal/metrics
+```
+
+**Via kubectl port-forward** (for testing):
+```bash
+# Forward service port
+kubectl port-forward -n ml svc/npu-inference 8080:80
+
+# In another terminal, test locally
+curl http://localhost:8080/health
+curl -X POST -F "image=@test.jpg" http://localhost:8080/infer
+```
+
+**From within cluster**:
+```bash
+# Use service DNS name
+curl http://npu-inference.ml.svc.cluster.local/health
+curl -X POST -F "image=@test.jpg" http://npu-inference.ml.svc.cluster.local/infer
+```
+
+### Monitoring
+
+Metrics are automatically scraped by Prometheus via ServiceMonitor:
+
+```bash
+# Query Prometheus for NPU metrics
+# npu_inference_total - Total number of inferences
+# npu_inference_time_seconds_avg - Average inference time
+# npu_inference_time_seconds_total - Cumulative inference time
+```
+
+### Deployment Details
+
+- **Namespace**: `ml`
+- **Replica**: 1 (pinned to opi01 node)
+- **Image**: `forge.internal/nemo/npu-inference:latest`
+- **Ingress**: `npu-inference.internal` (HTTPS with step-ca certificate)
+- **Resources**:
+  - Requests: 500m CPU, 512Mi memory
+  - Limits: 1 CPU, 1Gi memory
+
+### Troubleshooting Kubernetes Deployment
+
+**Check pod status:**
+```bash
+kubectl get pods -n ml -l app.kubernetes.io/name=npu-inference
+```
+
+**View logs:**
+```bash
+kubectl logs -n ml -l app.kubernetes.io/name=npu-inference --tail=50
+```
+
+**Verify NPU device access:**
+```bash
+kubectl exec -n ml deployment/npu-inference -- ls -la /dev/accel/accel0
+```
+
+**Check Teflon library:**
+```bash
+kubectl exec -n ml deployment/npu-inference -- ls -la /mesa-libs/libteflon.so
+```
+
+**Test inference from within cluster:**
+```bash
+kubectl run curl-test --image=curlimages/curl:latest --rm -it --restart=Never -- \
+  curl -X POST -F "image=@/tmp/test.jpg" http://npu-inference.ml.svc.cluster.local/infer
+```
+
+See Phase 3.3 in `docs/rknn-npu-integration-plan.md` for detailed deployment manifests and architecture.
 
 ## Environment Variables
 
