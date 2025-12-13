@@ -6,6 +6,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Install setuptools (required for Python 3.13+) and build dependencies
+RUN pip install --no-cache-dir setuptools wheel
+
 # Install Python dependencies
 RUN pip install --no-cache-dir \
     numpy==1.24.3 \
@@ -29,7 +32,7 @@ COPY scripts/npu/inference-server.py /app/server.py
 
 # Mesa Teflon library will be mounted from host at /mesa-libs
 # This allows the container to use the host's NPU-enabled Mesa drivers
-ENV LD_LIBRARY_PATH=/mesa-libs:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=/mesa-libs
 
 # Expose HTTP port
 EXPOSE 8080
