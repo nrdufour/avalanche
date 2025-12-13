@@ -1,4 +1,4 @@
-FROM python:3.14-slim
+FROM python:3.11-slim
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -6,15 +6,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install setuptools (required for Python 3.13+) and build dependencies
-RUN pip install --no-cache-dir setuptools wheel
-
 # Install Python dependencies
+# Using exact versions from successful opi01 testing
 RUN pip install --no-cache-dir \
-    numpy==1.24.3 \
-    pillow==10.0.0 \
-    tensorflow==2.15.0 \
-    flask==3.0.0
+    numpy \
+    pillow \
+    tensorflow \
+    flask
 
 # Create app directory
 WORKDIR /app
