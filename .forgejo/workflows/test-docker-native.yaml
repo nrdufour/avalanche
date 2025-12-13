@@ -15,7 +15,7 @@ jobs:
         run: echo "Starting at $(date -Iseconds)"
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Checkpoint - After checkout
         run: echo "Checkout completed at $(date -Iseconds)"
