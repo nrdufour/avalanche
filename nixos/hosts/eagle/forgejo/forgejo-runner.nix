@@ -25,6 +25,11 @@
   };
 
   environment.etc."buildkit/buildkitd.toml".text = ''
+    # Disable Container Device Interface (CDI) to prevent GPU detection
+    # Eagle has no GPU, and CDI auto-detection causes container start failures
+    [cdi]
+      disabled = true
+
     [registry."forge.internal"]
       http = true
       insecure = true
@@ -47,6 +52,10 @@
 
       first = let gitea-runner-directory = "/var/lib/gitea-runner/first"; in {
         settings = {
+          # log = {
+          #   level = "trace";      # Runner process trace output
+          #   job_level = "trace";  # Job logs visible in Forgejo UI
+          # };
           cache = {
             enabled = true;
           };
@@ -107,6 +116,10 @@
 
       second = let gitea-runner-directory = "/var/lib/gitea-runner/second"; in {
         settings = {
+          # log = {
+          #   level = "trace";      # Runner process trace output
+          #   job_level = "trace";  # Job logs visible in Forgejo UI
+          # };
           cache = {
             enabled = true;
           };

@@ -39,6 +39,16 @@
     };
   };
 
+  # Increase socket buffer sizes to fix Docker broken pipe errors
+  # during buildkit operations with heavy output (multi-arch builds, QEMU emulation)
+  # See: forgejo-runner-upgrade-plan.md investigation
+  boot.kernel.sysctl = {
+    "net.core.rmem_max" = 16777216;     # 16MB (was 208KB)
+    "net.core.wmem_max" = 16777216;     # 16MB (was 208KB)
+    "net.core.rmem_default" = 262144;   # 256KB (was 208KB)
+    "net.core.wmem_default" = 262144;   # 256KB (was 208KB)
+  };
+
   sops.defaultSopsFile = ../../../secrets/eagle/secrets.sops.yaml;
 
   system.autoUpgrade = {
