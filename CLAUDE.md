@@ -4,7 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Avalanche is a unified infrastructure-as-code monorepo managing 16 NixOS hosts (ARM SBCs, x86 servers, and workstations) plus a Kubernetes cluster using GitOps. This consolidates configurations from previously separate repositories (snowy, snowpea, home-ops).
+Avalanche is a unified infrastructure-as-code monorepo managing 17 NixOS hosts (ARM SBCs, x86 servers, and workstations) plus a Kubernetes cluster using GitOps. This consolidates configurations from previously separate repositories (snowy, snowpea, home-ops).
+
+**Recent Major Developments** (as of December 2025):
+- ✅ NPU (Neural Processing Unit) integration on Orange Pi 5 Plus nodes (mainline kernel + Mesa Teflon)
+- ✅ Network architecture refactored: Tailscale for remote access, Gluetun for VPN egress
+- ✅ Documentation reorganized into structured categories (architecture, guides, plans, troubleshooting)
+- 🚧 Surveillance camera system planned (Frigate NVR with PoE cameras)
+- 🚧 Forgejo Actions runner upgrades in progress
 
 ## Architecture
 
@@ -23,10 +30,14 @@ Avalanche is a unified infrastructure-as-code monorepo managing 16 NixOS hosts (
    - `overlays/`: Nixpkgs overlays
 
 2. **Kubernetes Layer** (`kubernetes/`): GitOps manifests for K3s cluster
-   - `base/`: Application definitions organized by category (apps, argocd, components, infra)
+   - `base/`: Application definitions organized by category
+     - `apps/`: User applications (ai, cnpg-system, games, home-automation, irc, media, ml, self-hosted, tests)
+     - `argocd/`: ArgoCD self-management
+     - `components/`: Reusable components (volsync)
+     - `infra/`: Infrastructure services (cert-manager, longhorn, network, observability, security, system)
    - `clusters/`: Cluster-specific configurations
-   - `kubernetes/`: Flux/ArgoCD manifests
-   - Uses both ArgoCD (primary) and Flux (transitioning)
+   - `kubernetes/`: Flux manifests (legacy, transitioning to ArgoCD)
+   - **Primary GitOps**: ArgoCD (Flux being phased out)
 
 3. **Cloud Layer** (`cloud/`): Future cloud infrastructure
    - `nixos/`: NixOS-based VPS configs
@@ -123,32 +134,68 @@ flux get kustomizations
 
 ## Infrastructure Details
 
-### NixOS Hosts (16 total)
+### NixOS Hosts (17 total)
 - **Workstation**: calypso (ASUS ROG Strix, from snowy)
-- **Infrastructure**: mysecrets (step-ca, Vaultwarden, Kanidm), eagle (Forgejo), possum (Garage S3, backups)
-- **x86 Servers**: beacon, routy, cardinal
-- **K3s Controllers**: opi01-03 (Orange Pi 5 Plus, aarch64)
+- **Infrastructure**:
+  - mysecrets (step-ca, Vaultwarden, Kanidm)
+  - eagle (Forgejo, CI/CD)
+  - possum (Garage S3, backups)
+- **x86 Servers**: beacon, routy (main gateway), cardinal, sparrow01
+- **K3s Controllers**: opi01-03 (Orange Pi 5 Plus, aarch64, **NPU-enabled**)
 - **K3s Workers**: raccoon00-05 (Raspberry Pi 4, aarch64)
 
 ### Key Technologies
 - **Deployment**: nixos-rebuild over SSH to `<hostname>.internal` (Tailscale)
 - **Secrets**: SOPS with Age encryption (keys in `~/.config/sops/age/keys.txt`)
-- **Network**: Tailscale mesh VPN, kube-vip for K8s HA (VIP: 10.1.0.5)
+- **Network**:
+  - Tailscale mesh VPN (remote access to home network)
+  - Gluetun VPN proxy (egress for containerized workloads - qbittorrent, IRC bot)
+  - kube-vip for K8s HA (VIP: 10.1.0.5)
 - **Identity**: Kanidm at `https://auth.internal` (users: `username@auth.internal`)
 - **GitOps**: ArgoCD (primary), Flux (legacy/transitioning)
 - **Storage**: Longhorn (K8s), Garage S3 (object storage)
+- **AI/ML**: Orange Pi 5 Plus NPU (mainline kernel + Mesa Teflon TensorFlow Lite)
 
 ### Kubernetes Applications
+- **AI/ML**:
+  - Ollama (LLM inference)
+  - NPU Inference Service (hardware-accelerated TensorFlow Lite on Orange Pi 5 Plus)
 - **Identity**: Vaultwarden (password manager)
 - **Observability**: Prometheus stack, Grafana, InfluxDB2
 - **Self-hosted**: Miniflux, SearXNG, Wallabag, Mealie, Wiki.js, Homepage
 - **Home Automation**: RTL433, RTLAMR2MQTT, NUT UPS daemon
-- **Infrastructure**: CloudNative-PG, cert-manager, External DNS, Nginx Ingress, Kyverno
+- **Media**: qbittorrent (with Gluetun VPN sidecar), Arr stack (planned)
+- **IRC**: Marmithon IRC bot (with Gluetun VPN proxy for DDOS protection)
+- **Infrastructure**: CloudNative-PG, cert-manager, External DNS, Nginx Ingress, Kyverno, Longhorn
+
+## Documentation
+
+**Primary Index**: `docs/README.md` - Categorized index of all documentation
+
+### Documentation Structure
+- `docs/architecture/` - System design and integration plans
+  - `network/` - Tailscale mesh VPN, Gluetun VPN egress, network architecture
+  - `npu/` - NPU integration, inference testing, model management
+  - `surveillance/` - Camera setup with Frigate NVR (planned)
+- `docs/guides/` - How-to guides and procedures
+  - `identity/` - Kanidm user management
+  - `upgrades/` - NixOS version upgrades
+- `docs/plans/` - Future work and upgrade plans
+- `docs/troubleshooting/` - Known issues and workarounds
+- `docs/migration/` - Historical monorepo consolidation docs
+- `docs/archive/` - Deprecated documentation
+
+### Key Documentation Files
+- **Network Architecture**: `docs/architecture/network/tailscale-architecture.md` (remote access)
+- **VPN Egress**: `docs/architecture/network/vpn-egress-architecture.md` (Gluetun-based)
+- **NPU Integration**: `docs/architecture/npu/rknn-npu-integration-plan.md` (mainline kernel + Mesa)
+- **Kanidm**: `docs/guides/identity/kanidm-user-management.md` (identity provider)
+- **Network Migration**: `docs/architecture/network/network-architecture-migration.md` (exit nodes → proxy pattern)
 
 ## Identity Management (Kanidm)
 
 **Location**: mysecrets host at `https://auth.internal`
-**Documentation**: `docs/kanidm-user-management.md`
+**Documentation**: `docs/guides/identity/kanidm-user-management.md`
 
 ### Key Details
 - **Domain**: `auth.internal` (user identities: `username@auth.internal`)
@@ -226,11 +273,20 @@ sudo kanidm group add-members <groupname> <username> --name idm_admin
 
 ## Directory Conventions
 
-- Host-specific config: `nixos/hosts/<hostname>/default.nix`
-- Shared profiles: `nixos/profiles/` (imported via profileModules)
-- Feature bundles: `nixos/personalities/` (imported directly in host configs)
-- Secrets: `secrets/<hostname>/` (encrypted with SOPS)
-- K8s apps: `kubernetes/base/apps/<category>/<app>/`
+- **NixOS**:
+  - Host-specific config: `nixos/hosts/<hostname>/default.nix`
+  - Shared profiles: `nixos/profiles/` (imported via profileModules)
+  - Feature bundles: `nixos/personalities/` (imported directly in host configs)
+  - Secrets: `secrets/<hostname>/` (encrypted with SOPS)
+- **Kubernetes**:
+  - Apps: `kubernetes/base/apps/<category>/<app>/`
+  - Infrastructure: `kubernetes/base/infra/<category>/<service>/`
+  - ArgoCD apps: `kubernetes/base/<category>/<name>-app.yaml`
+- **Documentation**:
+  - Architecture: `docs/architecture/<domain>/`
+  - Guides: `docs/guides/<topic>/`
+  - Plans: `docs/plans/`
+  - Troubleshooting: `docs/troubleshooting/`
 
 ## Critical Notes
 
@@ -240,6 +296,55 @@ sudo kanidm group add-members <groupname> <username> --name idm_admin
 - **Remember** hosts are accessed via `<hostname>.internal` (Tailscale DNS)
 - Kubernetes kubeconfig uses kube-vip VIP (10.1.0.5), not individual controller IPs
 
-### Android 16 & DSCP Marking Fix (routy)
+### Network Architecture Notes
 
+#### Android 16 & DSCP Marking Fix (routy)
 **Note**: routy applies a global DSCP clearing rule (`nixos/hosts/routy/android16-fix.nix`) that resets all DSCP markings to cs0 on the FORWARD chain. This was implemented to resolve Android 16 strict packet validation that rejects non-cs0 DSCP markings (affecting fly.dev, CDNs, and other services on port 443). DSCP is still actively used in modern networks for QoS prioritization (VoIP, video conferencing, media streaming), but this setup does not rely on DSCP-based QoS, so the trade-off is acceptable. If you later implement QoS policies that depend on DSCP, this rule should be reconsidered.
+
+#### Tailscale vs Gluetun Separation
+**Important**: The network architecture separates concerns:
+- **Tailscale**: Remote access to home network (mesh VPN, subnet routing via routy)
+  - Use for: Accessing services from phone/laptop while traveling
+  - Hosts in tailnet: routy (subnet router), calypso (workstation), mysecrets (infrastructure)
+- **Gluetun**: VPN egress for containerized workloads (VPN proxy pattern)
+  - Use for: Masking egress IP, region selection, DDOS protection
+  - Deployments: qbittorrent (sidecar), marmithon IRC bot (shared proxy - planned)
+  - **Do NOT use Tailscale exit nodes for K8s pods** - use Gluetun instead
+
+See `docs/architecture/network/network-architecture-migration.md` for migration details.
+
+### NPU (Neural Processing Unit) Integration
+
+#### Hardware
+- **Nodes**: opi01-03 (Orange Pi 5 Plus with RK3588 SoC)
+- **NPU**: 6 TOPS, 3 cores (all detected and working)
+- **Driver**: Mainline Linux 6.18+ `rocket` driver (upstream)
+- **Userspace**: Mesa 25.3+ Teflon TensorFlow Lite delegate
+
+#### Software Stack Choice
+**IMPORTANT**: Two incompatible NPU stacks exist for RK3588:
+1. **Vendor stack** (Rockchip RKNN) - requires vendor kernel, out-of-tree driver
+2. **Mainline stack** (Mesa Teflon) - uses mainline kernel, TensorFlow Lite
+
+**Avalanche uses mainline stack** to avoid vendor lock-in and maintain upstream compatibility.
+
+#### NPU Service
+- **Deployment**: `kubernetes/base/apps/ml/npu-inference/`
+- **Models**: Standard TensorFlow Lite `.tflite` format (NOT `.rknn`)
+- **API**: HTTP inference service on port 8080
+- **Monitoring**: Grafana dashboard for inference metrics
+- **Node affinity**: Runs only on Orange Pi 5 Plus nodes (opi01-03)
+
+See `docs/architecture/npu/rknn-npu-integration-plan.md` for details.
+
+### Surveillance System (Planned)
+
+**Status**: 🚧 Design phase complete, implementation pending
+
+**Plan**: Frigate NVR with PoE cameras
+- **NVR**: Frigate on possum host (x86 server with USB Coral TPU)
+- **Cameras**: Reolink RLC-810A (4K PoE, H.265)
+- **Network**: Dedicated PoE switch or injectors
+- **Storage**: ZFS dataset on possum
+
+See `docs/architecture/surveillance/camera-setup-plan.md` for comprehensive setup plan.
