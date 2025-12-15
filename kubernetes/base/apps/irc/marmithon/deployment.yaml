@@ -21,17 +21,10 @@ spec:
         # Main Marmithon IRC bot container
         - name: marmithon
           image: forge.internal/nemo/marmitton:latest
-          command:
-            - /bin/sh
-            - -c
-            - |
-              echo "Waiting for Gluetun VPN to be ready..."
-              until wget --spider -q http://localhost:9999 2>/dev/null; do
-                echo "VPN not ready, waiting 5s..."
-                sleep 5
-              done
-              echo "VPN is ready! Starting Marmithon..."
-              exec /app/marmithon -config /etc/marmithon/marmithon.conf
+          args:
+            - "/app/marmithon"
+            - "-config"
+            - "/etc/marmithon/marmithon.conf"
           volumeMounts:
             - name: config
               mountPath: /etc/marmithon
