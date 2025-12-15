@@ -20,7 +20,7 @@ spec:
       containers:
         # Main Marmithon IRC bot container
         - name: marmithon
-          image: forge.internal/nemo/marmitton:latest
+          image: forge.internal/nemo/marmitton:latest@sha256:5feccd8fbe7ced9924180b221506b9c695d66b8c38f12117f2bd3b22a805a207
           args:
             - "-config"
             - "/etc/marmithon/marmithon.conf"
