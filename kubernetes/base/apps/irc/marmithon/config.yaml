@@ -10,3 +10,17 @@ data:
     ssl = false
     channels = ["#souk"]
 
+    # Identd server configuration (RFC 1413)
+    identdEnabled = true
+    identdPort = "113"
+    identdUsername = "marmithon"
+
+    # Prometheus metrics server
+    metricsEnabled = true
+    metricsPort = "9090"
+
+    # Automatic reconnection
+    reconnectEnabled = true
+    reconnectDelaySeconds = 30
+    reconnectMaxAttempts = 0  # 0 = unlimited
+
