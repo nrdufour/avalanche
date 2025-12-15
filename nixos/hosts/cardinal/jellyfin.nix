@@ -64,8 +64,7 @@
           proxy_read_timeout 3600s;
           proxy_send_timeout 3600s;
 
-          # HLS/streaming optimizations
-          proxy_http_version 1.1;
+          # HLS/streaming optimizations - range request support
           proxy_set_header Range $http_range;
           proxy_set_header If-Range $http_if_range;
 
@@ -96,8 +95,7 @@
           proxy_read_timeout 3600s;
           proxy_send_timeout 3600s;
 
-          # HLS/streaming optimizations
-          proxy_http_version 1.1;
+          # HLS/streaming optimizations - range request support
           proxy_set_header Range $http_range;
           proxy_set_header If-Range $http_if_range;
 
