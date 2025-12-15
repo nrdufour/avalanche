@@ -307,6 +307,8 @@ kubectl exec -n irc deployment/marmithon -- curl ifconfig.me
 # Should show ProtonVPN Iceland IP, not home IP
 ```
 
+**Note**: Always use `curl` instead of `wget` for testing HTTP connections. BusyBox wget (used in many container images) and GNU wget have different IPv4/IPv6 behavior, which can cause false negatives when testing localhost endpoints. `curl` handles both IPv4 and IPv6 consistently.
+
 **Check proxy health**:
 ```bash
 kubectl get pods -n vpn-proxy
@@ -496,12 +498,55 @@ groups:
           summary: "VPN proxy {{ $labels.instance }} is down"
 ```
 
+## Troubleshooting
+
+### VPN Health Check Fails with wget
+
+**Problem**: Container startup script using `wget --spider http://localhost:9999` hangs or fails, even though Gluetun is healthy.
+
+**Cause**: Different wget implementations handle IPv4/IPv6 differently:
+- **BusyBox wget** (Alpine, minimal images): Simple implementation, works reliably
+- **GNU wget** (Debian, full images): Advanced IPv4/IPv6 handling can cause issues with localhost
+
+**Solution**: Use `curl` instead of `wget` for health checks:
+```bash
+# Instead of:
+until wget --spider -q http://localhost:9999 2>/dev/null; do
+
+# Use:
+until curl -sf http://localhost:9999 >/dev/null 2>&1; do
+```
+
+**Why curl is better**:
+- Consistent IPv4/IPv6 behavior across implementations
+- Simpler error handling
+- More predictable with localhost endpoints
+- Universal availability in container images
+
+**Alternative**: Use `netcat` for simple port checks:
+```bash
+until nc -z localhost 9999 2>/dev/null; do
+```
+
+### Container Image Caching
+
+**Problem**: Kubernetes uses old image even though you pushed a new one with `:latest` tag.
+
+**Cause**: `imagePullPolicy: IfNotPresent` + `:latest` tag = cached image never updates on the node.
+
+**Solution**: Pin to specific SHA256 digest in deployment:
+```yaml
+image: forge.internal/nemo/marmitton:latest@sha256:abc123...
+```
+
+Or set `imagePullPolicy: Always` (less efficient).
+
 ## References
 
 - [Gluetun Documentation](https://github.com/qdm12/gluetun)
 - [Gluetun Wiki](https://github.com/qdm12/gluetun-wiki)
 - [ProtonVPN Configuration](https://github.com/qdm12/gluetun-wiki/blob/main/setup/providers/protonvpn.md)
-- Existing implementation: `kubernetes/base/apps/media/qbittorrent/deployment.yaml`
+- Existing implementation: `kubernetes/base/apps/media/qbittorrent/deployment.yaml`, `kubernetes/base/apps/irc/marmithon/deployment.yaml`
 - Related docs: `tailscale-architecture-refactored.md` (mesh VPN for remote access)
 
 ---
