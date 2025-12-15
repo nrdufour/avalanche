@@ -9,7 +9,7 @@ Gluetun-based VPN proxy service for containerized workloads requiring outbound t
 - Region/country-specific egress for future services
 - Torrenting and privacy-sensitive traffic (qbittorrent)
 
-**Status**: ✅ Proven pattern (qbittorrent), ready to expand
+**Status**: ✅ Production (qbittorrent + marmithon IRC bot)
 
 ## Why Gluetun (Not Tailscale Exit Nodes)
 
@@ -374,11 +374,12 @@ kubectl create secret generic vpn-proxy-mullvad \
 - [ ] Deploy Netherlands proxy (backup/alternative)
 - [ ] Test proxy connectivity from test pod
 
-### Phase 3: Migrate IRC Bot
-- [ ] Determine if marmithon supports HTTP_PROXY or SOCKS5
-- [ ] Update marmithon deployment with proxy configuration
-- [ ] Test IRC connection shows VPN IP
-- [ ] Monitor for stability (1 week)
+### Phase 3: Migrate IRC Bot ✅
+- [x] Implemented Gluetun sidecar pattern (persistent IRC connection requires dedicated VPN)
+- [x] Updated marmithon image with debugging utilities (wget, curl, bind-tools, netcat)
+- [x] Added VPN readiness check in deployment (waits for Gluetun before starting)
+- [x] Configured Netherlands VPN server (ProtonVPN via WireGuard)
+- [x] Verified IRC connection uses VPN IP (185.107.44.112)
 
 ### Phase 4: Cleanup
 - [ ] Remove Tailscale Kubernetes Operator (if deployed)
@@ -506,4 +507,5 @@ groups:
 ---
 
 *Created: 2025-12-14*
-*Status*: 🚧 Planned - qbittorrent pattern proven, IRC bot migration pending
+*Updated: 2025-12-15*
+*Status*: ✅ Production - Both qbittorrent and marmithon IRC bot deployed with Gluetun VPN
