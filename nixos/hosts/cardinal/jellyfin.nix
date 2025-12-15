@@ -48,13 +48,29 @@
       forceSSL = true;
       enableACME = true;
       extraConfig = ''
-        client_max_body_size 2g;
+        client_max_body_size 20M;
+
+        # Disable gzip for media streaming
+        gzip off;
       '';
       locations."/" = {
         proxyPass = "http://localhost:8096";
         proxyWebsockets = true; # Enable WebSocket support
         extraConfig = ''
+          # Disable buffering for real-time and streaming content
           proxy_buffering off;
+
+          # Increase timeouts for long-running streams
+          proxy_read_timeout 3600s;
+          proxy_send_timeout 3600s;
+
+          # HLS/streaming optimizations
+          proxy_http_version 1.1;
+          proxy_set_header Range $http_range;
+          proxy_set_header If-Range $http_if_range;
+
+          # Cache control for static assets
+          proxy_cache_bypass $http_range $http_if_range;
         '';
       };
     };
@@ -64,13 +80,29 @@
       forceSSL = false;
       enableACME = false;
       extraConfig = ''
-        client_max_body_size 2g;
+        client_max_body_size 20M;
+
+        # Disable gzip for media streaming
+        gzip off;
       '';
       locations."/" = {
         proxyPass = "http://localhost:8096";
         proxyWebsockets = true; # Enable WebSocket support
         extraConfig = ''
+          # Disable buffering for real-time and streaming content
           proxy_buffering off;
+
+          # Increase timeouts for long-running streams
+          proxy_read_timeout 3600s;
+          proxy_send_timeout 3600s;
+
+          # HLS/streaming optimizations
+          proxy_http_version 1.1;
+          proxy_set_header Range $http_range;
+          proxy_set_header If-Range $http_if_range;
+
+          # Cache control for static assets
+          proxy_cache_bypass $http_range $http_if_range;
         '';
       };
     };
