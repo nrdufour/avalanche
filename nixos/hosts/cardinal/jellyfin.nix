@@ -50,7 +50,13 @@
       extraConfig = ''
         client_max_body_size 2g;
       '';
-      locations."/".proxyPass = "http://localhost:8096";
+      locations."/" = {
+        proxyPass = "http://localhost:8096";
+        proxyWebsockets = true; # Enable WebSocket support
+        extraConfig = ''
+          proxy_buffering off;
+        '';
+      };
     };
 
     virtualHosts."jellyfin-tv.internal" = {
@@ -60,7 +66,13 @@
       extraConfig = ''
         client_max_body_size 2g;
       '';
-      locations."/".proxyPass = "http://localhost:8096";
+      locations."/" = {
+        proxyPass = "http://localhost:8096";
+        proxyWebsockets = true; # Enable WebSocket support
+        extraConfig = ''
+          proxy_buffering off;
+        '';
+      };
     };
   };
 }
