@@ -1,0 +1,30 @@
+---
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: marmithon
+  namespace: observability
+spec:
+  kubernetesSDConfigs:
+    - role: pod
+      namespaces:
+        names:
+          - irc
+      selectors:
+        - role: pod
+          label: app=marmithon
+  metricsPath: /metrics
+  relabelings:
+    - sourceLabels: [__meta_kubernetes_pod_container_name]
+      action: keep
+      regex: marmithon
+    - sourceLabels: [__meta_kubernetes_pod_container_port_number]
+      action: keep
+      regex: "9090"
+    - action: replace
+      targetLabel: job
+      replacement: marmithon
+    - sourceLabels: [__meta_kubernetes_namespace]
+      targetLabel: namespace
+    - sourceLabels: [__meta_kubernetes_pod_name]
+      targetLabel: pod

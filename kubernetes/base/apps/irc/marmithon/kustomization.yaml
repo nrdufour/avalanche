@@ -6,3 +6,4 @@ resources:
 - config.yaml
 - vpn-secret.yaml
 - deployment.yaml
+- scrapeconfig.yaml
