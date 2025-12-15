@@ -20,7 +20,8 @@ spec:
       containers:
         # Main Marmithon IRC bot container
         - name: marmithon
-          image: forge.internal/nemo/marmitton:latest@sha256:5d55622c16d7da87d3741207c0a3fbae1c0f0ea89235e2bb6ec74a4ac3ac2a1b
+          image: forge.internal/nemo/marmitton:latest
+          imagePullPolicy: Always
           command:
             - /bin/sh
             - -c
