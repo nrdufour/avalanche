@@ -22,7 +22,6 @@ spec:
         - name: marmithon
           image: forge.internal/nemo/marmitton:latest
           args:
-            - "/app/marmithon"
             - "-config"
             - "/etc/marmithon/marmithon.conf"
           volumeMounts:
