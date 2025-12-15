@@ -52,6 +52,28 @@ spec:
               drop:
                 - ALL
 
+        # Identd sidecar (required by IRC server for VPN IPs)
+        - name: identd
+          image: gizmotronic/nullidentd:latest
+          ports:
+            - name: ident
+              containerPort: 113
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 5m
+              memory: 8Mi
+            limits:
+              memory: 32Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            capabilities:
+              drop:
+                - ALL
+
         # Gluetun VPN sidecar
         - name: gluetun
           image: ghcr.io/qdm12/gluetun:v3.40.1
@@ -65,7 +87,7 @@ spec:
             - name: VPN_TYPE
               value: "wireguard"
             - name: SERVER_COUNTRIES
-              value: "Netherlands"
+              value: "Switzerland"
             - name: FIREWALL_OUTBOUND_SUBNETS
               value: "10.42.0.0/16,10.43.0.0/16"
             - name: LOG_LEVEL
