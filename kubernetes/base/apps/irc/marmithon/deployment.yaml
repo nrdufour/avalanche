@@ -54,7 +54,7 @@ spec:
 
         # Identd sidecar (required by IRC server for VPN IPs)
         - name: identd
-          image: alpine:3.21
+          image: alpine:3.23
           command:
             - /bin/sh
             - -c
