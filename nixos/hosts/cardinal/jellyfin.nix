@@ -25,7 +25,11 @@
   services.jellyfin = {
     enable = true;
     openFirewall = true;
+    group = "video"; # Access to GPU devices
   };
+
+  # Ensure jellyfin user has access to GPU hardware acceleration
+  users.users.jellyfin.extraGroups = [ "video" "render" ];
 
   environment.systemPackages = [
     pkgs.jellyfin
