@@ -18,7 +18,7 @@ spec:
         app: marmithon
     spec:
       containers:
-        # Main Marmithon IRC bot container
+        # Main Marmithon IRC bot container with native identd and metrics
         - name: marmithon
           image: forge.internal/nemo/marmitton:latest
           imagePullPolicy: Always
@@ -33,6 +33,13 @@ spec:
               done
               echo "VPN is ready! Starting Marmithon..."
               exec /app/marmithon -config /etc/marmithon/marmithon.conf
+          ports:
+            - name: ident
+              containerPort: 113
+              protocol: TCP
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
           volumeMounts:
             - name: config
               mountPath: /etc/marmithon
@@ -48,36 +55,6 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: false
-            capabilities:
-              drop:
-                - ALL
-
-        # Identd sidecar (required by IRC server for VPN IPs)
-        - name: identd
-          image: alpine:3.23
-          command:
-            - /bin/sh
-            - -c
-            - |
-              # Simple identd responder
-              while true; do
-                nc -l -p 113 -e /bin/sh -c 'read request; echo "$request : USERID : UNIX : marmithon"'
-              done
-          ports:
-            - name: ident
-              containerPort: 113
-              protocol: TCP
-          resources:
-            requests:
-              cpu: 5m
-              memory: 8Mi
-            limits:
-              memory: 32Mi
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: false
-            runAsNonRoot: true
-            runAsUser: 65534
             capabilities:
               drop:
                 - ALL
