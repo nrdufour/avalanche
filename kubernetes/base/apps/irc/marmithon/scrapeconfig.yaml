@@ -6,12 +6,12 @@ metadata:
   namespace: observability
 spec:
   kubernetesSDConfigs:
-    - role: pod
+    - role: Pod
       namespaces:
         names:
           - irc
       selectors:
-        - role: pod
+        - role: Pod
           label: app=marmithon
   metricsPath: /metrics
   relabelings:
