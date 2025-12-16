@@ -1,6 +1,7 @@
 {
   pkgs,
   config,
+  inputs,
   ...
 }:
 {
@@ -67,10 +68,13 @@
     llama-cpp
 
     # Claude-code became a must-have as well
-    unstable.claude-code
+    inputs.llm-agents.packages.${pkgs.system}.claude-code
+
+    # Factory Droid - factory for creating AI agents
+    inputs.llm-agents.packages.${pkgs.system}.droid
 
     # the contender ;) specially for ollama
-    unstable.opencode
+    inputs.llm-agents.packages.${pkgs.system}.opencode
 
     # GPU reset helper script for when CUDA gets stuck after gaming
     (pkgs.writeShellScriptBin "reset-gpu" ''
