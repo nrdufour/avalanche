@@ -79,7 +79,11 @@
     inputs.llm-agents.packages.${pkgs.system}.droid
 
     # the contender ;) specially for ollama
-    inputs.llm-agents.packages.${pkgs.system}.opencode
+    # Wrapped with OPENCODE_LIBC for NixOS compatibility
+    (pkgs.writeShellScriptBin "opencode" ''
+      export OPENCODE_LIBC=${pkgs.glibc}/lib/libc.so.6
+      exec ${inputs.llm-agents.packages.${pkgs.system}.opencode}/bin/opencode "$@"
+    '')
 
     # GPU reset helper script for when CUDA gets stuck after gaming
     (pkgs.writeShellScriptBin "reset-gpu" ''
