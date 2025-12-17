@@ -21,6 +21,9 @@
         "CUDA_PATH=${pkgs.cudaPackages.cudatoolkit}"
         "LD_LIBRARY_PATH=/run/opengl-driver/lib"
         "OLLAMA_CONTEXT_LENGTH=32000"
+        # Force GPU detection
+        "CUDA_VISIBLE_DEVICES=0"
+        "NVIDIA_VISIBLE_DEVICES=0"
       ];
     };
   };
