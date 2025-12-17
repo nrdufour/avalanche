@@ -6,10 +6,11 @@
 }:
 {
   # From https://wiki.nixos.org/wiki/Ollama
+  # In NixOS 25.11, acceleration="cuda" automatically uses ollama-cuda package
+  # Don't override with package= as it will ignore acceleration setting
   services.ollama = {
     enable = true;
     acceleration = "cuda";
-    package = pkgs.ollama;
   };
 
   # Ensure Ollama service has proper CUDA environment
