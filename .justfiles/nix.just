@@ -49,3 +49,53 @@ nix-deploy-all:
         echo "Deploying to $HOST..."
         nixos-rebuild switch -j auto --use-remote-sudo --build-host ${HOST}.internal --target-host ${HOST}.internal --flake ".#${HOST}" --fast
     done
+
+# Disable automatic NixOS upgrades on all hosts (stops timer until reboot/manual start)
+nix-disable-autoupgrade:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    HOSTS=$(nix flake show --json 2>/dev/null | jq -r '.nixosConfigurations | keys.[]')
+    FAILED_HOSTS=()
+
+    echo "Disabling auto-upgrade on all hosts..."
+    for HOST in $HOSTS; do
+        echo -n "  $HOST... "
+        if ssh -o ConnectTimeout=5 ${HOST}.internal "sudo systemctl stop nixos-upgrade.timer" >/dev/null 2>&1; then
+            echo "✓"
+        else
+            echo "✗ (failed or unreachable)"
+            FAILED_HOSTS+=("$HOST")
+        fi
+    done
+
+    if [ ${#FAILED_HOSTS[@]} -gt 0 ]; then
+        echo ""
+        echo "Failed hosts: ${FAILED_HOSTS[*]}"
+        exit 1
+    fi
+
+# Enable automatic NixOS upgrades on all hosts (starts timer immediately)
+nix-enable-autoupgrade:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    HOSTS=$(nix flake show --json 2>/dev/null | jq -r '.nixosConfigurations | keys.[]')
+    FAILED_HOSTS=()
+
+    echo "Enabling auto-upgrade on all hosts..."
+    for HOST in $HOSTS; do
+        echo -n "  $HOST... "
+        if ssh -o ConnectTimeout=5 ${HOST}.internal "sudo systemctl start nixos-upgrade.timer" >/dev/null 2>&1; then
+            echo "✓"
+        else
+            echo "✗ (failed or unreachable)"
+            FAILED_HOSTS+=("$HOST")
+        fi
+    done
+
+    if [ ${#FAILED_HOSTS[@]} -gt 0 ]; then
+        echo ""
+        echo "Failed hosts: ${FAILED_HOSTS[*]}"
+        exit 1
+    fi
