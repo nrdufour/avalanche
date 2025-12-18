@@ -66,6 +66,10 @@ spec:
             - name: gluetun-http
               containerPort: 9999
               protocol: TCP
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
           env:
             - name: VPN_SERVICE_PROVIDER
               value: "protonvpn"
