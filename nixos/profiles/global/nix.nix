@@ -40,6 +40,10 @@
 
       # The default at 10 is rarely enough.
       log-lines = lib.mkDefault 25;
+
+      # Increase download buffer size to avoid warnings during large downloads
+      # Default is 64 MiB, increasing to 256 MiB
+      download-buffer-size = 256 * 1024 * 1024;
     };
     gc = {
       automatic = true;

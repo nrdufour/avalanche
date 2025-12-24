@@ -73,16 +73,16 @@
     llama-cpp
 
     # Claude-code became a must-have as well
-    inputs.llm-agents.packages.${pkgs.system}.claude-code
+    inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.claude-code
 
     # Factory Droid - factory for creating AI agents
-    inputs.llm-agents.packages.${pkgs.system}.droid
+    inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.droid
 
     # the contender ;) specially for ollama
     # Wrapped with OPENCODE_LIBC for NixOS compatibility
     (pkgs.writeShellScriptBin "opencode" ''
       export OPENCODE_LIBC=${pkgs.glibc}/lib/libc.so.6
-      exec ${inputs.llm-agents.packages.${pkgs.system}.opencode}/bin/opencode "$@"
+      exec ${inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.opencode}/bin/opencode "$@"
     '')
 
     # GPU reset helper script for when CUDA gets stuck after gaming
