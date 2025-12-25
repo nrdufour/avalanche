@@ -209,7 +209,6 @@ Add to `nixos/profiles/role-k3s-controller.nix` and `role-k3s-worker.nix`:
 boot.kernel.sysctl = {
   # Connection tracking (prevent table exhaustion)
   "net.netfilter.nf_conntrack_max" = 262144;
-  "net.netfilter.nf_conntrack_tcp_timeout_time_wait" = 30;
 
   # Network buffers (ARM SBC optimization, proven on eagle host)
   "net.core.rmem_max" = 16777216;
@@ -220,6 +219,13 @@ boot.kernel.sysctl = {
   "net.ipv4.tcp_wmem" = "4096 65536 16777216";
 };
 ```
+
+**REMOVED** (Caused Production Issues):
+```nix
+# DO NOT USE - Caused connection timeouts and broken pipes
+# "net.netfilter.nf_conntrack_tcp_timeout_time_wait" = 30;
+```
+See "Known Issues" section below for details.
 
 **Optional (If Experiencing Connection Issues)**:
 ```nix
@@ -343,6 +349,34 @@ If issues occur after deployment:
 
 ---
 
+## Known Issues
+
+### TIME_WAIT Timeout Reduction (REMOVED)
+
+**Issue**: The `net.netfilter.nf_conntrack_tcp_timeout_time_wait = 30` setting was initially included to speed up port recycling (reduced from default 120s to 30s).
+
+**Problem Discovered** (2025-12-25): This caused **severe connection issues** across the cluster:
+- Longhorn replica synchronization timeouts ("i/o timeout", "broken pipe")
+- Pod-to-pod connection failures
+- Database failovers (CloudNative-PG clusters)
+- Widespread "node not found" errors from Longhorn CSI
+
+**Root Cause**: The TIME_WAIT timeout applies to conntrack entries, not just TIME_WAIT sockets. Reducing it from 120s to 30s caused premature cleanup of **active** connection tracking entries for persistent Longhorn replica connections.
+
+**Resolution**: Removed the sysctl (commit ef6fe23). Manually reset all nodes to default 120s:
+```bash
+for node in opi01-03 raccoon00-05; do
+  ssh ${node}.internal "sudo sysctl net.netfilter.nf_conntrack_tcp_timeout_time_wait=120"
+done
+```
+
+**Lesson Learned**: The `nf_conntrack_tcp_timeout_time_wait` sysctl is **not equivalent** to `net.ipv4.tcp_fin_timeout` (which only affects host TCP stack). It affects connection tracking for **all** pod-to-pod traffic routed through kube-proxy/iptables and is critical for distributed storage systems like Longhorn.
+
+**Recommendation**: Keep TIME_WAIT timeout at default (120s) for Kubernetes clusters. The benefits (faster port recycling) are minimal compared to the risk of breaking persistent connections in distributed systems.
+
+---
+
 ## Revision History
 
-- **2025-12-25**: Initial documentation (planning phase)
+- **2025-12-25**: Initial documentation and deployment
+- **2025-12-25 (later)**: Removed TIME_WAIT timeout setting after production incident
