@@ -10,6 +10,7 @@ System design documents, integration plans, and architectural decisions.
 - [Tailscale Architecture](architecture/network/tailscale-architecture.md) - Remote access mesh VPN
 - [VPN Egress Architecture](architecture/network/vpn-egress-architecture.md) - Gluetun-based VPN proxy for containerized workloads
 - [Network Architecture Migration](architecture/network/network-architecture-migration.md) - Migration plan from Tailscale exit nodes to gluetun proxy pattern
+- [K3s Network Sysctl Tuning](architecture/network/k3s-sysctl-tuning.md) - Kernel parameter optimization for K3s cluster nodes
 
 ### NPU (Neural Processing Unit)
 - [RKNN NPU Integration Plan](architecture/npu/rknn-npu-integration-plan.md) - Orange Pi 5 Plus NPU integration for AI inference
