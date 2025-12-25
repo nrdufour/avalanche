@@ -20,7 +20,6 @@
     # Reference: https://wiki.nftables.org/wiki-nftables/index.php/Connection_Tracking_System
     # Impact: Prevents "nf_conntrack: table full" errors from Nginx Ingress, Gluetun NAT, service mesh
     "net.netfilter.nf_conntrack_max" = 262144;
-    "net.netfilter.nf_conntrack_tcp_timeout_time_wait" = 30;
 
     # Network buffers (ARM SBC optimization)
     # Reference: https://fasterdata.es.net/network-tuning/linux/
