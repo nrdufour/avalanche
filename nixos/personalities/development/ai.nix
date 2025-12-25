@@ -78,6 +78,9 @@
     # Factory Droid - factory for creating AI agents
     inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.droid
 
+    # Goose - extensible AI agent that goes beyond code suggestions
+    inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.goose-cli
+
     # the contender ;) specially for ollama
     # Wrapped with OPENCODE_LIBC for NixOS compatibility
     (pkgs.writeShellScriptBin "opencode" ''
