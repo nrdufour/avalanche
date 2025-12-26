@@ -8,8 +8,6 @@ components:
 
 resources:
   - namespace.yaml
-  # Secrets
-  - ./cnpg-minio-access.sops.yaml
   # Applications
   # - ./home-assistant/ks.yaml # Migrated to ArgoCD
   # - ./rtlamr2mqtt/ks.yaml

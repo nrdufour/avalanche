@@ -9,8 +9,6 @@ components:
 resources:
   # Pre Flux-Kustomizations
   - ./namespace.yaml
-  # Secrets
-  - ./cnpg-minio-access.sops.yaml
   # Flux-Kustomizations
   # - ./kanboard/ks.yaml # Migrated to ArgoCD
   # - ./homepage/ks.yaml
