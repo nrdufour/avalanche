@@ -10,3 +10,4 @@ resources:
   - nut-upsd-app.yaml
   - zwave-app.yaml
   - mqtt-app.yaml
+  - esphome-app.yaml
