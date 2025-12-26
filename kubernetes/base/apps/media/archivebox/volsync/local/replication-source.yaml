@@ -1,0 +1,29 @@
+---
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationSource
+metadata:
+  name: archivebox
+  namespace: media
+spec:
+  sourcePVC: archivebox
+  trigger:
+    schedule: "0 */6 * * *"
+  restic:
+    copyMethod: Snapshot
+    pruneIntervalDays: 7
+    repository: archivebox-volsync-minio
+    volumeSnapshotClassName: longhorn
+    storageClassName: longhorn
+    cacheStorageClassName: longhorn
+    cacheCapacity: 2Gi
+    moverSecurityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+    retain:
+      hourly: 24
+      daily: 7
+      weekly: 5
+    customCA:
+      configMapName: archivebox-volsync-ca
+      key: ca.crt
