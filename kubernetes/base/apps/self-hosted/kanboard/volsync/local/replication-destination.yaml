@@ -7,7 +7,7 @@ spec:
     manual: restore-once
   restic:
     customCA:
-      secretName: kanboard-volsync-minio
+      configMapName: kanboard-volsync-ca
       key: ca.crt
     copyMethod: Snapshot
     repository: kanboard-volsync-minio
