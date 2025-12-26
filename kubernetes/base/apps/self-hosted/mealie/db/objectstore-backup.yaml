@@ -8,14 +8,14 @@ spec:
     destinationPath: s3://cloudnative-pg/
     endpointURL: https://s3.internal
     endpointCA:
-      name: cnpg-minio-access
+      name: cnpg-minio-access-mealie
       key: tls.crt
     s3Credentials:
       accessKeyId:
-        name: cnpg-minio-access
+        name: cnpg-minio-access-mealie
         key: aws-access-key-id
       secretAccessKey:
-        name: cnpg-minio-access
+        name: cnpg-minio-access-mealie
         key: aws-secret-access-key
     data:
       compression: bzip2
