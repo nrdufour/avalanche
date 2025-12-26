@@ -8,7 +8,7 @@ metadata:
 spec:
   targetNamespace: media
   path: ./kubernetes/kubernetes/main/apps/media/archivebox/app
-  prune: true
+  prune: false
   sourceRef:
     kind: GitRepository
     name: home-ops-kubernetes
