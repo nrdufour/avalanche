@@ -1,8 +1,8 @@
 # Flux to ArgoCD Final Migration Plan
 
 **Created**: 2025-12-26
-**Last Updated**: 2025-12-26 (Phase 2.1 Complete - kanboard migrated)
-**Status**: ✅ Phase 2.1 Complete (kanboard) - Zero downtime achieved
+**Last Updated**: 2025-12-26 (kanboard fully migrated and verified)
+**Status**: ✅ Phase 2.1 Complete - Ready for next app
 **Priority**: High - Complete GitOps consolidation
 
 ## Executive Summary
@@ -11,11 +11,11 @@ This plan outlines the final migration of 6 Flux-managed applications to ArgoCD,
 
 **Progress**:
 - ✅ Phase 1 (Preparation) complete - All backups verified, manual snapshots created, secrets migrated to Bitwarden
-- ✅ Phase 2.1 (kanboard) complete - Successfully migrated using adopt-in-place strategy with zero downtime
-- 🔜 Phase 2.2 (zwave) - Next up
+- ✅ Phase 2.1 (kanboard) **FULLY COMPLETE** - Successfully migrated using adopt-in-place strategy with zero downtime
+- 🔜 Phase 2.2 (zwave) - Ready to begin
 - 🔜 Remaining apps (mqtt, esphome, archivebox, home-assistant) - Using proven approach
 
-**Key Achievement**: Zero-downtime migration proven with kanboard - pod never restarted, VolSync backups working perfectly.
+**Key Achievement**: Zero-downtime migration proven with kanboard - pod never restarted, VolSync backups working perfectly, scheduled syncs restored.
 
 ## Current State (from cluster inspection - 2025-12-26)
 
@@ -106,7 +106,20 @@ The "adopt-in-place" strategy ensures zero downtime and prevents resource confli
    - VolSync backups working (trigger manual sync to test)
    - Application accessible and functional
 
-6. **Soak period** (48 hours to 1 week depending on criticality)
+6. **Clean up manual trigger** (IMPORTANT):
+   ```bash
+   # After testing manual sync, restore scheduled syncs
+   kubectl patch replicationsource -n <namespace> <name> --type=json \
+     -p='[{"op": "remove", "path": "/spec/trigger/manual"}]'
+   ```
+   **Why**: Manual trigger takes precedence over schedule. Must be removed to restore scheduled syncs.
+
+7. **Verify scheduled syncs restored**:
+   ```bash
+   kubectl get replicationsources -A  # Should show NEXT SYNC time
+   ```
+
+8. **Soak period** (optional, 48 hours to 1 week depending on criticality)
 
 **Why this works**:
 - Resources are created and running BEFORE the migration
@@ -263,27 +276,33 @@ Created ArgoCD app directories:
    - ✅ Snapshot 0bcfa8e9 created (11.602 MiB, 281 files)
    - ✅ Web UI accessible
 
+6. **Cleaned up manual trigger**:
+   - ✅ Removed manual trigger to restore scheduled syncs
+   - ✅ Verified next scheduled sync: 2025-12-26T18:00:00Z
+
 **Issues Fixed**:
 - ExternalSecret API version: Changed from `v1beta1` to `v1`
 - VolSync CA certificate: Changed from `secretName: kanboard-volsync-minio` to `configMapName: kanboard-volsync-ca`
+- Manual trigger cleanup: Removed manual trigger to restore scheduled syncs
 
 **Success Criteria**: ✅ ALL MET
 - ✅ ArgoCD app shows "Synced" and "Healthy"
 - ✅ Pod is running (4+ days old, zero downtime)
 - ✅ VolSync manual sync completed successfully
+- ✅ Scheduled syncs restored (next: 18:00:00Z)
 - ✅ Web UI accessible
-- 🕐 Stable for 48 hours (in progress)
 
 **Next Steps**:
-- Monitor for 48 hours of stability
-- Then delete Flux Kustomization file
+- Ready to proceed with next app migration
+- Delete Flux Kustomization file after all apps migrated
 - Delete manual snapshot after 1 week
 
 **Lessons Learned**:
 1. Adopt-in-place strategy works perfectly for zero-downtime migrations
 2. ExternalSecrets operator uses v1 API (not v1beta1)
 3. VolSync CA certs should reference ConfigMaps (not Secrets) via configMapName
-4. Resources can be safely orphaned and re-adopted without recreation
+4. Manual triggers must be cleaned up after testing (use `kubectl patch --type=json -p='[{"op": "remove", "path": "/spec/trigger/manual"}]'`)
+5. Resources can be safely orphaned and re-adopted without recreation
 
 ### 2.2 Migrate zwave
 
