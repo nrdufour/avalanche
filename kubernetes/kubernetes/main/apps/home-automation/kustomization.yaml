@@ -17,4 +17,4 @@ resources:
   # - ./nut-upsd/ks.yaml
   # - ./rtl433/ks.yaml
   # - ./zwave/ks.yaml # Migrated to ArgoCD
-  - ./mqtt/ks.yaml
+  # - ./mqtt/ks.yaml # Migrated to ArgoCD
