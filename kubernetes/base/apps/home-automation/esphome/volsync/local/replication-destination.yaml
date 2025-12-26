@@ -1,0 +1,23 @@
+---
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationDestination
+metadata:
+  name: esphome-bootstrap
+  namespace: home-automation
+spec:
+  trigger:
+    manual: restore-once
+  restic:
+    customCA:
+      configMapName: esphome-volsync-ca
+      key: ca.crt
+    copyMethod: Snapshot
+    repository: esphome-volsync-minio
+    storageClassName: "longhorn"
+    volumeSnapshotClassName: "longhorn-snapshot-vsc"
+    cacheCapacity: "100Mi"
+    capacity: "100Mi"
+    moverSecurityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000

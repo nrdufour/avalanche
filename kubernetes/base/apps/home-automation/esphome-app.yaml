@@ -1,0 +1,91 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: esphome
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: oci://ghcr.io/bjw-s/helm/app-template
+      targetRevision: 3.7.3
+      path: .
+      helm:
+      valuesObject:
+        controllers:
+          main:
+            containers:
+              main:
+                image:
+                  repository: ghcr.io/esphome/esphome
+                  tag: 2025.12.2
+                env:
+                  - name: "ESPHOME_DASHBOARD_USE_PING"
+                    value: "true"
+                probes:
+                  liveness:
+                    enabled: false
+                  readiness:
+                    enabled: false
+                  startup:
+                    enabled: false
+                resources:
+                  requests:
+                    cpu: 5m
+                    memory: 1374M
+                  limits:
+                    memory: 2048M
+        service:
+          main:
+            controller: main
+            ports:
+              http:
+                port: 6052
+        ingress:
+          main:
+            enabled: true
+            className: "nginx"
+            annotations:
+              gethomepage.dev/description: Sensors Tooling
+              gethomepage.dev/enabled: "true"
+              gethomepage.dev/group: Home
+              gethomepage.dev/icon: esphome.png
+              gethomepage.dev/name: ESPHome
+              gethomepage.dev/pod-selector: "app.kubernetes.io/name=esphome"
+              nginx.ingress.kubernetes.io/rewrite-target: /
+              cert-manager.io/cluster-issuer: ca-server-cluster-issuer
+              cert-manager.io/common-name: esphome.internal
+            hosts:
+              - host: "esphome.internal"
+                paths:
+                  - path: /
+                    service:
+                      identifier: main
+                      port: http
+            tls:
+              - hosts:
+                  - "esphome.internal"
+                secretName: esphome-ing-cert
+        persistence:
+          config:
+            existingClaim: esphome
+            globalMounts:
+              - path: config
+          esphome-cache:
+            type: emptyDir
+            globalMounts:
+              - path: /config/.esphome
+    - repoURL: https://forge.internal/nemo/avalanche.git
+      targetRevision: main
+      path: kubernetes/base/apps/home-automation/esphome
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: home-automation
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
