@@ -9,3 +9,4 @@ resources:
   - rtlamr2mqtt-app.yaml
   - nut-upsd-app.yaml
   - zwave-app.yaml
+  - mqtt-app.yaml
