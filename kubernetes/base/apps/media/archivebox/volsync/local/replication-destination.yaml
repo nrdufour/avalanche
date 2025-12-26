@@ -15,7 +15,7 @@ spec:
       - ReadWriteMany
     capacity: 2Gi
     copyMethod: Snapshot
-    volumeSnapshotClassName: longhorn
+    volumeSnapshotClassName: longhorn-snapshot-vsc
     cacheStorageClassName: longhorn
     cacheCapacity: 2Gi
     moverSecurityContext:

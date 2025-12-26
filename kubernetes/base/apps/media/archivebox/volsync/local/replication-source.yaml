@@ -12,7 +12,7 @@ spec:
     copyMethod: Snapshot
     pruneIntervalDays: 7
     repository: archivebox-volsync-minio
-    volumeSnapshotClassName: longhorn
+    volumeSnapshotClassName: longhorn-snapshot-vsc
     storageClassName: longhorn
     cacheStorageClassName: longhorn
     cacheCapacity: 2Gi
