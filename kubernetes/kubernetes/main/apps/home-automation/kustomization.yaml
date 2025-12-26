@@ -13,7 +13,7 @@ resources:
   # Applications
   - ./home-assistant/ks.yaml
   # - ./rtlamr2mqtt/ks.yaml
-  - ./esphome/ks.yaml
+  # - ./esphome/ks.yaml # Migrated to ArgoCD
   # - ./nut-upsd/ks.yaml
   # - ./rtl433/ks.yaml
   # - ./zwave/ks.yaml # Migrated to ArgoCD
