@@ -8,4 +8,4 @@ resources:
   - replication-destination.yaml
 
 components:
-  - ../../../../components/volsync/ca
+  - ../../../../../components/volsync/ca
