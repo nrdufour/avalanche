@@ -1,0 +1,21 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: home-assistant
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://forge.internal/nemo/avalanche.git
+    targetRevision: main
+    path: kubernetes/base/apps/home-automation/home-assistant
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: home-automation
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
