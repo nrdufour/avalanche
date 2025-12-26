@@ -13,7 +13,7 @@ spec:
   components:
     - ../../../../components/volsync
   targetNamespace: home-automation
-  prune: true
+  prune: false
   sourceRef:
     kind: GitRepository
     name: home-ops-kubernetes
