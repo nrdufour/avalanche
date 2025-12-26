@@ -6,6 +6,7 @@ resources:
   - homepage-app.yaml
   - actual-app.yaml
   # - searxng-app.yaml
+  - kanboard-app.yaml
   - mealie-app.yaml
   - wikijs-app.yaml
   - wallabag-app.yaml
