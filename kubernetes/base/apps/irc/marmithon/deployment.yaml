@@ -17,6 +17,16 @@ spec:
       labels:
         app: marmithon
     spec:
+      # TCP keepalive settings to prevent NAT timeout-induced connection resets
+      # Sends keepalive probes after 30s idle, every 10s, up to 3 times (90s total)
+      securityContext:
+        sysctls:
+          - name: net.ipv4.tcp_keepalive_time
+            value: "30"
+          - name: net.ipv4.tcp_keepalive_intvl
+            value: "10"
+          - name: net.ipv4.tcp_keepalive_probes
+            value: "3"
       containers:
         # Main Marmithon IRC bot container with native identd and metrics
         - name: marmithon
