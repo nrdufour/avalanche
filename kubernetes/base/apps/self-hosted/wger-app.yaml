@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: wger
+  namespace: argocd
+spec:
+  project: default
+  source:
+    path: kubernetes/base/apps/self-hosted/wger
+    repoURL: https://forge.internal/nemo/avalanche.git
+    targetRevision: HEAD
+  destination:
+    namespace: self-hosted
+    name: 'in-cluster'
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,41 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wger-redis
+  labels:
+    app: wger-redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wger-redis
+  template:
+    metadata:
+      labels:
+        app: wger-redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7.4-alpine
+        ports:
+          - containerPort: 6379
+            name: redis
+        resources:
+          requests:
+            cpu: 10m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        livenessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5

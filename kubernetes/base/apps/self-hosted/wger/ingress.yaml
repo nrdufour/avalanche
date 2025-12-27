@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wger-ingress
+  annotations:
+    gethomepage.dev/description: Workout & Nutrition Tracker
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/group: Health
+    gethomepage.dev/icon: wger.png
+    gethomepage.dev/name: wger
+    gethomepage.dev/pod-selector: "app=wger"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: ca-server-cluster-issuer
+    cert-manager.io/common-name: wger.home.internal
+spec:
+  tls:
+    - hosts:
+      - wger.home.internal
+      secretName: wger-ing-cert
+  ingressClassName: nginx
+  rules:
+  - host: wger.home.internal
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: wger
+            port:
+              number: 8000

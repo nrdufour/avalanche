@@ -1,0 +1,132 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wger
+  labels:
+    app: wger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wger
+  template:
+    metadata:
+      labels:
+        app: wger
+    spec:
+      containers:
+      - name: wger
+        image: wger/server:2.4-dev
+        env:
+          # Application settings
+          - name: "SITE_URL"
+            value: "https://wger.home.internal"
+          - name: "TIME_ZONE"
+            value: "America/New_York"
+          - name: "ALLOW_REGISTRATION"
+            value: "true"
+          - name: "ALLOW_GUEST_USERS"
+            value: "false"
+
+          # Database configuration
+          - name: "DJANGO_DB_ENGINE"
+            value: "django.db.backends.postgresql"
+          - name: "DJANGO_DB_DATABASE"
+            valueFrom:
+              secretKeyRef:
+                name: wger-16-db-app
+                key: dbname
+          - name: "DJANGO_DB_USER"
+            valueFrom:
+              secretKeyRef:
+                name: wger-16-db-app
+                key: username
+          - name: "DJANGO_DB_PASSWORD"
+            valueFrom:
+              secretKeyRef:
+                name: wger-16-db-app
+                key: password
+          - name: "DJANGO_DB_HOST"
+            valueFrom:
+              secretKeyRef:
+                name: wger-16-db-app
+                key: host
+          - name: "DJANGO_DB_PORT"
+            valueFrom:
+              secretKeyRef:
+                name: wger-16-db-app
+                key: port
+          - name: "DJANGO_PERFORM_MIGRATIONS"
+            value: "true"
+
+          # Redis/Cache configuration
+          - name: "DJANGO_CACHE_BACKEND"
+            value: "django_redis.cache.RedisCache"
+          - name: "DJANGO_CACHE_LOCATION"
+            value: "redis://wger-redis:6379/1"
+          - name: "DJANGO_CACHE_TIMEOUT"
+            value: "1296000"  # 15 days
+
+          # Celery configuration
+          - name: "USE_CELERY"
+            value: "true"
+          - name: "CELERY_BROKER"
+            value: "redis://wger-redis:6379/2"
+          - name: "CELERY_BACKEND"
+            value: "redis://wger-redis:6379/2"
+
+          # Security keys (from secret)
+          - name: "SECRET_KEY"
+            valueFrom:
+              secretKeyRef:
+                name: wger-secrets
+                key: secret-key
+          - name: "SIGNING_KEY"
+            valueFrom:
+              secretKeyRef:
+                name: wger-secrets
+                key: signing-key
+
+          # JWT token lifetimes
+          - name: "ACCESS_TOKEN_LIFETIME"
+            value: "10"  # 10 minutes
+          - name: "REFRESH_TOKEN_LIFETIME"
+            value: "24"  # 24 hours
+
+          # Axes (brute force protection)
+          - name: "AXES_ENABLED"
+            value: "true"
+          - name: "AXES_FAILURE_LIMIT"
+            value: "10"
+
+          # Remote wger instance for syncing exercises
+          - name: "WGER_INSTANCE"
+            value: "https://wger.de"
+
+        ports:
+          - containerPort: 8000
+            name: http-wger
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            memory: 1Gi
+
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 5
+
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
