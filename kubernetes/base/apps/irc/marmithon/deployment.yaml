@@ -75,6 +75,8 @@ spec:
               value: "protonvpn"
             - name: VPN_TYPE
               value: "wireguard"
+            - name: WIREGUARD_PERSISTENT_KEEPALIVE
+              value: "25"
             - name: SERVER_COUNTRIES
               value: "Switzerland"
             - name: FIREWALL_OUTBOUND_SUBNETS
