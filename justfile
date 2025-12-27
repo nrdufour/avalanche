@@ -9,11 +9,11 @@ kubernetes_dir := root_dir / "kubernetes"
 # kubernetes_dir is still needed for justfile recipes
 
 
-# Import sub-justfiles
-import '.justfiles/nix.just'
-import '.justfiles/sops.just'
-import '.justfiles/sd.just'
-import '.justfiles/k8s.just'
+# Import sub-justfiles as modules
+mod nix '.justfiles/nix.just'
+mod sops '.justfiles/sops.just'
+mod sd '.justfiles/sd.just'
+mod k8s '.justfiles/k8s.just'
 
 # Default recipe - list available commands
 default:
@@ -26,3 +26,13 @@ lint:
 # Format project files
 format:
     nixpkgs-fmt {{justfile_directory()}}
+
+# Install fish completions for just
+install-fish-completions:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    FISH_COMPLETION_DIR="${HOME}/.config/fish/completions"
+    mkdir -p "${FISH_COMPLETION_DIR}"
+    cp "{{root_dir}}/scripts/completions/just.fish" "${FISH_COMPLETION_DIR}/just.fish"
+    echo "Fish completions installed to ${FISH_COMPLETION_DIR}/just.fish"
+    echo "Run 'exec fish' or 'source ~/.config/fish/completions/just.fish' to reload"

@@ -3,8 +3,16 @@
 # renovate: datasource=github-releases depName=prometheus-operator/prometheus-operator
 prometheus_operator_version := "v0.80.0"
 
+# Module-local variables
+# Note: justfile_directory() returns the module's directory (.justfiles/), so we need to go up one level
+kubernetes_dir := justfile_directory() / ".." / "kubernetes"
+
+# List available k8s recipes
+default:
+    @just --list k8s
+
 # Retrieve kubeconfig from the main cluster host
-k8s-get-kubeconfig host="opi01.internal":
+get-kubeconfig host="opi01.internal":
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -23,7 +31,7 @@ k8s-get-kubeconfig host="opi01.internal":
     echo "The server URL has been updated to use the kube-vip VIP: 10.1.0.5"
 
 # Bootstrap Flux on a cluster (default: main)
-k8s-bootstrap cluster="main":
+bootstrap cluster="main":
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -60,7 +68,7 @@ k8s-bootstrap cluster="main":
     echo "Bootstrap complete!"
 
 # Force all ExternalSecrets to immediately refresh (clear sync time to trigger refresh)
-k8s-force-es-refresh:
+force-es-refresh:
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -79,7 +87,7 @@ k8s-force-es-refresh:
     echo "All ExternalSecrets refresh triggered!"
 
 # Check status of all ExternalSecrets and their last refresh times
-k8s-check-es-status:
+check-es-status:
     #!/usr/bin/env bash
     set -euo pipefail
 

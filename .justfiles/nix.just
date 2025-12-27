@@ -1,27 +1,31 @@
 # Nix-related commands
 
+# List available nix recipes
+default:
+    @just --list nix
+
 # Update the inputs in the flake.lock file
-nix-update:
+update:
     nix flake update
 
 # Check the flake is ok
-nix-check:
+check:
     nix flake check
 
 # List the NixOS hosts in the flake
-nix-list-hosts:
+list-hosts:
     @nix flake show --json 2>/dev/null | jq -r '.nixosConfigurations | keys.[]'
 
 # Deploy the configuration of a given host (remote)
-nix-deploy host:
+deploy host:
     nixos-rebuild switch -j auto --use-remote-sudo --build-host {{host}}.internal --target-host {{host}}.internal --flake ".#{{host}}" --fast
 
 # Switch to a configuration locally (for current machine only)
-nix-switch:
+switch:
     sudo nixos-rebuild switch --flake ".#"
 
 # Deploy flake to all nodes (with confirmation)
-nix-deploy-all:
+deploy-all:
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -51,7 +55,7 @@ nix-deploy-all:
     done
 
 # Disable automatic NixOS upgrades on all hosts (stops timer until reboot/manual start)
-nix-disable-autoupgrade:
+disable-autoupgrade:
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -76,7 +80,7 @@ nix-disable-autoupgrade:
     fi
 
 # Enable automatic NixOS upgrades on all hosts (starts timer immediately)
-nix-enable-autoupgrade:
+enable-autoupgrade:
     #!/usr/bin/env bash
     set -euo pipefail
 

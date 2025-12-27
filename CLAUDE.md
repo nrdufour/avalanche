@@ -65,50 +65,61 @@ direnv allow
 # List all available commands
 just
 
+# List commands in a specific module
+just nix      # Shows nix module commands
+just k8s      # Shows k8s module commands
+
 # Check flake validity
-just nix-check
+just nix check
 
 # Lint Nix files
 just lint
 
 # Format Nix files
 just format
+
+# Install fish completions (enables tab completion for modules)
+just install-fish-completions
 ```
 
 ### NixOS Management
 ```bash
 # List all NixOS hosts
-just nix-list-hosts
+just nix list-hosts
 
 # Deploy to remote host
-just nix-deploy <hostname>
+just nix deploy <hostname>
 
 # Deploy locally (current machine only)
-just nix-switch
+just nix switch
 
 # Deploy to all hosts (with confirmation)
-just nix-deploy-all
+just nix deploy-all
 
 # Build without deploying
 nix build .#nixosConfigurations.<hostname>.config.system.build.toplevel
 
 # Update flake inputs
-just nix-update
+just nix update
+
+# Enable/disable auto-upgrades
+just nix enable-autoupgrade
+just nix disable-autoupgrade
 ```
 
 ### SD Card Images (for ARM hosts)
 ```bash
 # Build SD card image
-just sd-build <hostname>
+just sd build <hostname>
 
 # Build and flash
-just sd-flash <hostname>
+just sd flash <hostname>
 ```
 
 ### Secrets Management (SOPS + Age)
 ```bash
 # Update SOPS keys for all secrets
-just sops-update
+just sops update
 
 # Decrypt a secret file
 sops secrets/<hostname>/secrets.sops.yaml
@@ -122,10 +133,16 @@ sops secrets/<hostname>/secrets.sops.yaml
 ### Kubernetes Management
 ```bash
 # Get kubeconfig from cluster (kube-vip VIP: 10.1.0.5)
-just k8s-get-kubeconfig
+just k8s get-kubeconfig
 
 # Bootstrap Flux on cluster
-just k8s-bootstrap
+just k8s bootstrap
+
+# Force ExternalSecrets refresh
+just k8s force-es-refresh
+
+# Check ExternalSecrets status
+just k8s check-es-status
 
 # Check sync status
 argocd app list
