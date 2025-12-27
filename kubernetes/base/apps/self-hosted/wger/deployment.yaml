@@ -38,6 +38,8 @@ spec:
             value: "https://wger.internal"
           - name: "TIME_ZONE"
             value: "America/New_York"
+          - name: "TZ"
+            value: "America/New_York"
           - name: "ALLOW_REGISTRATION"
             value: "true"
           - name: "ALLOW_GUEST_USERS"
