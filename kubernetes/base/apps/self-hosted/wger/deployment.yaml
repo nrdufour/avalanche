@@ -47,6 +47,12 @@ spec:
           - name: "WGER_USE_GUNICORN"
             value: "True"
 
+          # CSRF and proxy settings
+          - name: "CSRF_TRUSTED_ORIGINS"
+            value: "https://wger.internal"
+          - name: "X_FORWARDED_PROTO_HEADER_SET"
+            value: "True"
+
           # Static and media files
           - name: "MEDIA_URL"
             value: "https://wger.internal/media/"
