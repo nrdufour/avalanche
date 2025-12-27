@@ -4,8 +4,8 @@
 prometheus_operator_version := "v0.80.0"
 
 # Module-local variables
-# Note: justfile_directory() returns the module's directory (.justfiles/), so we need to go up one level
-kubernetes_dir := justfile_directory() / ".." / "kubernetes"
+# Note: In modules, justfile_directory() returns the root justfile directory, not the module directory
+kubernetes_dir := justfile_directory() / "kubernetes"
 
 # List available k8s recipes
 default:
