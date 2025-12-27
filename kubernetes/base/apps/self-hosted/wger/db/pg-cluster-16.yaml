@@ -44,5 +44,3 @@ spec:
     initdb:
       database: wger
       owner: wger
-      secret:
-        name: wger-16-db-app
