@@ -127,13 +127,12 @@ just sd-flash <hostname>
 # Get kubeconfig from cluster
 just k8s-get-kubeconfig
 
-# Bootstrap Flux on the cluster
+# Bootstrap cluster (TODO: update to bootstrap ArgoCD)
 just k8s-bootstrap
 
-# ArgoCD and Flux handle automatic deployment
+# ArgoCD handles automatic deployment
 # Check sync status:
 argocd app list
-flux get kustomizations
 ```
 
 ## Technologies
@@ -142,8 +141,7 @@ flux get kustomizations
 - **SOPS + Age**: Secrets management with encryption
 - **Tailscale**: Mesh VPN
 - **Authentik**: Identity provider (SSO/OIDC)
-- **ArgoCD**: GitOps for Kubernetes applications
-- **Flux**: GitOps for Kubernetes infrastructure
+- **ArgoCD**: GitOps for Kubernetes
 - **K3s**: Lightweight Kubernetes distribution
 - **Just**: Command runner for deployment automation
 
@@ -171,8 +169,7 @@ This repository consolidates:
 
 - ✅ All 15 NixOS hosts deployed and operational
 - ✅ AutoUpgrade configured (pulling from avalanche)
-- ✅ ArgoCD applications synced (44 apps)
-- ✅ Flux kustomizations reconciled
+- ✅ ArgoCD applications synced (50+ apps)
 - ✅ All infrastructure running from unified monorepo
 
 See [docs/migration/](docs/migration/) for detailed migration documentation.

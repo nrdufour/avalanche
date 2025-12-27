@@ -36,8 +36,7 @@ Avalanche is a unified infrastructure-as-code monorepo managing 17 NixOS hosts (
      - `components/`: Reusable components (volsync)
      - `infra/`: Infrastructure services (cert-manager, longhorn, network, observability, security, system)
    - `clusters/`: Cluster-specific configurations
-   - `kubernetes/`: Flux manifests (legacy, transitioning to ArgoCD)
-   - **Primary GitOps**: ArgoCD (Flux being phased out)
+   - **Primary GitOps**: ArgoCD only
 
 3. **Cloud Layer** (`cloud/`): Future cloud infrastructure
    - `nixos/`: NixOS-based VPS configs
@@ -146,7 +145,6 @@ just k8s check-es-status
 
 # Check sync status
 argocd app list
-flux get kustomizations
 ```
 
 ## Infrastructure Details
@@ -169,7 +167,7 @@ flux get kustomizations
   - Gluetun VPN proxy (egress for containerized workloads - qbittorrent, IRC bot)
   - kube-vip for K8s HA (VIP: 10.1.0.5)
 - **Identity**: Kanidm at `https://auth.internal` (users: `username@auth.internal`)
-- **GitOps**: ArgoCD (primary), Flux (legacy/transitioning)
+- **GitOps**: ArgoCD only
 - **Storage**: Longhorn (K8s), Garage S3 (object storage)
 - **AI/ML**: Orange Pi 5 Plus NPU (mainline kernel + Mesa Teflon TensorFlow Lite)
 
@@ -279,7 +277,7 @@ sudo kanidm group add-members <groupname> <username> --name idm_admin
 
 ### Deployment Flow
 - Push to git → Forgejo webhook → AutoUpgrade pulls and rebuilds (for NixOS)
-- Push to git → ArgoCD/Flux syncs (for Kubernetes)
+- Push to git → ArgoCD syncs (for Kubernetes)
 - Manual: `just nix-deploy <hostname>` builds locally, deploys remotely
 
 ### Testing Changes
