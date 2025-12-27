@@ -29,6 +29,16 @@ spec:
           - name: "ALLOW_GUEST_USERS"
             value: "false"
 
+          # Use Gunicorn instead of Django dev server
+          - name: "WGER_USE_GUNICORN"
+            value: "True"
+
+          # Static and media files
+          - name: "MEDIA_URL"
+            value: "https://wger.internal/media/"
+          - name: "STATIC_URL"
+            value: "https://wger.internal/static/"
+
           # Database configuration
           - name: "DJANGO_DB_ENGINE"
             value: "django.db.backends.postgresql"
@@ -110,6 +120,12 @@ spec:
           - containerPort: 8000
             name: http-wger
 
+        volumeMounts:
+          - name: static-files
+            mountPath: /home/wger/static
+          - name: media-files
+            mountPath: /home/wger/media
+
         resources:
           requests:
             cpu: 100m
@@ -132,3 +148,50 @@ spec:
           initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 5
+
+      - name: nginx
+        image: nginx:1.27-alpine
+        ports:
+          - containerPort: 80
+            name: http
+
+        volumeMounts:
+          - name: nginx-config
+            mountPath: /etc/nginx/conf.d/default.conf
+            subPath: nginx.conf
+          - name: static-files
+            mountPath: /wger/static
+            readOnly: true
+          - name: media-files
+            mountPath: /wger/media
+            readOnly: true
+
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            memory: 128Mi
+
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
+
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: wger-nginx-config
+        - name: static-files
+          emptyDir: {}
+        - name: media-files
+          emptyDir: {}

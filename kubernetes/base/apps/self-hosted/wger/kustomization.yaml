@@ -6,6 +6,7 @@ resources:
 - deployment.yaml
 - service.yaml
 - ingress.yaml
+- nginx-configmap.yaml
 - wger-secrets-es.yaml
 - db
 - redis
