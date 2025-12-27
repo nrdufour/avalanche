@@ -40,6 +40,8 @@ spec:
             value: "America/New_York"
           - name: "TZ"
             value: "America/New_York"
+          - name: "LANGUAGE_CODE"
+            value: "en-us"
           - name: "ALLOW_REGISTRATION"
             value: "true"
           - name: "ALLOW_GUEST_USERS"
