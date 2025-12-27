@@ -34,6 +34,7 @@ Step-by-step how-to guides and operational procedures.
 
 Project plans, upgrade plans, and implementation proposals for future work.
 
+- [Cilium CNI Migration Plan](plans/cilium-cni-migration-plan.md) - Migrating K3s cluster from Flannel to Cilium CNI
 - [Forgejo Runner Upgrade Plan](plans/forgejo-runner-upgrade-plan.md) - Upgrading Forgejo Actions runners to latest version
 
 ## Troubleshooting
@@ -92,6 +93,7 @@ Deprecated or superseded documentation kept for historical reference.
 - [Network Migration Plan](architecture/network/network-architecture-migration.md) - Current major infrastructure change
 
 ### Latest Updates
+- Cilium CNI Migration Plan - 2025-12-27 (migrating K3s from Flannel to Cilium)
 - Network Architecture Migration - 2025-12-14 (separating remote access from VPN egress)
 - Camera Setup Plan - 2025-12-14 (comprehensive surveillance system)
 - Forgejo Runner Upgrade - 2025-12-13 (updating CI/CD runners)
