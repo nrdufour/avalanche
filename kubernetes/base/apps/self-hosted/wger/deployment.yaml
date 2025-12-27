@@ -174,7 +174,7 @@ spec:
           timeoutSeconds: 5
 
       - name: nginx
-        image: nginx:1.27-alpine
+        image: nginx:1.29-alpine
         ports:
           - containerPort: 80
             name: http
