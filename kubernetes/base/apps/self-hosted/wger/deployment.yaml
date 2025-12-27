@@ -21,7 +21,7 @@ spec:
         env:
           # Application settings
           - name: "SITE_URL"
-            value: "https://wger.home.internal"
+            value: "https://wger.internal"
           - name: "TIME_ZONE"
             value: "America/New_York"
           - name: "ALLOW_REGISTRATION"

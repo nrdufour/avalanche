@@ -11,15 +11,15 @@ metadata:
     gethomepage.dev/pod-selector: "app=wger"
     nginx.ingress.kubernetes.io/rewrite-target: /
     cert-manager.io/cluster-issuer: ca-server-cluster-issuer
-    cert-manager.io/common-name: wger.home.internal
+    cert-manager.io/common-name: wger.internal
 spec:
   tls:
     - hosts:
-      - wger.home.internal
+      - wger.internal
       secretName: wger-ing-cert
   ingressClassName: nginx
   rules:
-  - host: wger.home.internal
+  - host: wger.internal
     http:
       paths:
       - path: /

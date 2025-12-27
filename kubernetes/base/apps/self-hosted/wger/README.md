@@ -4,7 +4,7 @@ Workout, nutrition, and weight tracking application.
 
 ## Deployment
 
-- **URL**: https://wger.home.internal
+- **URL**: https://wger.internal
 - **Namespace**: self-hosted
 - **Database**: PostgreSQL 16 (CNPG, 3 replicas)
 - **Cache**: Redis 7.4
