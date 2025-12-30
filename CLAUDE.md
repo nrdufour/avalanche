@@ -147,6 +147,141 @@ just k8s check-es-status
 argocd app list
 ```
 
+### Forgejo CLI (fj)
+The `fj` command provides programmatic access to the Forgejo instance at `forge.internal`.
+
+**Authentication**: Already configured for `nemo@forge.internal` (uses SSH key auth)
+
+#### Issue Management
+```bash
+# Search for issues in current repo
+fj issue search                           # List all open issues
+fj issue search --state closed            # List closed issues
+fj issue search "keyword"                 # Search by keyword
+fj issue search --labels "bug,urgent"     # Filter by labels
+fj issue search --assignee nemo           # Filter by assignee
+
+# View issue details
+fj issue view 38                          # View issue #38
+fj issue view 38 comment 2                # View specific comment
+fj issue view 38 comments                 # List all comments
+
+# Create and modify issues
+fj issue create "Issue title"             # Opens editor for body
+fj issue create "Issue title" --body "Description"
+fj issue comment 38 "Comment text"        # Add comment
+fj issue edit 38 --body "New description"
+fj issue close 38
+
+# Open in browser
+fj issue browse 38
+```
+
+#### Pull Request Management
+```bash
+# Search and view PRs
+fj pr search                              # List open PRs
+fj pr view 42                             # View PR details
+fj pr status 42                           # Check CI status and mergability
+fj pr checkout 42                         # Checkout PR in new branch
+
+# Create and manage PRs
+fj pr create "PR title"                   # Opens editor
+fj pr create "PR title" --body "Description"
+fj pr comment 42 "Comment"
+fj pr edit 42
+fj pr merge 42                            # Merge PR
+fj pr close 42                            # Close without merging
+
+# Open in browser
+fj pr browse 42
+```
+
+#### Actions/CI Management
+```bash
+# View CI/CD status
+fj actions tasks                          # List recent workflow runs
+fj actions tasks -p 2                     # Page 2 (20 tasks per page)
+
+# Manage workflow variables and secrets
+fj actions variables                      # List variables
+fj actions secrets                        # Manage secrets
+fj actions dispatch <workflow>            # Manually trigger workflow
+```
+
+#### Repository Operations
+```bash
+# View repo info
+fj repo view                              # Current repo info
+fj repo readme                            # View README
+fj repo browse                            # Open in browser
+
+# Repository management
+fj repo create <name>
+fj repo fork <owner>/<repo>
+fj repo clone <owner>/<repo>
+fj repo star <owner>/<repo>
+fj repo delete <name>
+```
+
+#### Release Management
+```bash
+# List and view releases
+fj release list
+fj release view v1.0.0
+fj release browse v1.0.0
+
+# Create and manage releases
+fj release create v1.0.0
+fj release edit v1.0.0
+fj release delete v1.0.0
+fj release asset                          # Manage release assets
+```
+
+#### General Commands
+```bash
+# Check authentication
+fj whoami                                 # Show current user
+fj auth list                              # List authenticated instances
+
+# User and org management
+fj user <username>                        # View user info
+fj org <orgname>                          # View organization info
+
+# Generate shell completions
+fj completion bash > /etc/bash_completion.d/fj
+fj completion fish > ~/.config/fish/completions/fj.fish
+```
+
+#### Important Notes
+- **Default context**: Commands use current git repo's remote by default
+- **Specify repo**: Use `-r owner/repo` or `-R remote-name` to operate on different repos
+- **Output style**: Use `--style minimal` for script-friendly output (no colors/special chars)
+- **Web fallback**: Most commands have a `--web` flag to open browser instead
+- **Host selection**: Use `-H forge.internal` for global commands (usually auto-detected from git remote)
+
+#### Common Workflows
+```bash
+# Check project status
+fj issue search --state open              # Open issues
+fj actions tasks | head -5                # Recent CI runs
+
+# Create issue from command line
+fj issue create "Fix NPU inference timeout" \
+  --body "The NPU service times out after 30s on large models"
+
+# Review PR
+fj pr view 42                             # Read changes
+fj pr status 42                           # Check CI
+fj pr checkout 42                         # Test locally
+fj pr comment 42 "LGTM!"                  # Approve
+fj pr merge 42                            # Merge
+
+# Monitor CI
+fj actions tasks                          # Check build status
+fj actions dispatch build-all             # Trigger manual build
+```
+
 ## Infrastructure Details
 
 ### NixOS Hosts (17 total)

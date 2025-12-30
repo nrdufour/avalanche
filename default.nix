@@ -19,5 +19,8 @@ pkgs.mkShell {
     yamllint
     cmctl
     argocd
+
+    # Forgejo
+    forgejo-cli
   ];
 }
