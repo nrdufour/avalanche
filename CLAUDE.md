@@ -332,6 +332,7 @@ fj actions dispatch build-all             # Trigger manual build
   - `identity/` - Kanidm user management
   - `upgrades/` - NixOS version upgrades
   - GitHub outage mitigation (nixpkgs mirror usage)
+  - Nix distributed builds (multi-arch build coordination, binary caching)
 - `docs/plans/` - Future work and upgrade plans
 - `docs/troubleshooting/` - Known issues and workarounds
 - `docs/migration/` - Historical monorepo consolidation docs
