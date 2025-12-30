@@ -14,6 +14,7 @@ mod nix '.justfiles/nix.just'
 mod sops '.justfiles/sops.just'
 mod sd '.justfiles/sd.just'
 mod k8s '.justfiles/k8s.just'
+mod vw '.justfiles/vw.just'
 
 # Default recipe - list available commands
 default:
