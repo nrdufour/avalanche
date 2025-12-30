@@ -24,6 +24,9 @@ System design documents, integration plans, and architectural decisions.
 
 Step-by-step how-to guides and operational procedures.
 
+### Operations
+- [GitHub Outage Mitigation](guides/github-outage-mitigation.md) - Using local nixpkgs mirror during GitHub outages
+
 ### Identity Management
 - [Kanidm User Management](guides/identity/kanidm-user-management.md) - Creating and managing users in Kanidm identity provider
 

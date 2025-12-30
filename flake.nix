@@ -3,6 +3,9 @@
 
   inputs = {
     # Nixpkgs and unstable
+    # Primary source: GitHub (fast, reliable)
+    # Backup mirror available at forge.internal/Mirrors/nixpkgs (synced every 8h)
+    # See docs/guides/github-outage-mitigation.md for using the mirror during GitHub outages
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
 

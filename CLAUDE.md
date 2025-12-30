@@ -303,6 +303,7 @@ fj actions dispatch build-all             # Trigger manual build
   - kube-vip for K8s HA (VIP: 10.1.0.5)
 - **Identity**: Kanidm at `https://auth.internal` (users: `username@auth.internal`)
 - **GitOps**: ArgoCD only
+- **Nixpkgs Mirror**: Local mirror at `forge.internal/Mirrors/nixpkgs` (synced every 8h, fallback for GitHub outages)
 - **Storage**: Longhorn (K8s), Garage S3 (object storage)
 - **AI/ML**: Orange Pi 5 Plus NPU (mainline kernel + Mesa Teflon TensorFlow Lite)
 
@@ -330,6 +331,7 @@ fj actions dispatch build-all             # Trigger manual build
 - `docs/guides/` - How-to guides and procedures
   - `identity/` - Kanidm user management
   - `upgrades/` - NixOS version upgrades
+  - GitHub outage mitigation (nixpkgs mirror usage)
 - `docs/plans/` - Future work and upgrade plans
 - `docs/troubleshooting/` - Known issues and workarounds
 - `docs/migration/` - Historical monorepo consolidation docs
@@ -340,6 +342,7 @@ fj actions dispatch build-all             # Trigger manual build
 - **VPN Egress**: `docs/architecture/network/vpn-egress-architecture.md` (Gluetun-based)
 - **NPU Integration**: `docs/architecture/npu/rknn-npu-integration-plan.md` (mainline kernel + Mesa)
 - **Kanidm**: `docs/guides/identity/kanidm-user-management.md` (identity provider)
+- **GitHub Outage Mitigation**: `docs/guides/github-outage-mitigation.md` (nixpkgs mirror fallback)
 - **Network Migration**: `docs/architecture/network/network-architecture-migration.md` (exit nodes → proxy pattern)
 
 ## Identity Management (Kanidm)

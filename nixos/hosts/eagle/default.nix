@@ -39,6 +39,12 @@
     };
   };
 
+  # Limit ZFS ARC to prevent memory exhaustion on 7.6GB system
+  # Reserves ~5GB for Forgejo, PostgreSQL, Docker, git operations
+  boot.extraModprobeConfig = ''
+    options zfs zfs_arc_max=2147483648
+  '';
+
   # Increase socket buffer sizes to fix Docker broken pipe errors
   # during buildkit operations with heavy output (multi-arch builds, QEMU emulation)
   # See: forgejo-runner-upgrade-plan.md investigation

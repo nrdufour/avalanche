@@ -47,15 +47,24 @@ in
       server = {
         DOMAIN = "forge.internal";
         # You need to specify this to remove the port from URLs in the web UI.
-        ROOT_URL = "https://${srv.DOMAIN}/"; 
+        ROOT_URL = "https://${srv.DOMAIN}/";
         HTTP_PORT = forgejoPort;
       };
       # You can temporarily allow registration to create an admin user.
-      service.DISABLE_REGISTRATION = true; 
+      service.DISABLE_REGISTRATION = true;
       # Add support for actions, based on act: https://github.com/nektos/act
       actions = {
         ENABLED = true;
         DEFAULT_ACTIONS_URL = "github";
+      };
+      # Increase git timeouts for large repository operations (e.g., nixpkgs mirror)
+      "git.timeout" = {
+        DEFAULT = 360;    # 6 minutes for normal ops
+        MIGRATE = 3600;   # 1 hour for migrations
+        MIRROR = 3600;    # 1 hour for mirror syncs
+        CLONE = 3600;     # 1 hour for clones
+        PULL = 3600;      # 1 hour for pulls
+        GC = 600;         # 10 minutes for git gc
       };
       # Sending emails is completely optional
       # You can send a test email from the web UI at:
