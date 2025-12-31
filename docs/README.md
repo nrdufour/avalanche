@@ -27,6 +27,7 @@ Step-by-step how-to guides and operational procedures.
 ### Operations
 - [GitHub Outage Mitigation](guides/github-outage-mitigation.md) - Using local nixpkgs mirror during GitHub outages
 - [Nix Distributed Builds](guides/nix-distributed-builds.md) - Build sharing and multi-architecture build coordination
+- [Docker Distributed Builds](guides/docker-distributed-builds.md) - Multi-architecture Docker builds using remote builders
 
 ### Identity Management
 - [Kanidm User Management](guides/identity/kanidm-user-management.md) - Creating and managing users in Kanidm identity provider
@@ -97,10 +98,11 @@ Deprecated or superseded documentation kept for historical reference.
 - [Network Migration Plan](architecture/network/network-architecture-migration.md) - Current major infrastructure change
 
 ### Latest Updates
+- Docker Distributed Builds Guide - 2025-12-30 (multi-architecture builds using remote builders)
+- Nix Distributed Builds Guide - 2025-12-30 (build sharing and caching across hosts)
 - Cilium CNI Migration Plan - 2025-12-27 (migrating K3s from Flannel to Cilium)
 - Network Architecture Migration - 2025-12-14 (separating remote access from VPN egress)
 - Camera Setup Plan - 2025-12-14 (comprehensive surveillance system)
-- Forgejo Runner Upgrade - 2025-12-13 (updating CI/CD runners)
 
 ---
 
