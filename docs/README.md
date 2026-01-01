@@ -28,6 +28,7 @@ Step-by-step how-to guides and operational procedures.
 - [GitHub Outage Mitigation](guides/github-outage-mitigation.md) - Using local nixpkgs mirror during GitHub outages
 - [Nix Distributed Builds](guides/nix-distributed-builds.md) - Build sharing and multi-architecture build coordination
 - [Docker Distributed Builds](guides/docker-distributed-builds.md) - Multi-architecture Docker builds using remote builders
+- [Garage Web UI Authentication](guides/garage-webui-authentication.md) - Generating bcrypt credentials for Garage web UI
 
 ### Identity Management
 - [Kanidm User Management](guides/identity/kanidm-user-management.md) - Creating and managing users in Kanidm identity provider
