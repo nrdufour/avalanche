@@ -14,6 +14,7 @@ in
       API_BASE_URL=http://cardinal.internal:3903
       S3_ENDPOINT_URL=http://cardinal.internal:3900
       API_ADMIN_KEY=${config.sops.placeholder.storage_garage_admin_token}
+      AUTH_USER_PASS=${config.sops.placeholder.garage_webui_auth}
     '';
   };
 

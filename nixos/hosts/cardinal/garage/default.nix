@@ -22,6 +22,7 @@
       "storage_garage_admin_token" = {};
       "storage_garage_metric_token" = {};
       "update_tsig_key" = {};
+      "garage_webui_auth" = {};
     };
   };
 
