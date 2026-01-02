@@ -6,7 +6,8 @@ metadata:
   namespace: home-automation
 spec:
   sourcePVC: esphome
-  # MIGRATION: Temporarily disabled during Minio → Garage migration
+  # MIGRATION: Suspended during Minio → Garage migration
+  suspend: true
   # trigger:
   #   schedule: "0 */6 * * *"
   restic:

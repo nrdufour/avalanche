@@ -5,7 +5,8 @@ metadata:
 spec:
   # The PVC to sync
   sourcePVC: kanboard
-  # MIGRATION: Temporarily disabled during Minio → Garage migration
+  # MIGRATION: Suspended during Minio → Garage migration
+  suspend: true
   # trigger:
   #   # Synchronize every 6 hours
   #   schedule: "0 */6 * * *"
