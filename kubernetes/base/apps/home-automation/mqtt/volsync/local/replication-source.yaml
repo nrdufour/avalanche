@@ -6,8 +6,9 @@ metadata:
   namespace: home-automation
 spec:
   sourcePVC: mqtt
-  trigger:
-    schedule: "0 * * * *"
+  # MIGRATION: Temporarily disabled during Minio → Garage migration
+  # trigger:
+  #   schedule: "0 * * * *"
   restic:
     customCA:
       configMapName: mqtt-volsync-ca

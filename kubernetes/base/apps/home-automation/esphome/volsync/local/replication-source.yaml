@@ -6,8 +6,9 @@ metadata:
   namespace: home-automation
 spec:
   sourcePVC: esphome
-  trigger:
-    schedule: "0 */6 * * *"
+  # MIGRATION: Temporarily disabled during Minio → Garage migration
+  # trigger:
+  #   schedule: "0 */6 * * *"
   restic:
     customCA:
       configMapName: esphome-volsync-ca
