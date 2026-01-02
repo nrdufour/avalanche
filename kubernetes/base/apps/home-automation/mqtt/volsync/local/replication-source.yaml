@@ -6,8 +6,8 @@ metadata:
   namespace: home-automation
 spec:
   sourcePVC: mqtt
-  # MIGRATION: Suspended during Minio → Garage migration
-  suspend: true
+  # MIGRATION: Paused during Minio → Garage migration
+  paused: true
   # trigger:
   #   schedule: "0 * * * *"
   restic:
