@@ -6,8 +6,9 @@
   environment.systemPackages = with pkgs; [
 
     # Actual browsing
+    firefox       # as the default
     librewolf     # as the "burner"
-    vivaldi       # as the stateful
+    vivaldi       # as the contender
     google-chrome # for peculiar sites
     tor-browser   # really safe browsing
 
