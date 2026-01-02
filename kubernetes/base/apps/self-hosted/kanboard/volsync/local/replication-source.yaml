@@ -15,7 +15,7 @@ spec:
       configMapName: kanboard-volsync-ca
       key: ca.crt
     copyMethod: Snapshot
-    repository: kanboard-volsync-minio
+    repository: kanboard-volsync-garage
     storageClassName: "longhorn"
     volumeSnapshotClassName: "longhorn-snapshot-vsc"
     moverSecurityContext:

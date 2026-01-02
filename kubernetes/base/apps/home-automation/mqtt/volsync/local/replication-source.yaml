@@ -15,7 +15,7 @@ spec:
       configMapName: mqtt-volsync-ca
       key: ca.crt
     copyMethod: Snapshot
-    repository: mqtt-volsync-minio
+    repository: mqtt-volsync-garage
     storageClassName: "longhorn"
     volumeSnapshotClassName: "longhorn-snapshot-vsc"
     cacheCapacity: "2Gi"

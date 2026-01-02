@@ -15,7 +15,7 @@ spec:
       configMapName: esphome-volsync-ca
       key: ca.crt
     copyMethod: Snapshot
-    repository: esphome-volsync-minio
+    repository: esphome-volsync-garage
     storageClassName: "longhorn"
     volumeSnapshotClassName: "longhorn-snapshot-vsc"
     cacheCapacity: "100Mi"
