@@ -5,11 +5,9 @@ metadata:
 spec:
   # The PVC to sync
   sourcePVC: kanboard
-  # MIGRATION: Paused during Minio → Garage migration
-  paused: true
-  # trigger:
-  #   # Synchronize every 6 hours
-  #   schedule: "0 */6 * * *"
+  trigger:
+    # Synchronize every 6 hours
+    schedule: "0 */6 * * *"
   restic:
     customCA:
       configMapName: kanboard-volsync-ca

@@ -6,10 +6,8 @@ metadata:
   namespace: media
 spec:
   sourcePVC: archivebox
-  # MIGRATION: Paused during Minio → Garage migration
-  paused: true
-  # trigger:
-  #   schedule: "0 */6 * * *"
+  trigger:
+    schedule: "0 */6 * * *"
   restic:
     copyMethod: Snapshot
     pruneIntervalDays: 7
