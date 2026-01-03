@@ -211,6 +211,11 @@ in
                 hw-address = "e4:5f:01:9c:9a:f4";
               }
               {
+                hostname = "hawk";
+                ip-address = "10.1.0.91";
+                hw-address = "78:55:36:04:eb:af";
+              }
+              {
                 hostname = "mysecrets";
                 ip-address = "10.1.0.99";
                 hw-address = "d8:3a:dd:17:1e:1b";
