@@ -286,6 +286,16 @@
             ];
           };
 
+          hawk = mkNixosConfig {
+            hostname = "hawk";
+            system = "x86_64-linux";
+            stateVersion = "25.11";
+            hardwareModules = [ ];
+            profileModules = [
+              ./nixos/profiles/role-server.nix
+            ];
+          };
+
           # Workstation: calypso (from snowy)
           calypso = mkNixosConfig {
             hostname = "calypso";
