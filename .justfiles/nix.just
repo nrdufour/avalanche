@@ -18,11 +18,15 @@ list-hosts:
 
 # Deploy the configuration of a given host (remote)
 deploy host:
-    nixos-rebuild switch -j auto --use-remote-sudo --build-host {{host}}.internal --target-host {{host}}.internal --flake "{{justfile_directory()}}/..#{{host}}" --fast
+    #!/usr/bin/env bash
+    cd "{{justfile_directory()}}"
+    nixos-rebuild switch -j auto --use-remote-sudo --build-host {{host}}.internal --target-host {{host}}.internal --flake ".#{{host}}" --fast
 
 # Switch to a configuration locally (for current machine only)
 switch:
-    sudo nixos-rebuild switch --flake "{{justfile_directory()}}/..#"
+    #!/usr/bin/env bash
+    cd "{{justfile_directory()}}"
+    sudo nixos-rebuild switch --flake ".#"
 
 # Deploy flake to all nodes (with confirmation)
 deploy-all:
@@ -48,11 +52,11 @@ deploy-all:
     fi
 
     # Get all hosts and deploy to each
-    FLAKE_DIR="{{justfile_directory()}}/.."
+    cd "{{justfile_directory()}}"
     HOSTS=$(nix flake show --json 2>/dev/null | jq -r '.nixosConfigurations | keys.[]')
     for HOST in $HOSTS; do
         echo "Deploying to $HOST..."
-        nixos-rebuild switch -j auto --use-remote-sudo --build-host ${HOST}.internal --target-host ${HOST}.internal --flake "${FLAKE_DIR}#${HOST}" --fast
+        nixos-rebuild switch -j auto --use-remote-sudo --build-host ${HOST}.internal --target-host ${HOST}.internal --flake ".#${HOST}" --fast
     done
 
 # Disable automatic NixOS upgrades on all hosts (stops timer until reboot/manual start)
