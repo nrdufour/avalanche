@@ -40,6 +40,7 @@ creation_rules:
         - *server-eagle
         - *server-possum
         - *server-cardinal
+        - *server-hawk
   - path_regex: secrets/eagle/[^/]+\.(yaml|json|env|ini)$
     key_groups:
       - age:

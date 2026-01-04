@@ -4,6 +4,7 @@
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
       ./secrets.nix
+      ./forgejo
     ];
 
   # Use the systemd-boot EFI boot loader.
@@ -14,14 +15,9 @@
   boot.extraModulePackages = [ config.boot.kernelPackages.r8125 ];
   boot.blacklistedKernelModules = [ "r8169" ];
 
-  # Constraining the ZFS memory usage for ARC
-  boot.extraModprobeConfig = ''
-    options zfs zfs_arc_max=4294967296
-  '';
-
   networking = {
     hostName = "hawk";
-    # Setting the hostid for zfs
+    # Unique host identifier (kept for consistency)
     hostId = "b6956419";
 
     firewall = {
