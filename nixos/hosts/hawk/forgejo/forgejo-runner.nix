@@ -16,6 +16,12 @@
   # For cachix
   nix.settings.trusted-users = [ "root" "gitea-runner" ];
 
+  # Ensure runner home directories are accessible by containers
+  systemd.tmpfiles.rules = [
+    "d /var/lib/gitea-runner/first/home 0755 gitea-runner gitea-runner -"
+    "d /var/lib/gitea-runner/second/home 0755 gitea-runner gitea-runner -"
+  ];
+
   # For the runner
   virtualisation.docker = {
     enable = true;
