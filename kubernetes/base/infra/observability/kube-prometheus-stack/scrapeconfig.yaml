@@ -13,6 +13,7 @@ spec:
         - possum.internal:9002
         - cardinal.internal:9002
         - '10.0.0.1:9002'
+        - hawk.internal:9002
   metricsPath: /metrics
   relabelings:
     - action: replace
