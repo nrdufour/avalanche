@@ -11,7 +11,7 @@ spec:
       ref: values
     - chart: volsync
       repoURL: https://perfectra1n.github.io/volsync/charts/
-      targetRevision: 0.18.1
+      targetRevision: 0.18.2
       helm:
         releaseName: volsync
         valueFiles:
