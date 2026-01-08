@@ -42,9 +42,6 @@
         btop
         jq
 
-        # Home automation
-        home-assistant-cli
-
         # Because you know ... python and go
         go
         go-tools
