@@ -10,7 +10,7 @@ metadata:
     gethomepage.dev/group: Media
     gethomepage.dev/icon: immich.png
     gethomepage.dev/name: Immich
-    gethomepage.dev/pod-selector: "app=immich-web"
+    gethomepage.dev/pod-selector: "app=immich-server"
     cert-manager.io/cluster-issuer: ca-server-cluster-issuer
     cert-manager.io/common-name: immich.internal
 spec:
@@ -27,6 +27,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: immich-web
+            name: immich-server
             port:
-              number: 3000
+              number: 2283

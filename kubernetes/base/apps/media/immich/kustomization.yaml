@@ -7,8 +7,6 @@ resources:
 - redis
 - storage
 - server
-- web
-- microservices
 - machine-learning
 - volsync-ca-configmap.yaml
 - ingress.yaml
