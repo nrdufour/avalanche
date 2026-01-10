@@ -1,4 +1,4 @@
-ARG POSTGRES_VERSION=16.4
+ARG POSTGRES_VERSION=16.11
 FROM ghcr.io/cloudnative-pg/postgresql:${POSTGRES_VERSION}
 
 # Redeclare ARG after FROM to make it available in RUN
