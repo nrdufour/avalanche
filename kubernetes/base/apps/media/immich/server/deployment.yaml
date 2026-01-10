@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: immich-server
-        image: ghcr.io/immich-app/immich-server:latest
+        image: ghcr.io/immich-app/immich-server:v2.4.1
         command: ["node", "/usr/src/app/dist/main"]
         env:
           # Database configuration

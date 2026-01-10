@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: immich-web
-        image: ghcr.io/immich-app/immich-web:latest
+        image: ghcr.io/immich-app/immich-web:v2.4.1
         env:
           # Database configuration (needed for API calls)
           - name: DB_HOSTNAME
