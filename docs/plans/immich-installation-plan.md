@@ -1,0 +1,477 @@
+# Immich Installation Plan
+
+**Status**: 🚧 In Progress
+**Issue**: [#37](https://forge.internal/nemo/avalanche/issues/37)
+**Started**: 2026-01-10
+**Completed**: TBD
+
+## Overview
+
+Install Immich (https://immich.app) - an open-source photo and video management solution similar to Google Photos - on the Kubernetes cluster. Immich provides photo/video backup, organization, face recognition, object detection, and smart search capabilities.
+
+## Requirements
+
+- **Storage size**: Small (< 100GB initially, expandable)
+- **NPU usage**: Future enhancement - leverage Orange Pi 5+ NPU for ML inference
+- **Storage location**: `/tank/Images` on cardinal.internal (separate from `/tank/Media` for videos/series)
+
+## Architecture Decision: Hybrid Storage Approach
+
+### Storage Strategy (Three-Tier)
+
+**Tier 1: Photo/Video Library (Primary Data)**
+- **Solution**: NFS mount from cardinal.internal at `/tank/Images`
+- **Size**: 100GB (expandable as needed)
+- **Access Mode**: ReadWriteMany
+- **Rationale**:
+  - Keeps photos separate from `/tank/Media` (which contains videos/series)
+  - Cardinal has ZFS with S3 backup infrastructure
+  - Requires adding `/tank/Images` NFS export to cardinal's NixOS config
+  - Follows existing pattern for large media storage
+
+**Tier 2: Application State/Cache (Thumbnails, Search Indices)**
+- **Solution**: Longhorn PVC with VolSync backups
+- **Size**: 10Gi
+- **Access Mode**: ReadWriteOnce
+- **Backup**: Hourly VolSync to Garage S3 (24 hourly, 7 daily, 4 weekly retention)
+- **Rationale**: Critical for service continuity, needs cluster-level redundancy
+
+**Tier 3: Database (PostgreSQL with pgvector)**
+- **Solution**: CloudNative-PG cluster (3 replicas)
+- **Size**: 10Gi per instance (OpenEBS hostpath)
+- **Extensions**: pgvector (for ML embeddings), uuid-ossp
+- **Backup**: Daily Barman Cloud Plugin to Garage S3 (30-day retention)
+- **Rationale**: Immich requires pgvector for AI-powered search (CLIP embeddings)
+
+### Backup & Recovery Strategy
+
+#### Database Backups
+- **Method**: Barman Cloud Plugin (daily)
+- **Target**: `s3://cloudnative-pg/immich-16-db/`
+- **Retention**: 30 days
+- **Recovery**: `kubectl cnpg restore` to new cluster
+
+#### Cache/State Backups
+- **Method**: VolSync + Restic (hourly)
+- **Target**: `s3://s3.garage.internal/volsync-volumes/immich/`
+- **Retention**: 24 hourly, 7 daily, 4 weekly
+- **Recovery**: Trigger ReplicationDestination with `restore-once`
+
+#### Photo/Video Library Backups
+- **Method**: Cardinal host ZFS snapshots + Garage S3 (external to cluster)
+- **Note**: Photos never stored only in cluster - cluster failure doesn't lose data
+- **Recovery**: NFS mount automatically reconnects on pod restart
+
+## Immich Component Architecture
+
+Immich consists of 5 services that communicate via PostgreSQL and Redis:
+
+1. **immich-server**: Main API server (port 3001)
+   - Handles API requests, authentication, asset management
+   - Coordinates with other services via PostgreSQL and Redis
+
+2. **immich-web**: Frontend UI (port 3000)
+   - React-based web interface
+   - Accessed via ingress at `https://immich.internal`
+
+3. **immich-microservices**: Background jobs
+   - Thumbnail generation
+   - Metadata extraction (EXIF)
+   - Video transcoding
+   - Asset organization
+
+4. **immich-machine-learning**: ML worker
+   - Face detection and recognition
+   - Object detection
+   - CLIP embeddings for smart search
+   - Currently CPU-based; future NPU integration possible
+
+5. **Redis**: Job queue coordinator
+   - Manages async jobs between services
+   - Ephemeral (no persistent storage needed)
+
+## Directory Structure
+
+```
+kubernetes/base/apps/media/immich/
+├── immich-app.yaml                      # ArgoCD application (in parent dir)
+├── kustomization.yaml                   # Main orchestration
+├── ingress.yaml                         # HTTPS ingress (immich.internal)
+│
+├── db/                                  # PostgreSQL with pgvector
+│   ├── kustomization.yaml
+│   ├── pg-cluster-16.yaml               # 3-replica cluster
+│   ├── scheduled-backup.yaml            # Daily backups
+│   ├── objectstore-backup.yaml          # Barman S3 config
+│   ├── objectstore-external.yaml        # External backup source
+│   └── cnpg-minio-external-secret.yaml  # Garage S3 credentials
+│
+├── redis/                               # Job queue
+│   ├── kustomization.yaml
+│   ├── deployment.yaml
+│   └── service.yaml
+│
+├── server/                              # API server
+│   ├── kustomization.yaml
+│   ├── deployment.yaml
+│   └── service.yaml
+│
+├── web/                                 # Frontend UI
+│   ├── kustomization.yaml
+│   ├── deployment.yaml
+│   └── service.yaml
+│
+├── microservices/                       # Background jobs
+│   ├── kustomization.yaml
+│   └── deployment.yaml
+│
+├── machine-learning/                    # ML worker
+│   ├── kustomization.yaml
+│   └── deployment.yaml
+│
+└── storage/                             # Volumes
+    ├── kustomization.yaml
+    ├── pv-library.yaml                  # NFS PV for cardinal photos
+    ├── pvc-library.yaml                 # NFS PVC
+    ├── pvc-cache.yaml                   # Longhorn for cache/state
+    └── volsync/
+        └── local/
+            ├── kustomization.yaml
+            ├── external-secret.yaml
+            ├── replication-source.yaml
+            └── replication-destination.yaml
+```
+
+## Implementation Steps
+
+### Step 1: Prepare NFS Storage on Cardinal
+**Status**: ⏳ Pending
+
+**File to modify**: `nixos/hosts/cardinal/default.nix`
+
+Update NFS exports to add `/tank/Images`:
+
+```nix
+services.nfs.server = {
+  enable = true;
+  exports = ''
+    /tank/Books 10.0.0.0/8(all_squash,rw,insecure,sync,no_subtree_check,anonuid=1000,anongid=1000)
+    /tank/Media 10.0.0.0/8(all_squash,rw,insecure,sync,no_subtree_check,anonuid=1000,anongid=1000)
+    /tank/Images 10.0.0.0/8(all_squash,rw,insecure,sync,no_subtree_check,anonuid=1000,anongid=1000)
+  '';
+};
+```
+
+Then create the directory:
+
+```bash
+# SSH to cardinal
+ssh cardinal.internal
+
+# Create Images directory with correct permissions
+sudo mkdir -p /tank/Images
+sudo chown 1000:1000 /tank/Images
+sudo chmod 755 /tank/Images
+```
+
+Deploy NixOS changes:
+```bash
+just nix deploy cardinal
+```
+
+### Step 2: Create Database with pgvector Extension
+**Status**: ⏳ Pending
+
+**File**: `kubernetes/base/apps/media/immich/db/pg-cluster-16.yaml`
+
+Key features:
+- 3 replicas on Orange Pi 5+ nodes (HA)
+- Install pgvector extension via `postInitApplicationSQL`:
+  ```sql
+  CREATE EXTENSION IF NOT EXISTS pgvector;
+  CREATE EXTENSION IF NOT EXISTS uuid-ossp;
+  ```
+- Database: "immich", owner: "immich"
+- Barman Cloud Plugin backups to Garage S3
+- Auto-generated secret: `immich-16-db-app` (contains connection details)
+
+**Pattern source**: `kubernetes/base/apps/self-hosted/mealie/db/pg-cluster-16.yaml`
+
+### Step 3: Deploy Redis
+**Status**: ⏳ Pending
+
+**File**: `kubernetes/base/apps/media/immich/redis/deployment.yaml`
+
+- Image: `redis:8.4-alpine`
+- No persistent storage (ephemeral job queue)
+- Resources: 10m CPU / 64Mi RAM request, 256Mi limit
+- Single replica
+
+### Step 4: Create Storage Resources
+**Status**: ⏳ Pending
+
+**Files**: `kubernetes/base/apps/media/immich/storage/`
+
+**NFS Volume** (`pv-library.yaml` + `pvc-library.yaml`):
+- PersistentVolume pointing to `cardinal.internal:/tank/Images`
+- Size: 100Gi
+- StorageClass: nfs
+- AccessMode: ReadWriteMany
+- ReclaimPolicy: Retain
+
+**Cache Volume** (`pvc-cache.yaml`):
+- StorageClass: longhorn
+- Size: 10Gi
+- AccessMode: ReadWriteOnce
+
+**VolSync Backup** (`volsync/local/`):
+- Hourly backups of cache PVC to Garage S3
+- Repository: `s3://s3.garage.internal/volsync-volumes/immich`
+- Retention: 24 hourly, 7 daily, 4 weekly
+
+**Pattern sources**:
+- NFS: `kubernetes/base/apps/media/radarr/deployment.yaml`
+- VolSync: `kubernetes/base/apps/media/archivebox/volsync/`
+
+### Step 5: Deploy Immich Services
+**Status**: ⏳ Pending
+
+**Common Environment Variables** (shared across all services):
+```yaml
+env:
+  - name: DB_HOSTNAME
+    valueFrom:
+      secretKeyRef:
+        name: immich-16-db-app
+        key: host
+  - name: DB_PORT
+    valueFrom:
+      secretKeyRef:
+        name: immich-16-db-app
+        key: port
+  - name: DB_USERNAME
+    valueFrom:
+      secretKeyRef:
+        name: immich-16-db-app
+        key: username
+  - name: DB_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: immich-16-db-app
+        key: password
+  - name: DB_DATABASE_NAME
+    valueFrom:
+      secretKeyRef:
+        name: immich-16-db-app
+        key: dbname
+  - name: REDIS_HOSTNAME
+    value: immich-redis.media
+  - name: REDIS_PORT
+    value: "6379"
+  - name: TZ
+    value: "America/New_York"
+  - name: LOG_LEVEL
+    value: "log"
+```
+
+**Service Specifications**:
+
+| Service | Image | Replicas | CPU Req | Mem Req | CPU Limit | Mem Limit | Port |
+|---------|-------|----------|---------|---------|-----------|-----------|------|
+| immich-server | ghcr.io/immich-app/immich-server:latest | 1 | 100m | 512Mi | 200m | 1Gi | 3001 |
+| immich-web | ghcr.io/immich-app/immich-web:latest | 1 | 5m | 64Mi | 50m | 256Mi | 3000 |
+| immich-microservices | ghcr.io/immich-app/immich-server:latest | 1 | 50m | 512Mi | 500m | 2Gi | - |
+| immich-machine-learning | ghcr.io/immich-app/immich-machine-learning:latest | 1 | 100m | 1Gi | 500m | 2Gi | - |
+| immich-redis | redis:8.4-alpine | 1 | 10m | 64Mi | 10m | 256Mi | 6379 |
+
+**Pattern source**: `kubernetes/base/apps/self-hosted/wger/deployment.yaml`
+
+### Step 6: Create Ingress
+**Status**: ⏳ Pending
+
+**File**: `kubernetes/base/apps/media/immich/ingress.yaml`
+
+- Host: `immich.internal`
+- Backend: immich-web service (port 3000)
+- TLS: cert-manager with ca-server-cluster-issuer
+- Homepage annotations:
+  ```yaml
+  gethomepage.dev/enabled: "true"
+  gethomepage.dev/name: "Immich"
+  gethomepage.dev/description: "Photo & Video Library"
+  gethomepage.dev/group: "Media"
+  gethomepage.dev/icon: "immich.png"
+  ```
+
+**Pattern source**: `kubernetes/base/apps/media/archivebox/ingress.yaml`
+
+### Step 7: Create ArgoCD Application
+**Status**: ⏳ Pending
+
+**File**: `kubernetes/base/apps/media/immich-app.yaml`
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: immich
+  namespace: argocd
+spec:
+  project: default
+  source:
+    path: kubernetes/base/apps/media/immich
+    repoURL: https://forge.internal/nemo/avalanche.git
+    targetRevision: HEAD
+  destination:
+    namespace: media
+    name: 'in-cluster'
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+```
+
+### Step 8: Update Parent Kustomization
+**Status**: ⏳ Pending
+
+**File**: `kubernetes/base/apps/media/kustomization.yaml`
+
+Add `- immich-app.yaml` to resources list.
+
+## Resource Requirements
+
+| Component | Request CPU | Request Memory | Limit CPU | Limit Memory |
+|-----------|-------------|----------------|-----------|--------------|
+| immich-server | 100m | 512Mi | 200m | 1Gi |
+| immich-web | 5m | 64Mi | 50m | 256Mi |
+| immich-microservices | 50m | 512Mi | 500m | 2Gi |
+| immich-machine-learning | 100m | 1Gi | 500m | 2Gi |
+| immich-redis | 10m | 64Mi | 10m | 256Mi |
+| PostgreSQL (3 replicas) | 100m/ea | 512Mi/ea | 200m/ea | 1Gi/ea |
+
+**Total**: ~1.5 CPU, ~6Gi RAM baseline
+
+## Testing Checklist
+
+After deployment, verify each component:
+
+- [ ] **Database Connectivity**:
+  ```bash
+  kubectl exec -n media deployment/immich-server -- \
+    psql -h immich-16-db-rw.media -U immich -d immich -c '\dx'
+  # Should show pgvector extension
+  ```
+
+- [ ] **Redis Queue**:
+  ```bash
+  kubectl exec -n media deployment/immich-server -- \
+    redis-cli -h immich-redis.media PING
+  # Should return PONG
+  ```
+
+- [ ] **File Storage**:
+  ```bash
+  # Upload test photo via web UI
+  # Verify file appears on cardinal
+  ssh cardinal.internal 'ls -lh /tank/Images'
+  ```
+
+- [ ] **ML Inference**:
+  - Upload photo via web UI
+  - Monitor microservices logs for thumbnail generation
+  - Monitor ML worker logs for face detection
+  - Verify search functionality works
+
+- [ ] **VolSync Backups**:
+  ```bash
+  kubectl get replicationsource -n media immich-cache
+  # Should show successful completion
+  ```
+
+- [ ] **Database Backups**:
+  ```bash
+  kubectl get schedulebackup -n media immich-16-db
+  # Should show successful daily backups
+  ```
+
+- [ ] **Ingress/TLS**:
+  ```bash
+  curl -sk https://immich.internal
+  # Should return Immich web UI
+  ```
+
+- [ ] **End-to-End Verification**:
+  1. Access `https://immich.internal`
+  2. Complete initial setup wizard
+  3. Upload test photo
+  4. Verify thumbnail generation (microservices working)
+  5. Verify face detection (ML worker working)
+  6. Verify file appears in `/tank/Images` on cardinal
+  7. Check VolSync backup status
+  8. Check database backup status
+  9. Verify Homepage integration shows Immich
+
+## Future Enhancements
+
+### NPU Integration for ML Worker
+**Status**: Future enhancement (not in initial implementation)
+
+The Orange Pi 5+ NPU infrastructure is fully operational and could accelerate Immich's ML workloads:
+
+**Current State**:
+- NPU service deployed at `https://npu-inference.internal`
+- Uses TensorFlow Lite + Mesa Teflon delegate
+- Performance: ~16ms inference for MobileNetV1
+- Supports image classification (1000 ImageNet classes)
+
+**Integration Options**:
+1. **Convert Immich models to TFLite**: Convert CLIP/face detection models to quantized TFLite format
+2. **API integration**: Modify Immich ML worker to call NPU service HTTP API
+3. **Direct TFLite integration**: Modify Immich to use TFLite runtime with Teflon delegate
+
+**Recommendation**: Start with CPU-based ML worker. The Orange Pi 5+ nodes have good CPU performance. NPU integration can be added later if ML processing becomes a bottleneck.
+
+**Reference**: `docs/architecture/npu/rknn-npu-integration-plan.md`, `kubernetes/base/apps/ml/npu-inference/`
+
+### Multi-User Support
+- Configure Immich for multi-user mode
+- Integrate with Kanidm (auth.internal) for SSO
+
+### External Backup
+- Add rclone job to replicate photos to external cloud storage (B2, Wasabi)
+- Pattern: `nixos/hosts/cardinal/backups/remote/rclone-media-remote.nix`
+
+## Deployment Sequence
+
+When implementing, follow this sequence:
+
+1. ✅ Update cardinal NFS exports and create `/tank/Images` directory
+2. Create all Kubernetes manifests (database, redis, storage, services)
+3. Commit and push to git (ArgoCD will auto-sync)
+4. Wait for database to become healthy (3/3 replicas ready)
+5. Wait for Redis to start
+6. Wait for storage resources to bind
+7. Wait for immich-server to become ready
+8. Wait for other services to start
+9. Verify ingress and TLS certificate issued
+10. Complete initial setup via web UI
+11. Run testing checklist
+
+## Notes
+
+- **Image versions**: Using `latest` tag for initial deployment. Consider pinning versions after validation.
+- **Scaling**: All services can scale horizontally except machine-learning (should run 1 replica per node).
+- **Performance**: Initial photo upload and processing will be slow (thumbnail generation + face detection). Monitor resource usage and adjust limits if needed.
+- **Security**: All services run as non-root user (UID 1000). Database credentials auto-generated by CloudNative-PG.
+- **Cardinal dependency**: If cardinal is unavailable, photo library becomes read-only. Services continue to function with cached data.
+
+## References
+
+- Official Immich documentation: https://immich.app/docs
+- Immich GitHub: https://github.com/immich-app/immich
+- CloudNative-PG operator: `kubernetes/base/apps/cnpg-system/`
+- Existing multi-service pattern: `kubernetes/base/apps/self-hosted/wger/`
+- NFS storage pattern: `kubernetes/base/apps/media/radarr/`
+- VolSync backup pattern: `kubernetes/base/apps/media/archivebox/volsync/`
