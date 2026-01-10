@@ -6,4 +6,5 @@ resources:
 - pv-library.yaml
 - pvc-library.yaml
 - pvc-cache.yaml
+- pvc-ml-cache.yaml
 - volsync/local
