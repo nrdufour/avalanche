@@ -18,6 +18,9 @@ spec:
       containers:
       - name: immich-machine-learning
         image: ghcr.io/immich-app/immich-machine-learning:v2.4.1
+        ports:
+          - containerPort: 3003
+            name: http
         env:
           # Redis configuration
           - name: REDIS_HOSTNAME
