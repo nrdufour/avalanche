@@ -5,7 +5,7 @@ metadata:
   name: immich-16-db
 spec:
   instances: 3
-  imageName: ghcr.io/cloudnative-pg/postgresql:16.4-27
+  imageName: forge.internal/nemo/postgresql-pgvector:16.4
   primaryUpdateStrategy: unsupervised
 
   enableSuperuserAccess: true
