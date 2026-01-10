@@ -99,6 +99,9 @@ kubernetes/base/apps/media/immich/
 ├── ingress.yaml                         # HTTPS ingress (immich.internal)
 │
 ├── db/                                  # PostgreSQL with pgvector
+│   ├── image/                           # Custom PostgreSQL image
+│   │   ├── Dockerfile                   # pgvector installation
+│   │   └── .dockerignore
 │   ├── kustomization.yaml
 │   ├── pg-cluster-16.yaml               # 3-replica cluster
 │   ├── scheduled-backup.yaml            # Daily backups
@@ -144,8 +147,59 @@ kubernetes/base/apps/media/immich/
 
 ## Implementation Steps
 
-### Step 1: Prepare NFS Storage on Cardinal
+### Step 0: Build Custom PostgreSQL Image with pgvector
 **Status**: ⏳ Pending
+
+**Issue**: The standard CloudNative-PG PostgreSQL image (`ghcr.io/cloudnative-pg/postgresql:16.4-27`) does not include the pgvector extension, which is **required** by Immich for:
+- Smart search using CLIP embeddings (semantic photo search like "dog on beach")
+- Face recognition and clustering
+- Object detection similarity matching
+
+**Solution**: Build a custom Docker image based on CloudNative-PG's PostgreSQL image with pgvector installed.
+
+**Files to create**:
+- `kubernetes/base/apps/media/immich/db/image/Dockerfile`
+- `kubernetes/base/apps/media/immich/db/image/.dockerignore`
+
+**Dockerfile content**:
+```dockerfile
+ARG POSTGRES_VERSION=16.4
+FROM ghcr.io/cloudnative-pg/postgresql:${POSTGRES_VERSION}
+
+USER root
+
+# Install pgvector extension
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        postgresql-${POSTGRES_VERSION%%.*}-pgvector && \
+    rm -rf /var/lib/apt/lists/*
+
+USER postgres
+```
+
+**Build and push**:
+```bash
+# Build for both amd64 and arm64
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t <registry>/postgresql-pgvector:16.4 \
+  -f kubernetes/base/apps/media/immich/db/image/Dockerfile \
+  kubernetes/base/apps/media/immich/db/image/
+
+# Push to registry (Forgejo, GHCR, or other)
+docker push <registry>/postgresql-pgvector:16.4
+```
+
+**Update pg-cluster-16.yaml** to use the custom image:
+```yaml
+imageName: <registry>/postgresql-pgvector:16.4
+```
+
+**References**:
+- [CloudNativePG: Creating custom container images](https://cloudnative-pg.io/blog/creating-container-images/)
+- [pgvector PostgreSQL extension](https://github.com/pgvector/pgvector)
+
+### Step 1: Prepare NFS Storage on Cardinal
+**Status**: ✅ Completed (2026-01-10)
 
 **File to modify**: `nixos/hosts/cardinal/default.nix`
 
@@ -174,13 +228,14 @@ sudo chown 1000:1000 /tank/Images
 sudo chmod 755 /tank/Images
 ```
 
-Deploy NixOS changes:
-```bash
-just nix deploy cardinal
-```
+**Completed actions**:
+- Created ZFS dataset: `tank/Images` on cardinal
+- Added NFS export for `/tank/Images` to `nixos/hosts/cardinal/default.nix`
+- Deployed changes to cardinal (NFS server restarted successfully)
+- Export verified: `exportfs -v` shows `/tank/Images` accessible to 10.0.0.0/8
 
 ### Step 2: Create Database with pgvector Extension
-**Status**: ⏳ Pending
+**Status**: ✅ Completed (2026-01-10) - **Blocked: Requires Step 0 (custom image)**
 
 **File**: `kubernetes/base/apps/media/immich/db/pg-cluster-16.yaml`
 
@@ -195,10 +250,19 @@ Key features:
 - Barman Cloud Plugin backups to Garage S3
 - Auto-generated secret: `immich-16-db-app` (contains connection details)
 
+**Completed actions**:
+- Created CloudNative-PG cluster manifest with 3 replicas
+- Configured pgvector extension in `postInitApplicationSQL` (awaiting custom image)
+- Set up daily Barman backups to Garage S3
+- Created ObjectStore and ScheduledBackup resources
+- Created ExternalSecret for S3 credentials
+
+**Blocking issue**: Database initdb fails because base image lacks pgvector extension. Step 0 must be completed first.
+
 **Pattern source**: `kubernetes/base/apps/self-hosted/mealie/db/pg-cluster-16.yaml`
 
 ### Step 3: Deploy Redis
-**Status**: ⏳ Pending
+**Status**: ✅ Completed (2026-01-10)
 
 **File**: `kubernetes/base/apps/media/immich/redis/deployment.yaml`
 
@@ -207,8 +271,12 @@ Key features:
 - Resources: 10m CPU / 64Mi RAM request, 256Mi limit
 - Single replica
 
+**Completed actions**:
+- Created Redis deployment and service manifests
+- Configured liveness and readiness probes
+
 ### Step 4: Create Storage Resources
-**Status**: ⏳ Pending
+**Status**: ✅ Completed (2026-01-10)
 
 **Files**: `kubernetes/base/apps/media/immich/storage/`
 
@@ -229,12 +297,20 @@ Key features:
 - Repository: `s3://s3.garage.internal/volsync-volumes/immich`
 - Retention: 24 hourly, 7 daily, 4 weekly
 
+**Completed actions**:
+- Created NFS PV/PVC for photo library (100Gi from cardinal:/tank/Images)
+- Created Longhorn PVC for cache (10Gi)
+- Set up VolSync backup with hourly schedule
+- Created ExternalSecret for S3 credentials
+- Created ReplicationSource and ReplicationDestination
+- Added volsync CA ConfigMap
+
 **Pattern sources**:
 - NFS: `kubernetes/base/apps/media/radarr/deployment.yaml`
 - VolSync: `kubernetes/base/apps/media/archivebox/volsync/`
 
 ### Step 5: Deploy Immich Services
-**Status**: ⏳ Pending
+**Status**: ✅ Completed (2026-01-10)
 
 **Common Environment Variables** (shared across all services):
 ```yaml
@@ -284,10 +360,18 @@ env:
 | immich-machine-learning | ghcr.io/immich-app/immich-machine-learning:latest | 1 | 100m | 1Gi | 500m | 2Gi | - |
 | immich-redis | redis:8.4-alpine | 1 | 10m | 64Mi | 10m | 256Mi | 6379 |
 
+**Completed actions**:
+- Created deployment manifests for all 5 services
+- Configured shared environment variables for database and Redis
+- Set up volume mounts for library and cache
+- Created services for immich-server, immich-web, and Redis
+- Configured resource requests and limits
+- Added health probes (liveness, readiness, startup)
+
 **Pattern source**: `kubernetes/base/apps/self-hosted/wger/deployment.yaml`
 
 ### Step 6: Create Ingress
-**Status**: ⏳ Pending
+**Status**: ✅ Completed (2026-01-10)
 
 **File**: `kubernetes/base/apps/media/immich/ingress.yaml`
 
@@ -303,10 +387,16 @@ env:
   gethomepage.dev/icon: "immich.png"
   ```
 
+**Completed actions**:
+- Created ingress manifest for `immich.internal`
+- Configured TLS with cert-manager (ca-server-cluster-issuer)
+- Added Homepage integration annotations
+- Backend points to immich-web service on port 3000
+
 **Pattern source**: `kubernetes/base/apps/media/archivebox/ingress.yaml`
 
 ### Step 7: Create ArgoCD Application
-**Status**: ⏳ Pending
+**Status**: ✅ Completed (2026-01-10)
 
 **File**: `kubernetes/base/apps/media/immich-app.yaml`
 
@@ -333,12 +423,43 @@ spec:
       - CreateNamespace=true
 ```
 
+**Completed actions**:
+- Created ArgoCD Application manifest
+- Configured auto-sync with prune and selfHeal
+- Set destination namespace to media
+- Created namespace automatically
+
 ### Step 8: Update Parent Kustomization
-**Status**: ⏳ Pending
+**Status**: ✅ Completed (2026-01-10)
 
 **File**: `kubernetes/base/apps/media/kustomization.yaml`
 
 Add `- immich-app.yaml` to resources list.
+
+**Completed actions**:
+- Added `immich-app.yaml` to resources in `kubernetes/base/apps/media/kustomization.yaml`
+- Committed and pushed all changes (commit: a9a90df)
+
+## Current Status (2026-01-10)
+
+### ✅ Completed
+- All Kubernetes manifests created (33 files)
+- NFS storage prepared on cardinal (`tank/Images`)
+- All services, deployments, and configurations ready
+- ArgoCD application deployed and syncing
+
+### ⏳ Blocked
+- **Database initialization failing** due to missing pgvector extension
+- Error: `extension "pgvector" is not available`
+- Cause: Base CloudNative-PG image doesn't include pgvector
+
+### 🎯 Next Action Required
+Complete **Step 0** (Build Custom PostgreSQL Image) to unblock deployment:
+1. Create Dockerfile with pgvector extension
+2. Build multi-arch image (amd64, arm64)
+3. Push to container registry
+4. Update `pg-cluster-16.yaml` to use custom image
+5. Delete failed cluster and let ArgoCD recreate it
 
 ## Resource Requirements
 
@@ -445,19 +566,27 @@ The Orange Pi 5+ NPU infrastructure is fully operational and could accelerate Im
 
 ## Deployment Sequence
 
-When implementing, follow this sequence:
+### Completed Steps (2026-01-10)
+1. ✅ Updated cardinal NFS exports and created `/tank/Images` ZFS dataset
+2. ✅ Created all Kubernetes manifests (database, redis, storage, services) - 33 files
+3. ✅ Committed and pushed to git (commit a9a90df) - ArgoCD auto-syncing
 
-1. ✅ Update cardinal NFS exports and create `/tank/Images` directory
-2. Create all Kubernetes manifests (database, redis, storage, services)
-3. Commit and push to git (ArgoCD will auto-sync)
-4. Wait for database to become healthy (3/3 replicas ready)
-5. Wait for Redis to start
-6. Wait for storage resources to bind
-7. Wait for immich-server to become ready
-8. Wait for other services to start
-9. Verify ingress and TLS certificate issued
-10. Complete initial setup via web UI
-11. Run testing checklist
+### Blocked - Awaiting Custom Image
+4. ⏸️ **BLOCKED**: Database failing to initialize - pgvector extension missing
+   - Need to complete Step 0 (build custom PostgreSQL image with pgvector)
+   - Current error: `extension "pgvector" is not available`
+
+### Remaining Steps (After Step 0 Complete)
+5. Delete failed database cluster: `kubectl delete cluster -n media immich-16-db`
+6. ArgoCD will recreate with new custom image
+7. Wait for database to become healthy (3/3 replicas ready)
+8. Wait for Redis to start
+9. Wait for storage resources to bind
+10. Wait for immich-server to become ready
+11. Wait for other services to start
+12. Verify ingress and TLS certificate issued
+13. Complete initial setup via web UI at `https://immich.internal`
+14. Run testing checklist
 
 ## Notes
 
