@@ -1,0 +1,57 @@
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: immich-16-db
+spec:
+  instances: 3
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.4-27
+  primaryUpdateStrategy: unsupervised
+
+  enableSuperuserAccess: true
+  enablePDB: true  # Enable PodDisruptionBudgets
+
+  # CRITICAL: Ensure replicas spread across nodes
+  affinity:
+    nodeSelector:
+      ## Store it on the Orange Pi 5+ nodes
+      opi.feature.node.kubernetes.io/5plus: "true"
+    podAntiAffinityType: required  # Force replicas on different nodes
+
+  # Optimized timing for node reboots/drains
+  failoverDelay: 60        # Wait 60s for node to return before failover
+  switchoverDelay: 60      # Graceful switchover delay
+  startDelay: 60          # Faster startup (vs default 3600s)
+  stopDelay: 30           # Faster shutdown (vs default 1800s)
+  smartShutdownTimeout: 60  # Quick graceful shutdown
+
+  storage:
+    size: 10Gi
+    storageClass: openebs-hostpath
+
+  backup:
+    target: "prefer-standby"
+
+  # Backup configuration migrated to Barman Cloud Plugin
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: immich-backup-store
+        serverName: immich-16-db
+
+  bootstrap:
+    initdb:
+      database: immich
+      owner: immich
+      postInitApplicationSQL:
+        - CREATE EXTENSION IF NOT EXISTS pgvector;
+        - CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+  externalClusters:
+    - name: clusterBackup
+      plugin:
+        name: barman-cloud.cloudnative-pg.io
+        parameters:
+          barmanObjectName: immich-external-store
+          serverName: immich-16-db

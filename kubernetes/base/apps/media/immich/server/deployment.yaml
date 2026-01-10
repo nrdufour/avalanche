@@ -1,0 +1,102 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immich-server
+  labels:
+    app: immich-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: immich-server
+  template:
+    metadata:
+      labels:
+        app: immich-server
+    spec:
+      containers:
+      - name: immich-server
+        image: ghcr.io/immich-app/immich-server:latest
+        command: ["node", "/usr/src/app/dist/main"]
+        env:
+          # Database configuration
+          - name: DB_HOSTNAME
+            valueFrom:
+              secretKeyRef:
+                name: immich-16-db-app
+                key: host
+          - name: DB_PORT
+            valueFrom:
+              secretKeyRef:
+                name: immich-16-db-app
+                key: port
+          - name: DB_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: immich-16-db-app
+                key: username
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: immich-16-db-app
+                key: password
+          - name: DB_DATABASE_NAME
+            valueFrom:
+              secretKeyRef:
+                name: immich-16-db-app
+                key: dbname
+
+          # Redis configuration
+          - name: REDIS_HOSTNAME
+            value: immich-redis.media
+          - name: REDIS_PORT
+            value: "6379"
+
+          # Timezone and logging
+          - name: TZ
+            value: "America/New_York"
+          - name: LOG_LEVEL
+            value: "log"
+
+        ports:
+          - containerPort: 3001
+            name: http
+
+        volumeMounts:
+          - name: library
+            mountPath: /usr/src/app/upload
+          - name: cache
+            mountPath: /usr/src/app/cache
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            cpu: 200m
+            memory: 1Gi
+
+        livenessProbe:
+          httpGet:
+            path: /api/server-info/ping
+            port: 3001
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 5
+
+        readinessProbe:
+          httpGet:
+            path: /api/server-info/ping
+            port: 3001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+
+      volumes:
+        - name: library
+          persistentVolumeClaim:
+            claimName: immich-library
+        - name: cache
+          persistentVolumeClaim:
+            claimName: immich-cache

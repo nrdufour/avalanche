@@ -1,0 +1,32 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: immich-ingress
+  namespace: media
+  annotations:
+    gethomepage.dev/description: Photo & Video Library
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/group: Media
+    gethomepage.dev/icon: immich.png
+    gethomepage.dev/name: Immich
+    gethomepage.dev/pod-selector: "app=immich-web"
+    cert-manager.io/cluster-issuer: ca-server-cluster-issuer
+    cert-manager.io/common-name: immich.internal
+spec:
+  tls:
+    - hosts:
+      - immich.internal
+      secretName: immich-ing-cert
+  ingressClassName: nginx
+  rules:
+  - host: immich.internal
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: immich-web
+            port:
+              number: 3000

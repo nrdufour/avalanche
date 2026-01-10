@@ -1,0 +1,27 @@
+---
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationDestination
+metadata:
+  name: immich-cache-bootstrap
+  namespace: media
+spec:
+  trigger:
+    manual: restore-once
+  restic:
+    repository: immich-volsync-garage
+    destinationPVC: immich-cache-bootstrap
+    storageClassName: longhorn
+    accessModes:
+      - ReadWriteOnce
+    capacity: 10Gi
+    copyMethod: Snapshot
+    volumeSnapshotClassName: longhorn-snapshot-vsc
+    cacheStorageClassName: longhorn
+    cacheCapacity: 2Gi
+    moverSecurityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+    customCA:
+      configMapName: immich-volsync-ca
+      key: ca.crt

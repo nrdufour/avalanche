@@ -1,0 +1,49 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immich-machine-learning
+  labels:
+    app: immich-machine-learning
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: immich-machine-learning
+  template:
+    metadata:
+      labels:
+        app: immich-machine-learning
+    spec:
+      containers:
+      - name: immich-machine-learning
+        image: ghcr.io/immich-app/immich-machine-learning:latest
+        env:
+          # Redis configuration
+          - name: REDIS_HOSTNAME
+            value: immich-redis.media
+          - name: REDIS_PORT
+            value: "6379"
+
+          # Timezone and logging
+          - name: TZ
+            value: "America/New_York"
+          - name: LOG_LEVEL
+            value: "log"
+
+        volumeMounts:
+          - name: cache
+            mountPath: /cache
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 1Gi
+          limits:
+            cpu: 500m
+            memory: 2Gi
+
+      volumes:
+        - name: cache
+          persistentVolumeClaim:
+            claimName: immich-cache
