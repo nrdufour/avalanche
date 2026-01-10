@@ -5,7 +5,7 @@ metadata:
   name: immich-16-db
 spec:
   instances: 3
-  imageName: ghcr.io/cloudnative-pg/postgresql:16.4-27
+  imageName: ghcr.io/tensorchord/cloudnative-vectorchord:16-0.4.3
   primaryUpdateStrategy: unsupervised
 
   enableSuperuserAccess: true
@@ -29,6 +29,11 @@ spec:
     size: 10Gi
     storageClass: openebs-hostpath
 
+  # PostgreSQL configuration for VectorChord
+  postgresql:
+    shared_preload_libraries:
+      - "vchord.so"
+
   backup:
     target: "prefer-standby"
 
@@ -45,7 +50,7 @@ spec:
       database: immich
       owner: immich
       postInitApplicationSQL:
-        - CREATE EXTENSION IF NOT EXISTS vector;
+        - CREATE EXTENSION IF NOT EXISTS vchord CASCADE;
         - CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
   externalClusters:
