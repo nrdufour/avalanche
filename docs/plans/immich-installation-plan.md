@@ -1,13 +1,237 @@
 # Immich Installation Plan
 
-**Status**: 🚧 In Progress
+**Status**: ✅ Completed
 **Issue**: [#37](https://forge.internal/nemo/avalanche/issues/37)
 **Started**: 2026-01-10
-**Completed**: TBD
+**Completed**: 2026-01-10
 
 ## Overview
 
 Install Immich (https://immich.app) - an open-source photo and video management solution similar to Google Photos - on the Kubernetes cluster. Immich provides photo/video backup, organization, face recognition, object detection, and smart search capabilities.
+
+## Lessons Learned: Plan vs Reality
+
+**Critical Finding**: This plan was based on outdated knowledge of Immich's architecture (likely v1.x or early v2.x). Immich v2.4.1 has **fundamentally different architecture** that invalidated major sections of this plan.
+
+### Why the Plan Was Wrong
+
+**Root Cause**: The plan was written using:
+- Stale architectural knowledge from older Immich versions
+- Outdated documentation references
+- Assumptions about PostgreSQL extensions (pgvector vs VectorChord)
+- No verification against current Immich v2.4.1 documentation
+
+**Lesson**: Always verify current architecture by reading:
+1. Official docker-compose.yml from the version you're deploying
+2. Latest release notes and migration guides
+3. Current GitHub issues (not just docs)
+4. Actual error messages during deployment
+
+### Major Architecture Differences
+
+#### 1. Component Count: 5 Services → 3 Services
+
+**Plan Expected** (lines 66-91):
+```
+immich-server (port 3001)        - API only
+immich-web (port 3000)           - Frontend UI
+immich-microservices             - Background jobs
+immich-machine-learning          - ML worker
+redis                            - Job queue
+```
+
+**Reality in v2.4.1**:
+```
+immich-server (port 2283)        - Unified: API + Frontend + Background jobs
+immich-machine-learning (port 3003) - ML worker
+redis                            - Job queue
+```
+
+**Impact**:
+- Deleted `web/` and `microservices/` directories (don't exist in v2.4.1)
+- Changed ingress backend from `immich-web:3000` to `immich-server:2283`
+- Removed obsolete service definitions
+
+#### 2. PostgreSQL Extension: pgvector → VectorChord
+
+**Plan Expected** (lines 150-200):
+```dockerfile
+# Build custom image
+FROM ghcr.io/cloudnative-pg/postgresql:16.4
+RUN apt-get install postgresql-16-pgvector
+```
+```sql
+CREATE EXTENSION IF NOT EXISTS pgvector;
+```
+
+**Reality in v2.4.1**:
+```yaml
+# Use pre-built TensorChord image
+imageName: ghcr.io/tensorchord/cloudnative-vectorchord:16-0.4.3
+
+postgresql:
+  shared_preload_libraries:
+    - "vchord.so"
+
+postInitApplicationSQL:
+  - CREATE EXTENSION IF NOT EXISTS vchord CASCADE;
+  # ↑ This auto-installs pgvector v0.8.0 as dependency
+```
+
+**Impact**:
+- **No custom image building needed** - TensorChord provides ready-made image
+- Immich v2.4.1 **requires VectorChord**, not just pgvector
+- VectorChord is the successor to pgvecto.rs for vector similarity search
+- Step 0 of original plan was completely unnecessary
+
+**Discovery**: Found by reading error messages showing Immich looking for VectorChord features, then researching TensorChord documentation.
+
+#### 3. Missing Kubernetes Service for ML Component
+
+**Plan**: Only created Deployment for machine-learning (lines 131-133)
+
+**Reality**: **Critical omission!** Server couldn't reach ML worker without Service:
+```yaml
+# Had to create: kubernetes/base/apps/media/immich/machine-learning/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: immich-machine-learning
+spec:
+  ports:
+  - port: 3003
+    targetPort: 3003
+```
+
+**Impact**: Upload jobs failed with "Machine learning request failed for all URLs" until Service was created.
+
+**Discovery**: Found by following server logs showing connection failures to `http://immich-machine-learning:3003`.
+
+#### 4. Missing Nginx Upload Size Limit
+
+**Plan**: No mention of upload size configuration
+
+**Reality**: **Critical omission!** Nginx ingress has default 1MB body size limit:
+```yaml
+# Had to add to ingress.yaml
+annotations:
+  nginx.ingress.kubernetes.io/proxy-body-size: "0"  # Disable limit
+```
+
+**Impact**: All photo uploads failed with generic "Unable to upload file" error until annotation was added.
+
+**Discovery**: Only found after verifying ML service was working but uploads still failed. Not in server logs - had to know about nginx defaults.
+
+#### 5. Database SUPERUSER Privilege Required
+
+**Plan**: Assumed CloudNative-PG default user permissions would suffice
+
+**Reality**: Immich's TypeORM auto-migrations **require SUPERUSER** to create extensions:
+```bash
+# Had to manually grant on database pod
+kubectl exec immich-16-db-1 -c postgres -- \
+  psql -U postgres -c "ALTER USER immich WITH SUPERUSER;"
+```
+
+**Impact**: Schema initialization failed with "relation 'system_metadata' does not exist" until SUPERUSER granted.
+
+**Discovery**: Found by checking TypeORM migration logs and understanding it needs extension creation privileges.
+
+#### 6. CPU Limits Forbidden in Cluster
+
+**Plan Expected** (lines 355-361):
+```yaml
+resources:
+  limits:
+    cpu: 200m
+    memory: 1Gi
+```
+
+**Reality** (Cluster Policy):
+```yaml
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    memory: 1Gi  # CPU limits forbidden
+```
+
+**Impact**: All CPU limits had to be removed. Redis readiness probe was timing out due to CPU throttling.
+
+**Discovery**: User explicitly stated "remove any cpu limit, those are forbidden in my cluster :)"
+
+#### 7. Separate ML Cache Volume Required
+
+**Plan**: Single cache PVC for all services
+
+**Reality**: ReadWriteOnce volumes can't be shared:
+```yaml
+# Had to create separate PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-ml-cache  # Separate from immich-cache
+spec:
+  storageClassName: longhorn
+  accessModes:
+    - ReadWriteOnce
+```
+
+**Impact**: ML pod stuck in "Multi-Attach error" until separate PVC created.
+
+### What Actually Worked From the Plan
+
+✅ **Storage Strategy** - Three-tier approach was correct:
+- NFS for photo library (cardinal:/tank/Images)
+- Longhorn for caches
+- CloudNative-PG for database
+
+✅ **Backup Strategy** - VolSync + Barman backups architecture was sound
+
+✅ **Network Architecture** - Ingress, TLS, Homepage integration patterns were correct
+
+✅ **Resource Sizing** - Memory requests/limits were appropriate
+
+### Key Takeaways
+
+1. **Never trust plans based on version assumptions** - Always verify current architecture
+2. **Read the source** - Official docker-compose.yml reveals true architecture
+3. **Follow the errors** - Error messages led to VectorChord, Service, SUPERUSER discoveries
+4. **Documentation lags reality** - GitHub issues and release notes more current than docs
+5. **Test incrementally** - Each discovery (ML service, nginx limit) came from testing previous fix
+6. **Cluster policies matter** - Generic plans don't account for local constraints (CPU limits)
+
+### Corrected Implementation Summary
+
+**What we actually deployed**:
+```
+kubernetes/base/apps/media/immich/
+├── db/
+│   └── pg-cluster-16.yaml              # TensorChord VectorChord image (not custom build)
+├── redis/
+│   ├── deployment.yaml                 # No CPU limits
+│   └── service.yaml
+├── server/
+│   ├── deployment.yaml                 # Unified server on port 2283
+│   └── service.yaml
+├── machine-learning/
+│   ├── deployment.yaml                 # Port 3003 exposed
+│   ├── service.yaml                    # ← ADDED (not in plan)
+│   └── kustomization.yaml
+├── storage/
+│   ├── pvc-library.yaml               # NFS from cardinal
+│   ├── pvc-cache.yaml                 # Longhorn for server cache
+│   ├── pvc-ml-cache.yaml              # ← ADDED separate ML cache
+│   └── volsync/...
+└── ingress.yaml                        # ← ADDED proxy-body-size annotation
+```
+
+**Files NOT created** (from plan but don't exist in v2.4.1):
+- `web/deployment.yaml` - Service merged into server
+- `web/service.yaml` - Service merged into server
+- `microservices/deployment.yaml` - Service merged into server
+- `db/image/Dockerfile` - Used pre-built TensorChord image instead
 
 ## Requirements
 
@@ -440,26 +664,31 @@ Add `- immich-app.yaml` to resources list.
 - Added `immich-app.yaml` to resources in `kubernetes/base/apps/media/kustomization.yaml`
 - Committed and pushed all changes (commit: a9a90df)
 
-## Current Status (2026-01-10)
+## Final Status (2026-01-10)
 
-### ✅ Completed
-- All Kubernetes manifests created (33 files)
-- NFS storage prepared on cardinal (`tank/Images`)
-- All services, deployments, and configurations ready
-- ArgoCD application deployed and syncing
+### ✅ Completed Successfully
 
-### ⏳ Blocked
-- **Database initialization failing** due to missing pgvector extension
-- Error: `extension "pgvector" is not available`
-- Cause: Base CloudNative-PG image doesn't include pgvector
+**All components operational**:
+- ✅ PostgreSQL 16 with VectorChord 0.4.3 + pgvector 0.8.0 (3/3 replicas)
+- ✅ Redis job queue (1/1 replica)
+- ✅ Immich unified server on port 2283 (1/1 replica)
+- ✅ Machine learning service with Kubernetes Service (1/1 replica)
+- ✅ NFS storage from cardinal:/tank/Images (2.6TB available)
+- ✅ Longhorn cache volumes (separate for server and ML)
+- ✅ Ingress with TLS at https://immich.internal
+- ✅ Nginx upload size limit disabled
+- ✅ Photo upload and ML processing working (CLIP, OCR, facial recognition)
+- ✅ VolSync backups configured
+- ✅ Barman PostgreSQL backups configured
 
-### 🎯 Next Action Required
-Complete **Step 0** (Build Custom PostgreSQL Image) to unblock deployment:
-1. Create Dockerfile with pgvector extension
-2. Build multi-arch image (amd64, arm64)
-3. Push to container registry
-4. Update `pg-cluster-16.yaml` to use custom image
-5. Delete failed cluster and let ArgoCD recreate it
+**Key fixes applied beyond original plan**:
+1. Used TensorChord VectorChord image instead of building custom image
+2. Granted SUPERUSER to immich database user for TypeORM migrations
+3. Created machine-learning Kubernetes Service (missing from plan)
+4. Added nginx proxy-body-size annotation for uploads
+5. Removed all CPU limits per cluster policy
+6. Created separate ML cache PVC to avoid Multi-Attach errors
+7. Updated architecture for v2.4.1 unified server (no web/microservices)
 
 ## Resource Requirements
 
@@ -564,29 +793,65 @@ The Orange Pi 5+ NPU infrastructure is fully operational and could accelerate Im
 - Add rclone job to replicate photos to external cloud storage (B2, Wasabi)
 - Pattern: `nixos/hosts/cardinal/backups/remote/rclone-media-remote.nix`
 
-## Deployment Sequence
+## Actual Deployment Sequence (2026-01-10)
 
-### Completed Steps (2026-01-10)
+### Phase 1: Initial Setup
 1. ✅ Updated cardinal NFS exports and created `/tank/Images` ZFS dataset
-2. ✅ Created all Kubernetes manifests (database, redis, storage, services) - 33 files
+2. ✅ Created Kubernetes manifests based on plan (database, redis, storage, services)
 3. ✅ Committed and pushed to git (commit a9a90df) - ArgoCD auto-syncing
 
-### Blocked - Awaiting Custom Image
-4. ⏸️ **BLOCKED**: Database failing to initialize - pgvector extension missing
-   - Need to complete Step 0 (build custom PostgreSQL image with pgvector)
-   - Current error: `extension "pgvector" is not available`
+### Phase 2: Database Extension Discovery
+4. ❌ Database initialization failed - "extension 'vector' is not available"
+5. 🔍 Researched and discovered Immich v2.4.1 requires **VectorChord**, not just pgvector
+6. ✅ Switched to TensorChord image `ghcr.io/tensorchord/cloudnative-vectorchord:16-0.4.3`
+7. ✅ Updated PostgreSQL config to load vchord.so shared library
+8. ✅ Changed extension creation to `CREATE EXTENSION vchord CASCADE`
+9. ✅ Recreated database cluster - all 3 replicas healthy
 
-### Remaining Steps (After Step 0 Complete)
-5. Delete failed database cluster: `kubectl delete cluster -n media immich-16-db`
-6. ArgoCD will recreate with new custom image
-7. Wait for database to become healthy (3/3 replicas ready)
-8. Wait for Redis to start
-9. Wait for storage resources to bind
-10. Wait for immich-server to become ready
-11. Wait for other services to start
-12. Verify ingress and TLS certificate issued
-13. Complete initial setup via web UI at `https://immich.internal`
-14. Run testing checklist
+### Phase 3: Permission Issues
+10. ❌ Schema initialization failed - "relation 'system_metadata' does not exist"
+11. 🔍 Discovered TypeORM auto-migrations require SUPERUSER privilege
+12. ✅ Manually granted: `ALTER USER immich WITH SUPERUSER;`
+13. ✅ Database schema created successfully (40+ tables)
+
+### Phase 4: Architecture Migration
+14. ❌ Server failing health probes - wrong endpoint `/api/server-info/ping`
+15. 🔍 Discovered v2.4.1 uses unified architecture (no separate web/microservices)
+16. ✅ Deleted obsolete `web/` and `microservices/` directories
+17. ✅ Updated server to use default entrypoint on port 2283
+18. ✅ Fixed health probe endpoints to `/api/server/ping`
+19. ✅ Updated ingress backend from `immich-web:3000` to `immich-server:2283`
+
+### Phase 5: Resource Optimization
+20. ❌ Redis readiness probe timing out
+21. ✅ Removed all CPU limits per cluster policy
+22. ✅ Increased Redis CPU request to 50m
+
+### Phase 6: ML Service Connectivity
+23. ❌ Photo uploads failing - ML processing jobs couldn't connect
+24. 🔍 Discovered missing Kubernetes Service for machine-learning component
+25. ✅ Created `machine-learning/service.yaml` exposing port 3003
+26. ✅ Added containerPort to deployment
+27. ✅ Verified connectivity: `curl http://immich-machine-learning:3003/ping` → "pong"
+
+### Phase 7: Storage Multi-Attach
+28. ❌ ML pod stuck in ContainerCreating - "Multi-Attach error"
+29. ✅ Created separate `immich-ml-cache` PVC (RWO volumes can't be shared)
+30. ✅ Updated ML deployment to use separate cache volume
+
+### Phase 8: Upload Size Limit
+31. ❌ Photo uploads still failing - generic "Unable to upload file" error
+32. 🔍 Realized nginx ingress has default 1MB body size limit
+33. ✅ Added annotation: `nginx.ingress.kubernetes.io/proxy-body-size: "0"`
+34. ✅ **Photo uploads working!** ML processing (CLIP, OCR, faces) successful
+
+### Phase 9: Verification
+35. ✅ Verified all pods running (database 3/3, server 1/1, ML 1/1, redis 1/1)
+36. ✅ Verified NFS storage mounted (2.6TB available)
+37. ✅ Verified ingress and TLS certificate
+38. ✅ Completed initial setup via web UI at `https://immich.internal`
+39. ✅ Tested photo upload with ML processing
+40. ✅ Verified VolSync and Barman backups configured
 
 ## Notes
 
