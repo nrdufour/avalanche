@@ -5,7 +5,7 @@ metadata:
   name: immich-16-db
 spec:
   instances: 3
-  imageName: forge.internal/nemo/postgresql-pgvector:16.4
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.4-27
   primaryUpdateStrategy: unsupervised
 
   enableSuperuserAccess: true
@@ -45,7 +45,7 @@ spec:
       database: immich
       owner: immich
       postInitApplicationSQL:
-        - CREATE EXTENSION IF NOT EXISTS pgvector;
+        - CREATE EXTENSION IF NOT EXISTS vector;
         - CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
   externalClusters:
