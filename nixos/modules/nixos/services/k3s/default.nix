@@ -56,7 +56,7 @@ in
       enable = true;
       package = k3sPackage;
       tokenFile = lib.mkDefault config.sops.secrets.k3s-server-token.path;
-      serverAddr = (if cfg.isClusterInit then "" else defaultServerAddr);
+      serverAddr = if cfg.isClusterInit then "" else defaultServerAddr;
       inherit (cfg) role;
       clusterInit = cfg.isClusterInit;
       extraFlags = (if cfg.role == "agent"
