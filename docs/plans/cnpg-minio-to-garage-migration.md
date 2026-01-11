@@ -272,6 +272,14 @@ fi
 - Medium clusters (10-50GB): 1-3 hours
 - Large clusters (> 50GB): 3-6 hours
 
+**Actual Test Results** (mealie-16-v5, 2026-01-11):
+- Size: 112.684 MiB (236 files)
+- Duration: **5.0 seconds**
+- Speed: 22.536 MiB/s
+- Status: ✅ Confirmed working
+
+This confirms mealie's Phase 0 will be nearly instant. You can safely run this during the migration window if needed.
+
 **Note**: This runs while the cluster operates normally. WAL archiving continues to Minio during this phase.
 
 #### 0.2 Verify Pre-Sync Completion
@@ -792,12 +800,23 @@ Ref: docs/plans/cnpg-minio-to-garage-migration.md"
 - **External Server**: mealie-16-v4
 - **Has isWALArchiver**: Yes
 - **Activity Level**: Low (recipe management app)
-- **Special Considerations**: None
+- **Backup Size**: ~113 MB (236 files) - tested 2026-01-11
+- **Phase 0 Duration**: ~5 seconds (tested at 22.5 MB/s)
+- **Special Considerations**: Smallest cluster, fastest sync - ideal for first migration
 - **Files to modify**:
   - `objectstore-backup.yaml` ✓
   - `objectstore-external.yaml` ✓
-  - `cnpg-garage-external-secret.yaml` (create new)
-  - `kustomization.yaml` (add new secret)
+  - ~~`cnpg-garage-external-secret.yaml`~~ ✅ ALREADY DONE
+  - ~~`kustomization.yaml`~~ ✅ ALREADY DONE
+
+**Test Sync Results** (2026-01-11):
+```
+Transferred:   112.684 MiB / 112.684 MiB, 100%, 22.536 MiB/s, ETA 0s
+Checks:        0 / 0, -, Listed 280
+Transferred:   236 / 236, 100%
+Elapsed time:  5.0s
+```
+This confirms Phase 0 will be extremely quick for mealie.
 
 ### wger-16-db
 
