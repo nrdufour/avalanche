@@ -18,6 +18,39 @@ This document outlines the comprehensive migration plan for moving all CloudNati
 
 **Actual Migration Window**: 45-60 minutes per cluster (WAL archiving gap: 15-30 minutes)
 
+## Quick Start (Resume Migration Tomorrow)
+
+**Current State**: All prerequisites complete. Ready to migrate first cluster (mealie-16-db).
+
+**To resume tomorrow**:
+1. Open this file: `docs/plans/cnpg-minio-to-garage-migration.md`
+2. Jump to: [mealie-16-db Migration Procedure](#mealie-16-db-migration-procedure) (or "Per-Cluster Migration Procedure" section)
+3. Follow Phase 0 through Phase 3 step-by-step
+4. Each phase has copy-paste commands with expected outputs
+
+**Key Variables** (mealie):
+```bash
+CLUSTER_NAME="mealie-16-db"
+NAMESPACE="self-hosted"
+APP="mealie"
+SERVER_NAME="mealie-16-v5"
+EXTERNAL_SERVER_NAME="mealie-16-v4"
+```
+
+**What's Already Done**:
+- ✅ Garage credentials in Bitwarden (UUID: 5879ba4f-f80f-432e-ade2-d3a1281b3060)
+- ✅ ExternalSecrets deployed (cnpg-garage-access-mealie exists in self-hosted namespace)
+- ✅ Kustomizations updated
+- ✅ Credentials tested (HTTP 200 OK)
+- ✅ Test sync completed (5 seconds for 113 MB)
+
+**What's Left To Do**:
+1. Phase 0: Optional pre-sync (5 seconds) - can skip for mealie
+2. Phase 1: Pre-migration prep (30 min) - trigger backup, verify health
+3. Phase 2: Migration execution (10-15 min) - pause WAL, sync, switch ObjectStores
+4. Phase 3: Validation (30-45 min) - test backup, verify Garage
+5. Phase 4: Cleanup (7 days later) - remove old Minio resources
+
 ## Preparation Work Completed
 
 The following preparation work has been completed (2026-01-11):
@@ -1130,6 +1163,281 @@ spec:
       maxParallel: 8
   retentionPolicy: "30d"
 ```
+
+---
+
+## Appendix C: mealie-16-db Migration Procedure
+
+**Complete step-by-step procedure for first migration (copy-paste ready)**
+
+### Setup Variables
+
+```bash
+# Set these at the start of your session
+export CLUSTER_NAME="mealie-16-db"
+export NAMESPACE="self-hosted"
+export APP="mealie"
+export SERVER_NAME="mealie-16-v5"
+export EXTERNAL_SERVER_NAME="mealie-16-v4"
+```
+
+### Phase 0: Pre-Sync (OPTIONAL - takes 5 seconds)
+
+```bash
+# This is optional for mealie since it's so small
+# You can skip this and run during Phase 2.2 instead
+
+ssh cardinal.internal "
+rclone sync \
+  minio-cnpg:cloudnative-pg/${SERVER_NAME} \
+  garage:cloudnative-pg/${SERVER_NAME} \
+  --progress --checksum --transfers 8 --checkers 16
+
+rclone sync \
+  minio-cnpg:cloudnative-pg/${EXTERNAL_SERVER_NAME} \
+  garage:cloudnative-pg/${EXTERNAL_SERVER_NAME} \
+  --progress --checksum --transfers 8 --checkers 16
+"
+```
+
+**Expected**: ~5 seconds total
+
+### Phase 1: Pre-Migration Prep (~30 min)
+
+#### 1.1 Verify Cluster Health
+
+```bash
+kubectl cnpg status ${CLUSTER_NAME} -n ${NAMESPACE}
+kubectl get backup -n ${NAMESPACE} -l cnpg.io/cluster=${CLUSTER_NAME}
+kubectl get cluster ${CLUSTER_NAME} -n ${NAMESPACE} -o jsonpath='{.status.continuousArchiving}'
+```
+
+**Expected**: Cluster healthy, recent backups exist, WAL archiving active
+
+#### 1.2 Backup Current Configs
+
+```bash
+mkdir -p /tmp/cnpg-migration-backup/${CLUSTER_NAME}
+
+kubectl get objectstore -n ${NAMESPACE} -o yaml > \
+  /tmp/cnpg-migration-backup/${CLUSTER_NAME}/objectstores-before.yaml
+
+kubectl get cluster ${CLUSTER_NAME} -n ${NAMESPACE} -o yaml > \
+  /tmp/cnpg-migration-backup/${CLUSTER_NAME}/cluster-before.yaml
+```
+
+#### 1.3 Trigger Pre-Migration Backup
+
+```bash
+kubectl cnpg backup ${CLUSTER_NAME} -n ${NAMESPACE} --backup-name ${CLUSTER_NAME}-pre-migration
+
+kubectl wait --for=condition=completed \
+  backup/${CLUSTER_NAME}-pre-migration \
+  -n ${NAMESPACE} \
+  --timeout=30m
+```
+
+**Expected**: Backup completes within 5-10 minutes
+
+### Phase 2: Migration Execution (~10-15 min)
+
+#### 2.1 Disable WAL Archiving
+
+Edit `kubernetes/base/apps/self-hosted/mealie/db/pg-cluster-16.yaml`:
+
+```bash
+# Comment out isWALArchiver line (line 37)
+# Before: isWALArchiver: true
+# After: # isWALArchiver: true
+
+# Or use sed:
+cd /home/ndufour/Documents/code/projects/ops/avalanche
+sed -i 's/    isWALArchiver: true/    # isWALArchiver: true/' \
+  kubernetes/base/apps/self-hosted/mealie/db/pg-cluster-16.yaml
+
+# Apply
+kubectl apply -f kubernetes/base/apps/self-hosted/mealie/db/pg-cluster-16.yaml
+
+# Verify WAL archiving stopped
+kubectl logs -n ${NAMESPACE} -l cnpg.io/cluster=${CLUSTER_NAME} --tail=50 | grep -i "wal\|archive"
+```
+
+**Expected**: Logs show WAL archiving disabled
+
+#### 2.2 Delta Sync (or full sync if skipped Phase 0)
+
+```bash
+ssh cardinal.internal "
+echo 'Syncing ${SERVER_NAME}...'
+rclone sync \
+  minio-cnpg:cloudnative-pg/${SERVER_NAME} \
+  garage:cloudnative-pg/${SERVER_NAME} \
+  --progress --checksum --transfers 8 --checkers 16
+
+echo 'Syncing ${EXTERNAL_SERVER_NAME}...'
+rclone sync \
+  minio-cnpg:cloudnative-pg/${EXTERNAL_SERVER_NAME} \
+  garage:cloudnative-pg/${EXTERNAL_SERVER_NAME} \
+  --progress --checksum --transfers 8 --checkers 16
+
+echo 'Verifying sizes match...'
+echo 'Minio ${SERVER_NAME}:'
+rclone size minio-cnpg:cloudnative-pg/${SERVER_NAME}
+echo 'Garage ${SERVER_NAME}:'
+rclone size garage:cloudnative-pg/${SERVER_NAME}
+"
+```
+
+**Expected**: 1-5 seconds (delta only), sizes match exactly
+
+#### 2.3 Update ObjectStore Resources
+
+Edit both files to point to Garage:
+
+**File 1**: `kubernetes/base/apps/self-hosted/mealie/db/objectstore-backup.yaml`
+
+```bash
+cd /home/ndufour/Documents/code/projects/ops/avalanche
+
+# Change endpointURL
+sed -i 's|endpointURL: https://s3.internal|endpointURL: https://s3.garage.internal|' \
+  kubernetes/base/apps/self-hosted/mealie/db/objectstore-backup.yaml
+
+# Change secret name (3 occurrences)
+sed -i 's/cnpg-minio-access-mealie/cnpg-garage-access-mealie/g' \
+  kubernetes/base/apps/self-hosted/mealie/db/objectstore-backup.yaml
+```
+
+**File 2**: `kubernetes/base/apps/self-hosted/mealie/db/objectstore-external.yaml`
+
+```bash
+# Change endpointURL
+sed -i 's|endpointURL: https://s3.internal|endpointURL: https://s3.garage.internal|' \
+  kubernetes/base/apps/self-hosted/mealie/db/objectstore-external.yaml
+
+# Change secret name (3 occurrences)
+sed -i 's/cnpg-minio-access-mealie/cnpg-garage-access-mealie/g' \
+  kubernetes/base/apps/self-hosted/mealie/db/objectstore-external.yaml
+```
+
+**Apply atomically**:
+
+```bash
+kubectl apply -f kubernetes/base/apps/self-hosted/mealie/db/objectstore-backup.yaml
+kubectl apply -f kubernetes/base/apps/self-hosted/mealie/db/objectstore-external.yaml
+```
+
+**Expected**: ObjectStores updated, no errors
+
+#### 2.4 Re-enable WAL Archiving
+
+```bash
+cd /home/ndufour/Documents/code/projects/ops/avalanche
+
+# Uncomment isWALArchiver line
+sed -i 's/    # isWALArchiver: true/    isWALArchiver: true/' \
+  kubernetes/base/apps/self-hosted/mealie/db/pg-cluster-16.yaml
+
+# Apply
+kubectl apply -f kubernetes/base/apps/self-hosted/mealie/db/pg-cluster-16.yaml
+```
+
+**Expected**: WAL archiving resumes to Garage
+
+### Phase 3: Validation (~30-45 min)
+
+#### 3.1 Verify WAL Archiving Resumed
+
+```bash
+# Check cluster status
+kubectl cnpg status ${CLUSTER_NAME} -n ${NAMESPACE}
+
+# Watch logs for Garage archiving
+kubectl logs -n ${NAMESPACE} -l cnpg.io/cluster=${CLUSTER_NAME} --tail=100 -f | grep -i "archive\|wal"
+```
+
+**Expected**: New WAL segments being archived to s3.garage.internal within 5-10 minutes
+
+#### 3.2 Trigger Test Backup
+
+```bash
+kubectl cnpg backup ${CLUSTER_NAME} -n ${NAMESPACE} --backup-name ${CLUSTER_NAME}-post-migration-test
+
+kubectl wait --for=condition=completed \
+  backup/${CLUSTER_NAME}-post-migration-test \
+  -n ${NAMESPACE} \
+  --timeout=30m
+
+kubectl get backup ${CLUSTER_NAME}-post-migration-test -n ${NAMESPACE} -o yaml
+```
+
+**Expected**: Backup completes successfully
+
+#### 3.3 Verify Backup in Garage
+
+```bash
+ssh cardinal.internal "
+echo 'Backups in Garage for ${SERVER_NAME}:'
+rclone ls garage:cloudnative-pg/${SERVER_NAME}/base/ | tail -20
+
+echo ''
+echo 'Recent WAL segments:'
+rclone ls garage:cloudnative-pg/${SERVER_NAME}/wals/ | tail -10
+"
+```
+
+**Expected**: New backup visible, WAL segments present
+
+#### 3.4 Commit Changes
+
+```bash
+cd /home/ndufour/Documents/code/projects/ops/avalanche
+
+git add kubernetes/base/apps/self-hosted/mealie/db/
+git status
+
+git commit -m "feat(cnpg): migrate mealie-16-db backups to Garage S3
+
+- Update ObjectStore resources to point to s3.garage.internal
+- Switch from cnpg-minio-access-mealie to cnpg-garage-access-mealie
+- Verified backup and WAL archiving working on Garage
+- Pre-migration backup: ${CLUSTER_NAME}-pre-migration
+- Post-migration test: ${CLUSTER_NAME}-post-migration-test
+
+Migration completed successfully.
+
+Ref: #31, docs/plans/cnpg-minio-to-garage-migration.md
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+
+git push
+```
+
+### Success Checklist
+
+Verify all before marking complete:
+
+- [ ] Phase 0 or 2.2 sync completed with 0 errors
+- [ ] ObjectStores point to s3.garage.internal
+- [ ] WAL segments being archived to Garage (check logs)
+- [ ] Test backup completed successfully
+- [ ] Backup visible in Garage: `rclone ls garage:cloudnative-pg/mealie-16-v5/base/`
+- [ ] No errors in logs for 30+ minutes
+- [ ] Changes committed to git
+
+### If Something Goes Wrong
+
+**Immediate Rollback**:
+
+```bash
+# Restore ObjectStores from backup
+kubectl apply -f /tmp/cnpg-migration-backup/${CLUSTER_NAME}/objectstores-before.yaml
+
+# Verify WAL archiving resumed to Minio
+kubectl logs -n ${NAMESPACE} -l cnpg.io/cluster=${CLUSTER_NAME} --tail=50 | grep -i archive
+```
+
+See "Rollback Procedure" section in main document for full details.
 
 ---
 
