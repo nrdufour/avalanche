@@ -4,6 +4,7 @@ kind: Kustomization
 namespace: home-automation
 resources:
 - cnpg-minio-external-secret.yaml
+- cnpg-garage-external-secret.yaml
 - objectstore-backup.yaml
 - objectstore-external.yaml
 - pg-cluster-16.yaml

@@ -8,3 +8,4 @@ resources:
 - objectstore-external.yaml
 - objectstore-backup.yaml
 - cnpg-minio-external-secret.yaml
+- cnpg-garage-external-secret.yaml
