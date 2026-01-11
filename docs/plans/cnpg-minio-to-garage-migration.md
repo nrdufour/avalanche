@@ -1,7 +1,8 @@
 # CloudNative-PG Backup Migration: Minio to Garage
 
-**Status**: Planning
+**Status**: Prerequisites Complete - Ready to Execute
 **Created**: 2026-01-11
+**Updated**: 2026-01-11
 **Migration Strategy**: Per-cluster, starting with low-activity clusters
 
 ## Executive Summary
@@ -16,6 +17,43 @@ This document outlines the comprehensive migration plan for moving all CloudNati
 3. **3-Pod HA Protection**: All clusters have 3 replicas with streaming replication, making the 15-30min WAL archiving gap safe (only catastrophic total cluster loss would be affected)
 
 **Actual Migration Window**: 45-60 minutes per cluster (WAL archiving gap: 15-30 minutes)
+
+## Preparation Work Completed
+
+The following preparation work has been completed (2026-01-11):
+
+### ✅ Prerequisites Completed
+
+1. **Garage Credentials Created in Bitwarden**
+   - UUID: `5879ba4f-f80f-432e-ade2-d3a1281b3060`
+   - Fields: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+   - Verified accessible via `bitwarden-fields` ClusterSecretStore
+
+2. **Garage ExternalSecrets Deployed**
+   - Created for all 7 clusters:
+     - `cnpg-garage-access-mealie` (self-hosted)
+     - `cnpg-garage-access-wger` (self-hosted)
+     - `cnpg-garage-access-wallabag` (self-hosted)
+     - `cnpg-garage-access-miniflux` (self-hosted)
+     - `cnpg-garage-access-wikijs` (self-hosted)
+     - `cnpg-garage-access-hass` (home-automation)
+     - `cnpg-garage-access-immich` (media)
+   - All synced successfully from Bitwarden
+   - All Kubernetes secrets created with correct keys (aws-access-key-id, aws-secret-access-key, tls.crt)
+
+3. **Kustomizations Updated**
+   - Added `cnpg-garage-external-secret.yaml` to all 7 cluster kustomizations
+   - ArgoCD synced and applied all resources
+
+4. **Credentials Validated**
+   - Tested Garage credentials from pod: **HTTP 200 OK**
+   - Confirmed access to `https://s3.garage.internal/cloudnative-pg/` bucket
+   - Verified bucket exists and is accessible
+   - Verified from cardinal host: `rclone lsd garage:cloudnative-pg` works
+
+### 🔄 Ready for Execution
+
+All prerequisites complete. Ready to begin Phase 0 (pre-sync) for first cluster (mealie-16-db) at any time.
 
 ## Background
 
@@ -65,64 +103,48 @@ Each cluster migration requires updating files in `kubernetes/base/apps/<namespa
 
 ## Prerequisites
 
-**Note**: If you're already running the initial rclone sync to Garage, excellent! That's Phase 0 (Pre-Migration Data Sync). You're on the right track. Complete the prerequisites below while that sync runs.
+**Status**: ✅ All prerequisites completed (see "Preparation Work Completed" section above)
 
-### 1. Garage Credentials Setup
+### 1. Garage Credentials Setup ✅ COMPLETED
 
-Create a new Bitwarden entry for Garage S3 access:
+~~Create a new Bitwarden entry for Garage S3 access~~
 
-**Location**: Bitwarden (accessible via `bitwarden-fields` ClusterSecretStore)
-**Entry Name**: `CNPG Garage S3 Access`
-**Fields Required**:
-- `AWS_ACCESS_KEY_ID`: Garage access key
-- `AWS_SECRET_ACCESS_KEY`: Garage secret key
+**✅ Completed 2026-01-11**:
+- **Location**: Bitwarden (accessible via `bitwarden-fields` ClusterSecretStore)
+- **Entry Name**: `CNPG Garage S3 Access`
+- **UUID**: `5879ba4f-f80f-432e-ade2-d3a1281b3060`
+- **Fields**:
+  - `AWS_ACCESS_KEY_ID`: GK926e560e4531683c3f2b1f57
+  - `AWS_SECRET_ACCESS_KEY`: (stored securely in Bitwarden)
+- **Verification**: Tested and confirmed working with `s3.garage.internal`
 
-**Reference**: Model after existing Minio credentials (UUID: `b616835a-f93f-408e-95e0-80a7f33b0a59`)
+### 2. Garage Bucket Verification ✅ COMPLETED
 
-**Action**: Obtain the Bitwarden UUID for the new entry (needed for ExternalSecret manifests)
+~~Verify the target bucket exists and is accessible~~
 
-### 2. Garage Bucket Verification
+**✅ Completed 2026-01-11**:
+- Bucket `cloudnative-pg` exists on Garage
+- Confirmed accessible via: `rclone lsd garage:cloudnative-pg`
+- Bucket contains existing backup data (old hass backups visible)
 
-Verify the target bucket exists and is accessible:
+### 3. rclone Configuration on cardinal ✅ COMPLETED
 
-```bash
-# From cardinal host (has rclone configured)
-ssh cardinal.internal
+~~Ensure `cardinal` host has both remotes configured~~
 
-# Test Garage access
-rclone lsd garage: | grep cloudnative-pg
+**✅ Completed 2026-01-11**:
+- Both remotes configured on cardinal host:
+  - `minio-cnpg:` - Source (Minio S3)
+  - `garage:` - Target (Garage S3)
+- Verified working with test commands
 
-# If bucket doesn't exist, create it
-rclone mkdir garage:cloudnative-pg
-```
+### 4. CA Certificate Verification ✅ COMPLETED
 
-### 3. rclone Configuration on cardinal
+~~Verify CA certificate compatibility~~
 
-Ensure `cardinal` host has both remotes configured:
-
-```bash
-ssh cardinal.internal
-
-# Verify remotes exist
-rclone listremotes | grep -E '(minio-cnpg|garage)'
-
-# Expected output:
-# minio-cnpg:
-# garage:
-```
-
-If missing, configure using Garage credentials from prerequisite #1.
-
-### 4. Verify CA Certificate
-
-Both Minio and Garage use the same CA certificate (Ptinem Root CA). Verify:
-
-```bash
-# Current certificate in use
-kubectl get secret cnpg-minio-access-mealie -n self-hosted -o jsonpath='{.data.tls\.crt}' | base64 -d
-```
-
-This certificate should work for both `s3.internal` and `s3.garage.internal`.
+**✅ Completed 2026-01-11**:
+- Ptinem Root CA embedded in all Garage ExternalSecrets (tls.crt key)
+- Same certificate works for both `s3.internal` (Minio) and `s3.garage.internal` (Garage)
+- Certificate issued by step-ca infrastructure
 
 ## Migration Architecture
 
@@ -431,9 +453,14 @@ rclone size garage:cloudnative-pg/${SERVER_NAME}
 - Any new backups created since Phase 0 (if scheduled backup ran)
 - With WAL archiving paused, no new files are being created during sync
 
-#### 2.3 Create New Garage Credentials ExternalSecret
+#### 2.3 ~~Create New Garage Credentials ExternalSecret~~ ✅ ALREADY DONE
 
-Create `kubernetes/base/apps/${NAMESPACE}/${APP}/db/cnpg-garage-external-secret.yaml`:
+**Note**: This step was completed during preparation (2026-01-11). All Garage ExternalSecrets already exist and are synced.
+
+<details>
+<summary>Reference: What was created (click to expand)</summary>
+
+~~Create `kubernetes/base/apps/${NAMESPACE}/${APP}/db/cnpg-garage-external-secret.yaml`~~:
 
 ```yaml
 ---
@@ -477,22 +504,16 @@ spec:
         property: AWS_SECRET_ACCESS_KEY
 ```
 
-**Apply the new secret**:
+~~**Apply the new secret**~~:
 
 ```bash
-kubectl apply -f kubernetes/base/apps/${NAMESPACE}/${APP}/db/cnpg-garage-external-secret.yaml
-
-# Wait for ExternalSecret to sync
-kubectl wait --for=condition=ready \
-  externalsecret/cnpg-garage-access-mealie \
-  -n ${NAMESPACE} \
-  --timeout=2m
-
-# Verify secret created
-kubectl get secret cnpg-garage-access-mealie -n ${NAMESPACE}
+# ✅ ALREADY DONE - All secrets created and synced via ArgoCD
+kubectl get secret cnpg-garage-access-mealie -n ${NAMESPACE}  # Verify it exists
 ```
 
-#### 2.4 Update ObjectStore Resources (Atomic Switch)
+</details>
+
+#### 2.3 Update ObjectStore Resources (Atomic Switch)
 
 **Update both ObjectStore files simultaneously**:
 
@@ -562,7 +583,7 @@ kubectl apply -f kubernetes/base/apps/${NAMESPACE}/${APP}/db/objectstore-backup.
 kubectl apply -f kubernetes/base/apps/${NAMESPACE}/${APP}/db/objectstore-external.yaml  # If exists
 ```
 
-#### 2.5 Re-enable WAL Archiving
+#### 2.4 Re-enable WAL Archiving
 
 **Restore the `isWALArchiver: true` setting** in `pg-cluster-16.yaml`:
 
@@ -582,11 +603,16 @@ Apply:
 kubectl apply -f kubernetes/base/apps/${NAMESPACE}/${APP}/db/pg-cluster-16.yaml
 ```
 
-#### 2.6 Update kustomization.yaml
+#### ~~2.5 Update kustomization.yaml~~ ✅ ALREADY DONE
 
-Add the new Garage ExternalSecret to the kustomization resources:
+**Note**: This step was completed during preparation (2026-01-11). All kustomizations already include `cnpg-garage-external-secret.yaml`.
 
-Edit `kubernetes/base/apps/${NAMESPACE}/${APP}/db/kustomization.yaml`:
+<details>
+<summary>Reference: What was done (click to expand)</summary>
+
+~~Add the new Garage ExternalSecret to the kustomization resources~~:
+
+~~Edit `kubernetes/base/apps/${NAMESPACE}/${APP}/db/kustomization.yaml`~~:
 
 ```yaml
 resources:
@@ -594,14 +620,10 @@ resources:
   - objectstore-backup.yaml
   - objectstore-external.yaml  # If exists
   - scheduled-backup.yaml
-  - cnpg-garage-external-secret.yaml  # ← ADD THIS
+  - cnpg-garage-external-secret.yaml  # ✅ ALREADY ADDED
 ```
 
-Apply kustomization:
-
-```bash
-kubectl apply -k kubernetes/base/apps/${NAMESPACE}/${APP}/db/
-```
+</details>
 
 ### Phase 3: Post-Migration Validation
 
@@ -946,20 +968,20 @@ Migration considered successful when ALL criteria met:
 | Phase 1: Pre-migration prep | 30 min | Backups, documentation, health checks |
 | Phase 2.1: WAL archiving disable | 2 min | Manifest edit + apply |
 | **Phase 2.2: Delta sync** | **1-5 min** | **Fast! Only transfers delta since Phase 0** |
-| Phase 2.3: Create Garage secret | 5 min | ExternalSecret manifest + verify sync |
-| Phase 2.4: Update ObjectStores | 5 min | Manifest edits + apply |
-| Phase 2.5: Re-enable WAL archiving | 2 min | Manifest edit + apply |
-| Phase 2.6: Update kustomization | 2 min | Add new secret reference |
+| ~~Phase 2.3: Create Garage secret~~ | ~~5 min~~ | **✅ ALREADY DONE - All secrets created upfront** |
+| Phase 2.3: Update ObjectStores | 5 min | Manifest edits + apply (was 2.4) |
+| Phase 2.4: Re-enable WAL archiving | 2 min | Manifest edit + apply (was 2.5) |
+| ~~Phase 2.6: Update kustomization~~ | ~~2 min~~ | **✅ ALREADY DONE - All kustomizations updated** |
 | Phase 3: Validation | 30-45 min | Backups, logs, tests |
-| **Migration Window Total** | **45-60 min** | **Actual switchover time (Phases 1-3)** |
-| **Actual WAL Gap** | **15-30 min** | **Phase 2.1 through 2.5 (3-pod HA protects)** |
+| **Migration Window Total** | **40-50 min** | **Actual switchover time (Phases 1-3) - 10 min faster due to prep work!** |
+| **Actual WAL Gap** | **10-15 min** | **Phase 2.1 through 2.4 (3-pod HA protects)** |
 
-**Key Insight**: With Phase 0 pre-sync strategy, the actual migration window is **< 1 hour** per cluster, with WAL archiving gap of only **15-30 minutes** (safely covered by 3-pod HA).
+**Key Insight**: With Phase 0 pre-sync strategy AND upfront secret preparation, the actual migration window is **< 50 minutes** per cluster, with WAL archiving gap of only **10-15 minutes** (safely covered by 3-pod HA).
 
 **Full migration (7 clusters)**:
 - **Phase 0 pre-syncs**: Can run in parallel for multiple clusters (limited by cardinal host resources)
 - **Migration windows**: 1 cluster per session, spread over 2-4 weeks
-- **Total hands-on time**: ~7 hours (7 clusters × 1 hour each)
+- **Total hands-on time**: ~6 hours (7 clusters × 50 min each) - **Reduced by 1 hour thanks to upfront preparation!**
 
 ## References
 
