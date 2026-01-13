@@ -29,42 +29,6 @@
     };
   };
 
-  # Open Web UI at port 8080
-  services.open-webui = {
-    enable = true;
-    environment = {
-      ANONYMIZED_TELEMETRY = "False";
-      DO_NOT_TRACK = "True";
-      SCARF_NO_ANALYTICS = "True";
-      OLLAMA_API_BASE_URL = "http://127.0.0.1:11434/api";
-      OLLAMA_BASE_URL = "http://127.0.0.1:11434";
-    };
-  };
-
-  # Nginx proxy for Ollama UI
-  services.nginx = {
-    enable = true;
-    recommendedGzipSettings = true;
-    recommendedOptimisation = true;
-    recommendedProxySettings = true;
-    recommendedTlsSettings = true;
-
-    virtualHosts."ollama.internal" = {
-      forceSSL = true;
-      enableACME = true;
-      locations."/" = {
-        proxyPass = "http://localhost:8080";
-        proxyWebsockets = true;
-      };
-      locations."/ws/" = {
-        proxyPass = "http://localhost:8080/ws/";
-        proxyWebsockets = true;
-      };
-    };
-  };
-
-  security.acme.certs."ollama.internal" = {};
-
   environment.systemPackages = with pkgs; [
     # Let's try this little guy as well ;)
     # vllm
