@@ -3,11 +3,9 @@ with lib;
 let
   cfg = config.mySystem.services.k3s;
   defaultServerAddr = "https://opi01.internal:6443";
-  ## Kubernetes versions in stable (25.05):
-  ## k3s: 1.32
-  ## k3s_1_29: 1.29
-  ## and so on
-  k3sPackage = pkgs.k3s_1_33;
+  ## Kubernetes versions in stable (25.11):
+  ## k3s: 1.34
+  k3sPackage = pkgs.k3s;
 in
 {
   options.mySystem.services.k3s = {
