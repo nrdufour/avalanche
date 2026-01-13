@@ -12,6 +12,8 @@ networkPolicies:
 defaultSettings:
   # Changing the default path from /var/lib/longhorn
   defaultDataPath: /var/lib/rancher/longhorn
+  # Auto-evict replicas during node drain to prevent PDB deadlocks
+  nodeDrainPolicy: block-for-eviction-if-contains-last-replica
 
 ingress:
   enabled: true

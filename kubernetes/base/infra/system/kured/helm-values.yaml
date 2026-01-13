@@ -3,3 +3,6 @@ configuration:
   period: "10m"
   # Only for nix based node for now ...
   rebootCommand: "/run/current-system/sw/bin/reboot"
+  # Handle PDB deadlocks: abort drain after 5min, then force reboot anyway
+  drainTimeout: "5m"
+  forceReboot: true
