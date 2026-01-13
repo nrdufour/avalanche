@@ -59,6 +59,58 @@ deploy-all:
         nixos-rebuild switch -j auto --use-remote-sudo --build-host ${HOST}.internal --target-host ${HOST}.internal --flake ".#${HOST}" --fast
     done
 
+# Deploy to K3s control-plane nodes only (opi01-03)
+deploy-control-plane:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Check prerequisites
+    if ! command -v nixos-rebuild &> /dev/null; then
+        echo "Error: nixos-rebuild not found"
+        exit 1
+    fi
+
+    echo "This will deploy the local flake to K3s control-plane nodes (opi01, opi02, opi03)."
+    read -p "Do you want to continue applying this configuration? [y/N] " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Aborted."
+        exit 1
+    fi
+
+    cd "{{justfile_directory()}}"
+    CONTROL_PLANE_HOSTS=("opi01" "opi02" "opi03")
+    for HOST in "${CONTROL_PLANE_HOSTS[@]}"; do
+        echo "Deploying to $HOST..."
+        nixos-rebuild switch -j auto --use-remote-sudo --build-host ${HOST}.internal --target-host ${HOST}.internal --flake ".#${HOST}" --fast
+    done
+
+# Deploy to K3s worker nodes only (raccoon00-05)
+deploy-workers:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Check prerequisites
+    if ! command -v nixos-rebuild &> /dev/null; then
+        echo "Error: nixos-rebuild not found"
+        exit 1
+    fi
+
+    echo "This will deploy the local flake to K3s worker nodes (raccoon00-05)."
+    read -p "Do you want to continue applying this configuration? [y/N] " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Aborted."
+        exit 1
+    fi
+
+    cd "{{justfile_directory()}}"
+    WORKER_HOSTS=("raccoon00" "raccoon01" "raccoon02" "raccoon03" "raccoon04" "raccoon05")
+    for HOST in "${WORKER_HOSTS[@]}"; do
+        echo "Deploying to $HOST..."
+        nixos-rebuild switch -j auto --use-remote-sudo --build-host ${HOST}.internal --target-host ${HOST}.internal --flake ".#${HOST}" --fast
+    done
+
 # Disable automatic NixOS upgrades on all hosts (stops timer until reboot/manual start)
 disable-autoupgrade:
     #!/usr/bin/env bash
