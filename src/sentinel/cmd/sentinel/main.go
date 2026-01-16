@@ -153,7 +153,7 @@ func main() {
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(localAuth, sessions)
 	dashboardHandler := handler.NewDashboardHandler(sessions, cfg, keaCollector, adguardCollector, conntrackCollector)
-	apiHandler := handler.NewAPIHandler(cfg, sessions, systemdMgr, dockerMgr, keaCollector, adguardCollector)
+	apiHandler := handler.NewAPIHandler(cfg, sessions, systemdMgr, dockerMgr, keaCollector, adguardCollector, conntrackCollector)
 	dhcpHandler := handler.NewDHCPHandler(sessions, cfg, keaCollector)
 	networkHandler := handler.NewNetworkHandler(sessions, cfg, diagnosticsRunner, adguardCollector)
 	connectionsHandler := handler.NewConnectionsHandler(sessions, cfg, conntrackCollector)
@@ -226,7 +226,6 @@ func main() {
 		})
 
 		// Pages
-		r.Get("/services", notImplementedPage)
 		r.Get("/dhcp", dhcpHandler.DHCPPage)
 		r.Get("/network", networkHandler.NetworkPage)
 		r.Get("/firewall", firewallHandler.FirewallPage)
@@ -286,28 +285,4 @@ func setupLogging(cfg config.LoggingConfig) {
 	if cfg.Format == "console" {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	}
-}
-
-// notImplemented is a placeholder handler for unimplemented API endpoints.
-func notImplemented(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"error": "Not implemented yet"}`))
-}
-
-// notImplementedPage is a placeholder handler for unimplemented pages.
-func notImplementedPage(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`<!DOCTYPE html>
-<html>
-<head><title>Coming Soon - Sentinel</title></head>
-<body style="font-family: system-ui; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f3f4f6;">
-<div style="text-align: center;">
-<h1 style="color: #4f46e5;">Coming Soon</h1>
-<p style="color: #6b7280;">This feature is not yet implemented.</p>
-<a href="/" style="color: #4f46e5;">Return to Dashboard</a>
-</div>
-</body>
-</html>`))
 }

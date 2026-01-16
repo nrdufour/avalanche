@@ -14,8 +14,8 @@ import (
 type InterfaceStats struct {
 	Name      string
 	IsUp      bool
-	IPv4      string
-	IPv6      string
+	IPv4      []string // All IPv4 addresses with CIDR notation
+	IPv6      []string // All IPv6 addresses with CIDR notation
 	MAC       string
 	RxBytes   uint64
 	TxBytes   uint64
@@ -75,9 +75,9 @@ func (c *NetworkCollector) Collect() (map[string]*InterfaceStats, error) {
 					continue
 				}
 				if ipnet.IP.To4() != nil {
-					stats.IPv4 = ipnet.String()
-				} else if ipnet.IP.To16() != nil && stats.IPv6 == "" {
-					stats.IPv6 = ipnet.String()
+					stats.IPv4 = append(stats.IPv4, ipnet.String())
+				} else if ipnet.IP.To16() != nil {
+					stats.IPv6 = append(stats.IPv6, ipnet.String())
 				}
 			}
 		}
@@ -133,9 +133,9 @@ func (c *NetworkCollector) CollectOne(name string) (*InterfaceStats, error) {
 				continue
 			}
 			if ipnet.IP.To4() != nil {
-				stats.IPv4 = ipnet.String()
-			} else if ipnet.IP.To16() != nil && stats.IPv6 == "" {
-				stats.IPv6 = ipnet.String()
+				stats.IPv4 = append(stats.IPv4, ipnet.String())
+			} else if ipnet.IP.To16() != nil {
+				stats.IPv6 = append(stats.IPv6, ipnet.String())
 			}
 		}
 	}
@@ -253,4 +253,20 @@ func (s *InterfaceStats) StatusString() string {
 		return "up"
 	}
 	return "down"
+}
+
+// PrimaryIPv4 returns the first IPv4 address or "-" if none.
+func (s *InterfaceStats) PrimaryIPv4() string {
+	if len(s.IPv4) > 0 {
+		return s.IPv4[0]
+	}
+	return "-"
+}
+
+// PrimaryIPv6 returns the first IPv6 address or "-" if none.
+func (s *InterfaceStats) PrimaryIPv6() string {
+	if len(s.IPv6) > 0 {
+		return s.IPv6[0]
+	}
+	return "-"
 }

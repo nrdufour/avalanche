@@ -18,14 +18,15 @@ import (
 
 // APIHandler handles API requests for services and network.
 type APIHandler struct {
-	cfg              *config.Config
-	sessions         *auth.SessionManager
-	systemd          *service.SystemdManager
-	docker           *service.DockerManager
-	networkCollector *collector.NetworkCollector
-	systemCollector  *collector.SystemCollector
-	keaCollector     *collector.KeaCollector
-	adguardCollector *collector.AdGuardCollector
+	cfg                *config.Config
+	sessions           *auth.SessionManager
+	systemd            *service.SystemdManager
+	docker             *service.DockerManager
+	networkCollector   *collector.NetworkCollector
+	systemCollector    *collector.SystemCollector
+	keaCollector       *collector.KeaCollector
+	adguardCollector   *collector.AdGuardCollector
+	conntrackCollector *collector.ConntrackCollector
 }
 
 // NewAPIHandler creates a new API handler.
@@ -36,6 +37,7 @@ func NewAPIHandler(
 	docker *service.DockerManager,
 	kea *collector.KeaCollector,
 	adguard *collector.AdGuardCollector,
+	conntrack *collector.ConntrackCollector,
 ) *APIHandler {
 	// Build interface list from config
 	interfaces := make([]string, len(cfg.Collectors.Network.Interfaces))
@@ -44,14 +46,15 @@ func NewAPIHandler(
 	}
 
 	return &APIHandler{
-		cfg:              cfg,
-		sessions:         sessions,
-		systemd:          systemd,
-		docker:           docker,
-		networkCollector: collector.NewNetworkCollector(interfaces),
-		systemCollector:  collector.NewSystemCollector(),
-		keaCollector:     kea,
-		adguardCollector: adguard,
+		cfg:                cfg,
+		sessions:           sessions,
+		systemd:            systemd,
+		docker:             docker,
+		networkCollector:   collector.NewNetworkCollector(interfaces),
+		systemCollector:    collector.NewSystemCollector(),
+		keaCollector:       kea,
+		adguardCollector:   adguard,
+		conntrackCollector: conntrack,
 	}
 }
 
@@ -303,12 +306,12 @@ func (h *APIHandler) RestartService(w http.ResponseWriter, r *http.Request) {
 
 // InterfaceStatusResponse represents network interface status in JSON.
 type InterfaceStatusResponse struct {
-	Name        string `json:"name"`
-	DisplayName string `json:"display_name"`
-	Status      string `json:"status"`
-	IPv4        string `json:"ipv4"`
-	RxBytes     string `json:"rx_bytes"`
-	TxBytes     string `json:"tx_bytes"`
+	Name        string   `json:"name"`
+	DisplayName string   `json:"display_name"`
+	Status      string   `json:"status"`
+	IPv4        []string `json:"ipv4"`
+	RxBytes     string   `json:"rx_bytes"`
+	TxBytes     string   `json:"tx_bytes"`
 }
 
 // GetNetworkInterfaces returns network interface status as HTML partial.
@@ -328,16 +331,14 @@ func (h *APIHandler) GetNetworkInterfaces(w http.ResponseWriter, r *http.Request
 			DisplayName: ifaceCfg.DisplayName,
 			Description: ifaceCfg.Description,
 			Status:      "down",
-			IPv4:        "-",
+			IPv4:        nil,
 			RxBytes:     "-",
 			TxBytes:     "-",
 		}
 
 		if s, ok := stats[ifaceCfg.Name]; ok {
 			iface.Status = s.StatusString()
-			if s.IPv4 != "" {
-				iface.IPv4 = s.IPv4
-			}
+			iface.IPv4 = s.IPv4
 			iface.RxBytes = collector.FormatBytes(s.RxBytes)
 			iface.TxBytes = collector.FormatBytes(s.TxBytes)
 		}
@@ -367,16 +368,14 @@ func (h *APIHandler) GetNetworkInterfacesJSON(w http.ResponseWriter, r *http.Req
 			Name:        ifaceCfg.Name,
 			DisplayName: ifaceCfg.DisplayName,
 			Status:      "down",
-			IPv4:        "-",
+			IPv4:        nil,
 			RxBytes:     "-",
 			TxBytes:     "-",
 		}
 
 		if s, ok := stats[ifaceCfg.Name]; ok {
 			iface.Status = s.StatusString()
-			if s.IPv4 != "" {
-				iface.IPv4 = s.IPv4
-			}
+			iface.IPv4 = s.IPv4
 			iface.RxBytes = collector.FormatBytes(s.RxBytes)
 			iface.TxBytes = collector.FormatBytes(s.TxBytes)
 		}
@@ -419,6 +418,31 @@ func (h *APIHandler) GetDashboardStats(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Get active connections from conntrack
+	activeConnections := 0
+	if h.conntrackCollector != nil {
+		conns, err := h.conntrackCollector.GetConnections(ctx)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to get connection count")
+		} else {
+			activeConnections = len(conns)
+		}
+	}
+
+	// Check if client wants HTML (htmx) or JSON
+	// htmx sends HX-Request header
+	if r.Header.Get("HX-Request") == "true" {
+		w.Header().Set("Content-Type", "text/html")
+		component := pages.StatsPartial(pages.DashboardStats{
+			ActiveLeases:      activeLeases,
+			TotalDNSQueries:   dnsQueries,
+			ActiveConnections: activeConnections,
+			Uptime:            collector.FormatUptime(sysStats.Uptime),
+		})
+		component.Render(ctx, w)
+		return
+	}
+
 	stats := map[string]interface{}{
 		"uptime":        collector.FormatUptime(sysStats.Uptime),
 		"load_avg":      sysStats.LoadAvg1,
@@ -427,7 +451,7 @@ func (h *APIHandler) GetDashboardStats(w http.ResponseWriter, r *http.Request) {
 		"mem_percent":   sysStats.MemPercent,
 		"active_leases": activeLeases,
 		"dns_queries":   dnsQueries,
-		"connections":   0, // TODO: Implement conntrack in Phase 4
+		"connections":   activeConnections,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

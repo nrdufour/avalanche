@@ -84,7 +84,7 @@ func (h *DashboardHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 			DisplayName: iface.DisplayName,
 			Description: iface.Description,
 			Status:      "unknown", // Will be updated by API
-			IPv4:        "-",
+			IPv4:        nil,       // Will be updated by API
 			RxBytes:     "-",
 			TxBytes:     "-",
 		})
