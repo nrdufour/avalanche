@@ -34,9 +34,17 @@ spec:
     shared_preload_libraries:
       - "vchord.so"
 
-  # Backup disabled - Garage S3 not available
-  # backup:
-  #   target: "prefer-standby"
+  # Base backups only - WAL archiving disabled due to plugin compatibility issue
+  backup:
+    target: "prefer-standby"
+
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      enabled: true
+      isWALArchiver: false  # Disabled due to compatibility issue with vectorchord image
+      parameters:
+        barmanObjectName: immich-backup-store
+        serverName: immich-16-db
 
   bootstrap:
     initdb:
@@ -46,11 +54,12 @@ spec:
         - CREATE EXTENSION IF NOT EXISTS vchord CASCADE;
         - CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-  # externalClusters disabled - Garage S3 not available
-  # externalClusters:
-  #   - name: clusterBackup
-  #     plugin:
-  #       name: barman-cloud.cloudnative-pg.io
-  #       parameters:
-  #         barmanObjectName: immich-external-store
-  #         serverName: immich-16-db
+  externalClusters:
+    - name: clusterBackup
+      plugin:
+        name: barman-cloud.cloudnative-pg.io
+        enabled: true
+        isWALArchiver: false  # Disabled due to compatibility issue
+        parameters:
+          barmanObjectName: immich-external-store
+          serverName: immich-16-db
