@@ -14,23 +14,27 @@ import (
 
 // FirewallLogEntry represents a parsed nftables log entry.
 type FirewallLogEntry struct {
-	Timestamp   time.Time `json:"timestamp"`
-	Prefix      string    `json:"prefix"`
-	InInterface string    `json:"in_interface,omitempty"`
-	OutInterface string   `json:"out_interface,omitempty"`
-	MACAddrs    string    `json:"mac_addrs,omitempty"`
-	SrcIP       string    `json:"src_ip"`
-	DstIP       string    `json:"dst_ip"`
-	Protocol    string    `json:"protocol"`
-	SrcPort     int       `json:"src_port,omitempty"`
-	DstPort     int       `json:"dst_port,omitempty"`
-	Length      int       `json:"length,omitempty"`
-	TTL         int       `json:"ttl,omitempty"`
-	ICMPType    int       `json:"icmp_type,omitempty"`
-	ICMPCode    int       `json:"icmp_code,omitempty"`
-	Flags       string    `json:"flags,omitempty"`
-	Action      string    `json:"action"` // DROP, ACCEPT, etc. (inferred from prefix)
-	Raw         string    `json:"raw,omitempty"`
+	Timestamp    time.Time `json:"timestamp"`
+	Prefix       string    `json:"prefix"`
+	InInterface  string    `json:"in_interface,omitempty"`
+	OutInterface string    `json:"out_interface,omitempty"`
+	MACAddrs     string    `json:"mac_addrs,omitempty"`
+	SrcIP        string    `json:"src_ip"`
+	DstIP        string    `json:"dst_ip"`
+	Protocol     string    `json:"protocol"`
+	SrcPort      int       `json:"src_port,omitempty"`
+	DstPort      int       `json:"dst_port,omitempty"`
+	Length       int       `json:"length,omitempty"`
+	TTL          int       `json:"ttl,omitempty"`
+	ICMPType     int       `json:"icmp_type,omitempty"`
+	ICMPCode     int       `json:"icmp_code,omitempty"`
+	Flags        string    `json:"flags,omitempty"`
+	Action       string    `json:"action"` // DROP, ACCEPT, etc. (inferred from prefix)
+	Raw          string    `json:"raw,omitempty"`
+	// Enrichment fields (populated by handler, not collector)
+	SrcCountry   string    `json:"src_country,omitempty"`
+	SrcFlag      string    `json:"src_flag,omitempty"`
+	SrcHostname  string    `json:"src_hostname,omitempty"`
 }
 
 // FirewallStats provides aggregate statistics about firewall logs.

@@ -12,6 +12,7 @@ import (
 	"forge.internal/nemo/avalanche/src/sentinel/internal/auth"
 	"forge.internal/nemo/avalanche/src/sentinel/internal/collector"
 	"forge.internal/nemo/avalanche/src/sentinel/internal/config"
+	"forge.internal/nemo/avalanche/src/sentinel/internal/geolocation"
 	"forge.internal/nemo/avalanche/src/sentinel/templates/pages"
 )
 
@@ -20,14 +21,18 @@ type FirewallHandler struct {
 	sessions *auth.SessionManager
 	cfg      *config.Config
 	firewall *collector.FirewallCollector
+	geoip    *geolocation.Service
+	dnsCache *collector.DNSCache
 }
 
 // NewFirewallHandler creates a new firewall handler.
-func NewFirewallHandler(sessions *auth.SessionManager, cfg *config.Config, firewall *collector.FirewallCollector) *FirewallHandler {
+func NewFirewallHandler(sessions *auth.SessionManager, cfg *config.Config, firewall *collector.FirewallCollector, geoip *geolocation.Service, dnsCache *collector.DNSCache) *FirewallHandler {
 	return &FirewallHandler{
 		sessions: sessions,
 		cfg:      cfg,
 		firewall: firewall,
+		geoip:    geoip,
+		dnsCache: dnsCache,
 	}
 }
 
@@ -130,6 +135,9 @@ func (h *FirewallHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Enrich entries with geolocation and hostname
+	h.enrichEntries(filtered)
+
 	// Check if client wants JSON or HTML
 	accept := r.Header.Get("Accept")
 	if strings.Contains(accept, "application/json") {
@@ -142,6 +150,23 @@ func (h *FirewallHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	component := pages.FirewallTable(filtered)
 	component.Render(r.Context(), w)
+}
+
+// enrichEntries adds geolocation and hostname data to log entries.
+func (h *FirewallHandler) enrichEntries(entries []collector.FirewallLogEntry) {
+	for i := range entries {
+		// Add geolocation
+		if h.geoip != nil && h.geoip.Enabled() {
+			code, flag := h.geoip.LookupCountryWithFlag(entries[i].SrcIP)
+			entries[i].SrcCountry = code
+			entries[i].SrcFlag = flag
+		}
+
+		// Add reverse DNS (async lookup - returns cached or empty)
+		if h.dnsCache != nil {
+			entries[i].SrcHostname = h.dnsCache.LookupAddrAsync(entries[i].SrcIP)
+		}
+	}
 }
 
 // GetStats returns firewall statistics.
@@ -221,6 +246,16 @@ func (h *FirewallHandler) StreamLogs(w http.ResponseWriter, r *http.Request) {
 	// Stream logs
 	ctx := r.Context()
 	err := h.firewall.StreamLogs(ctx, func(entry collector.FirewallLogEntry) {
+		// Enrich entry with geolocation and hostname
+		if h.geoip != nil && h.geoip.Enabled() {
+			code, flag := h.geoip.LookupCountryWithFlag(entry.SrcIP)
+			entry.SrcCountry = code
+			entry.SrcFlag = flag
+		}
+		if h.dnsCache != nil {
+			entry.SrcHostname = h.dnsCache.LookupAddrAsync(entry.SrcIP)
+		}
+
 		// Convert entry to JSON
 		data, err := json.Marshal(entry)
 		if err != nil {
@@ -236,4 +271,260 @@ func (h *FirewallHandler) StreamLogs(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "event: error\ndata: {\"error\": \"%s\"}\n\n", err.Error())
 		rc.Flush()
 	}
+}
+
+// ChartDataPoint represents a single data point for the time-series chart.
+type ChartDataPoint struct {
+	Time   string `json:"time"`
+	Drop   int    `json:"drop"`
+	Reject int    `json:"reject"`
+	Accept int    `json:"accept"`
+	Log    int    `json:"log"`
+}
+
+// GetChartData returns time-bucketed data for the firewall chart.
+func (h *FirewallHandler) GetChartData(w http.ResponseWriter, r *http.Request) {
+	user := h.sessions.GetUser(r)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if h.firewall == nil {
+		http.Error(w, "Firewall collector not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	since := r.URL.Query().Get("since")
+	if since == "" {
+		since = "1 hour ago"
+	}
+
+	// Get logs (no limit for chart data)
+	logs, err := h.firewall.GetLogs(ctx, 0, since)
+	if err != nil {
+		http.Error(w, "Failed to get logs: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Determine bucket size based on time range
+	bucketMinutes := 5
+	if strings.Contains(since, "24 hour") {
+		bucketMinutes = 30
+	} else if strings.Contains(since, "6 hour") {
+		bucketMinutes = 15
+	}
+
+	// Bucket logs by time
+	buckets := make(map[string]*ChartDataPoint)
+	for _, entry := range logs {
+		// Round timestamp to bucket
+		bucket := entry.Timestamp.Truncate(time.Duration(bucketMinutes) * time.Minute)
+		key := bucket.Format("15:04")
+
+		if _, ok := buckets[key]; !ok {
+			buckets[key] = &ChartDataPoint{Time: key}
+		}
+
+		switch entry.Action {
+		case "DROP":
+			buckets[key].Drop++
+		case "REJECT":
+			buckets[key].Reject++
+		case "ACCEPT":
+			buckets[key].Accept++
+		default:
+			buckets[key].Log++
+		}
+	}
+
+	// Convert to sorted slice
+	data := make([]ChartDataPoint, 0, len(buckets))
+	for _, point := range buckets {
+		data = append(data, *point)
+	}
+
+	// Sort by time
+	for i := 0; i < len(data)-1; i++ {
+		for j := i + 1; j < len(data); j++ {
+			if data[i].Time > data[j].Time {
+				data[i], data[j] = data[j], data[i]
+			}
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(data)
+}
+
+// aggregatedLogEntry is the internal representation for aggregation.
+type aggregatedLogEntry struct {
+	SrcIP     string
+	DstPort   int
+	Protocol  string
+	Action    string
+	Count     int
+	FirstSeen time.Time
+	LastSeen  time.Time
+}
+
+// aggregatedLogJSON is the JSON response format.
+type aggregatedLogJSON struct {
+	SrcIP     string `json:"src_ip"`
+	DstPort   int    `json:"dst_port"`
+	Protocol  string `json:"protocol"`
+	Action    string `json:"action"`
+	Count     int    `json:"count"`
+	FirstSeen string `json:"first_seen"`
+	LastSeen  string `json:"last_seen"`
+}
+
+// GetAggregatedLogs returns aggregated firewall logs grouped by source IP, dest port, and action.
+func (h *FirewallHandler) GetAggregatedLogs(w http.ResponseWriter, r *http.Request) {
+	user := h.sessions.GetUser(r)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if h.firewall == nil {
+		http.Error(w, "Firewall collector not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	since := r.URL.Query().Get("since")
+	if since == "" {
+		since = "1 hour ago"
+	}
+
+	action := r.URL.Query().Get("action")
+	protocol := r.URL.Query().Get("protocol")
+	search := r.URL.Query().Get("search")
+
+	// Get all logs for the time range
+	logs, err := h.firewall.GetLogs(ctx, 0, since)
+	if err != nil {
+		http.Error(w, "Failed to get logs: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Aggregate logs
+	type aggKey struct {
+		SrcIP    string
+		DstPort  int
+		Protocol string
+		Action   string
+	}
+	aggregates := make(map[aggKey]*aggregatedLogEntry)
+
+	for _, entry := range logs {
+		// Apply filters
+		if action != "" && !strings.EqualFold(entry.Action, action) {
+			continue
+		}
+		if protocol != "" && !strings.EqualFold(entry.Protocol, protocol) {
+			continue
+		}
+		if search != "" {
+			searchLower := strings.ToLower(search)
+			if !strings.Contains(strings.ToLower(entry.SrcIP), searchLower) &&
+				!strings.Contains(strings.ToLower(entry.DstIP), searchLower) &&
+				!strings.Contains(strconv.Itoa(entry.DstPort), searchLower) {
+				continue
+			}
+		}
+
+		key := aggKey{
+			SrcIP:    entry.SrcIP,
+			DstPort:  entry.DstPort,
+			Protocol: entry.Protocol,
+			Action:   entry.Action,
+		}
+
+		if agg, ok := aggregates[key]; ok {
+			agg.Count++
+			if entry.Timestamp.Before(agg.FirstSeen) {
+				agg.FirstSeen = entry.Timestamp
+			}
+			if entry.Timestamp.After(agg.LastSeen) {
+				agg.LastSeen = entry.Timestamp
+			}
+		} else {
+			aggregates[key] = &aggregatedLogEntry{
+				SrcIP:     entry.SrcIP,
+				DstPort:   entry.DstPort,
+				Protocol:  entry.Protocol,
+				Action:    entry.Action,
+				Count:     1,
+				FirstSeen: entry.Timestamp,
+				LastSeen:  entry.Timestamp,
+			}
+		}
+	}
+
+	// Convert to slice and sort by count descending
+	result := make([]aggregatedLogEntry, 0, len(aggregates))
+	for _, agg := range aggregates {
+		result = append(result, *agg)
+	}
+
+	// Sort by count (descending)
+	for i := 0; i < len(result)-1; i++ {
+		for j := i + 1; j < len(result); j++ {
+			if result[j].Count > result[i].Count {
+				result[i], result[j] = result[j], result[i]
+			}
+		}
+	}
+
+	// Limit to top 100
+	if len(result) > 100 {
+		result = result[:100]
+	}
+
+	// Check if client wants JSON or HTML
+	accept := r.Header.Get("Accept")
+	if strings.Contains(accept, "application/json") {
+		// Convert to JSON format with string timestamps
+		jsonResult := make([]aggregatedLogJSON, len(result))
+		for i, r := range result {
+			jsonResult[i] = aggregatedLogJSON{
+				SrcIP:     r.SrcIP,
+				DstPort:   r.DstPort,
+				Protocol:  r.Protocol,
+				Action:    r.Action,
+				Count:     r.Count,
+				FirstSeen: r.FirstSeen.Format("15:04:05"),
+				LastSeen:  r.LastSeen.Format("15:04:05"),
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(jsonResult)
+		return
+	}
+
+	// Convert to display format for HTML
+	displayResult := make([]pages.AggregatedLogEntry, len(result))
+	for i, r := range result {
+		displayResult[i] = pages.AggregatedLogEntry{
+			SrcIP:     r.SrcIP,
+			DstPort:   r.DstPort,
+			Protocol:  r.Protocol,
+			Action:    r.Action,
+			Count:     r.Count,
+			FirstSeen: r.FirstSeen.Format("15:04:05"),
+			LastSeen:  r.LastSeen.Format("15:04:05"),
+		}
+	}
+
+	// Return HTML partial for htmx
+	w.Header().Set("Content-Type", "text/html")
+	component := pages.FirewallAggregatedTable(displayResult)
+	component.Render(r.Context(), w)
 }

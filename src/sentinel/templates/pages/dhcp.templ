@@ -120,6 +120,20 @@ templ DHCPPage(params DHCPPageParams) {
 	}
 }
 
+// networkBadgeClass returns the CSS classes for a network badge based on the network name.
+func networkBadgeClass(network string) string {
+	switch network {
+	case "lan0":
+		return "bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300"
+	case "lab0":
+		return "bg-purple-50 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300"
+	case "lab1":
+		return "bg-amber-50 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300"
+	default:
+		return "bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+	}
+}
+
 // LeaseRow renders a single lease table row.
 templ LeaseRow(lease DHCPLease) {
 	<tr>
@@ -133,7 +147,7 @@ templ LeaseRow(lease DHCPLease) {
 			}
 		</td>
 		<td class="whitespace-nowrap px-3 py-4 text-sm">
-			<span class="inline-flex items-center rounded-md bg-blue-50 dark:bg-blue-900/50 px-2 py-1 text-xs font-medium text-blue-700 dark:text-blue-300">
+			<span class={ "inline-flex items-center rounded-md px-2 py-1 text-xs font-medium " + networkBadgeClass(lease.Network) }>
 				{ lease.Network }
 			</span>
 		</td>
