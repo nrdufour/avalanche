@@ -264,12 +264,12 @@ func (c *Collector) collectDHCPMetrics(_ context.Context) {
 		return
 	}
 
-	leases, err := c.kea.GetLeases()
+	leases, err := c.kea.GetActiveLeases()
 	if err != nil {
 		return
 	}
 
-	// Count leases by network (simplified - could be enhanced)
+	// Count leases by network
 	c.metrics.DHCPLeasesTotal.WithLabelValues("all").Set(float64(len(leases)))
 }
 

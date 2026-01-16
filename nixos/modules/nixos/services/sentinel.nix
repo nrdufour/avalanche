@@ -518,9 +518,9 @@ in
     };
     users.groups.sentinel = { };
 
-    # Grant sentinel read access to Kea lease files via ACL
-    systemd.services.sentinel-kea-acl = mkIf (cfg.collectors.kea.leaseFile != "") {
-      description = "Set ACL for Sentinel to read Kea leases";
+    # Grant sentinel access to Kea control socket via ACL
+    systemd.services.sentinel-kea-acl = mkIf (cfg.collectors.kea.controlSocket != "") {
+      description = "Set ACL for Sentinel to access Kea control socket";
       wantedBy = [ "sentinel.service" ];
       before = [ "sentinel.service" ];
       after = [ "kea-dhcp4-server.service" ];
@@ -528,16 +528,18 @@ in
         Type = "oneshot";
         RemainAfterExit = true;
         ExecStart = let
-          leaseDir = builtins.dirOf cfg.collectors.kea.leaseFile;
+          socketDir = builtins.dirOf cfg.collectors.kea.controlSocket;
+          socketFile = cfg.collectors.kea.controlSocket;
         in pkgs.writeShellScript "sentinel-kea-acl" ''
-          # /var/lib/kea is a symlink to /var/lib/private/kea (DynamicUser)
-          # We need traverse permission on /var/lib/private for sentinel
-          ${pkgs.acl}/bin/setfacl -m u:sentinel:x /var/lib/private 2>/dev/null || true
+          # /run/kea is a symlink to /run/private/kea (DynamicUser)
+          # Grant traverse permission on /run/private for sentinel
+          ${pkgs.acl}/bin/setfacl -m u:sentinel:x /run/private
 
-          # Set ACL on lease directory and files for sentinel user
-          ${pkgs.acl}/bin/setfacl -m u:sentinel:rx ${leaseDir}
-          ${pkgs.acl}/bin/setfacl -m u:sentinel:r ${leaseDir}/*.csv 2>/dev/null || true
-          ${pkgs.acl}/bin/setfacl -d -m u:sentinel:r ${leaseDir}
+          # Grant traverse permission on socket directory
+          ${pkgs.acl}/bin/setfacl -m u:sentinel:rx ${socketDir}
+
+          # Grant read/write access to the control socket
+          ${pkgs.acl}/bin/setfacl -m u:sentinel:rw ${socketFile}
         '';
       };
     };

@@ -1,4 +1,4 @@
-{config, ...}:
+{config, pkgs, ...}:
 let
   leaseOption = {
     valid-lifetime = 4000;
@@ -30,6 +30,16 @@ in
     enable = true;
 
     settings = {
+      # Control socket for API access
+      control-socket = {
+        socket-type = "unix";
+        socket-name = "/run/kea/kea-dhcp4-ctrl.sock";
+      };
+
+      # Load lease commands hook for lease4-get-all API
+      hooks-libraries = [
+        { library = "${pkgs.kea}/lib/kea/hooks/libdhcp_lease_cmds.so"; }
+      ];
 
       interfaces-config = {
         interfaces = [
