@@ -11,7 +11,7 @@ buildGoModule rec {
   # This path is relative to the flake root
   src = ../../../src/sentinel;
 
-  vendorHash = "sha256-tMBxWfXkwQs4X0aaV0IwtRWbWr8gQcatFczvRrLU6t8=";
+  vendorHash = null;
 
   # Build both the main sentinel binary and the hashpw helper
   subPackages = [
