@@ -550,6 +550,13 @@ in
       wantedBy = [ "multi-user.target" ];
       after = [ "network.target" ];
 
+      # Network diagnostic tools needed by sentinel
+      path = with pkgs; [
+        iputils      # ping
+        traceroute   # traceroute
+        bind.dnsutils # dig
+      ];
+
       serviceConfig = {
         Type = "simple";
         User = "sentinel";
@@ -564,7 +571,9 @@ in
         RuntimeDirectoryMode = "0700";
 
         # Security hardening
-        NoNewPrivileges = true;
+        # NoNewPrivileges must be false to allow child processes (ping, traceroute, dig)
+        # to inherit CAP_NET_RAW capability
+        NoNewPrivileges = false;
         ProtectSystem = "strict";
         ProtectHome = true;
         PrivateTmp = true;

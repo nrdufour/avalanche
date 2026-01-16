@@ -204,7 +204,8 @@ func (d *DiagnosticsRunner) Ping(ctx context.Context, host string, count int) (*
 	}
 
 	if err != nil && result.PacketsRecv == 0 {
-		result.Error = "host unreachable"
+		// Include actual error for debugging
+		result.Error = fmt.Sprintf("host unreachable: %v (output: %s)", err, strings.TrimSpace(outputStr))
 	}
 
 	return result, nil
