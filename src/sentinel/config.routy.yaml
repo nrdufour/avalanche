@@ -1,0 +1,112 @@
+# Sentinel Configuration for routy
+# Testing configuration
+
+server:
+  host: "127.0.0.1"
+  port: 8080
+  read_timeout: 30s
+  write_timeout: 30s
+
+auth:
+  local:
+    enabled: true
+    users:
+      # Default password: "test123" - for testing only!
+      - username: admin
+        password_hash: "$2a$10$k0yVNSx9yAOvGvLzHB4o0OUOZo2hXmFrzXTFPKROfG5dVtQTu/rla"
+        role: admin
+
+  oidc:
+    enabled: false
+
+session:
+  secret: "testing-secret-do-not-use-in-production-32bytes"
+  lifetime: 24h
+  secure: false  # Allow HTTP for testing
+
+services:
+  systemd:
+    - name: kea-dhcp4-server
+      display_name: "Kea DHCP4"
+      description: "DHCP server for IP address assignment"
+      can_restart: true
+
+    - name: kea-dhcp-ddns-server
+      display_name: "Kea DDNS"
+      description: "Dynamic DNS updates from DHCP"
+      can_restart: true
+
+    - name: knot
+      display_name: "Knot DNS"
+      description: "Authoritative DNS server"
+      can_restart: true
+
+    - name: kresd@1
+      display_name: "Kresd Resolver"
+      description: "Recursive DNS resolver"
+      can_restart: true
+
+    - name: adguardhome
+      display_name: "AdGuard Home"
+      description: "DNS filtering and ad blocking"
+      can_restart: true
+
+    - name: nginx
+      display_name: "Nginx"
+      description: "Reverse proxy"
+      can_restart: true
+
+    - name: tailscaled
+      display_name: "Tailscale"
+      description: "VPN subnet router"
+      can_restart: false
+
+  docker:
+    enabled: false
+
+collectors:
+  kea:
+    lease_file: "/var/lib/private/kea/dhcp4.leases"
+    control_socket: "/run/kea/kea-dhcp4-ctrl.sock"
+
+  adguard:
+    api_url: "http://127.0.0.1:3003"
+
+  network:
+    interfaces:
+      - name: wan0
+        display_name: "WAN"
+        description: "External internet connection"
+      - name: lan0
+        display_name: "LAN"
+        description: "Primary internal network"
+      - name: lab0
+        display_name: "Lab0"
+        description: "Lab/K3s network (10.1.0.0/24)"
+      - name: lab1
+        display_name: "Lab1"
+        description: "Secondary lab network (10.2.0.0/24)"
+      - name: tailscale0
+        display_name: "Tailscale"
+        description: "VPN interface"
+
+diagnostics:
+  allowed_targets:
+    - "*.internal"
+    - "10.0.0.0/8"
+    - "192.168.0.0/16"
+    - "1.1.1.1"
+    - "8.8.8.8"
+    - "9.9.9.9"
+  ping_timeout: 10s
+  traceroute_timeout: 30s
+  dns_timeout: 5s
+  port_timeout: 5s
+
+metrics:
+  enabled: true
+  path: "/metrics"
+
+logging:
+  level: "debug"
+  format: "console"

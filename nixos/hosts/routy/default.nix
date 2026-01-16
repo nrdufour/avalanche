@@ -14,6 +14,7 @@
       ./adguardhome
       ./tailscale.nix
       ./android16-fix.nix
+      ./sentinel.nix
     ];
 
   networking.domain = "internal";

@@ -6,5 +6,6 @@
     ./nfs.nix
     ./minio.nix
     ./samba.nix
+    ./sentinel.nix
   ];
 }

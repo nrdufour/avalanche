@@ -17,4 +17,9 @@
   forgejo-runner-12 = final: prev: {
     forgejo-runner-12 = final.callPackage ../pkgs/forgejo-runner-12 { };
   };
+
+  # Sentinel gateway management tool
+  sentinel = final: prev: {
+    sentinel = final.callPackage ../pkgs/sentinel { };
+  };
 }

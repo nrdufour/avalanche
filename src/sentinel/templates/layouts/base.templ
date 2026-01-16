@@ -1,0 +1,178 @@
+package layouts
+
+// BaseParams contains parameters for the base layout.
+type BaseParams struct {
+	Title       string
+	Description string
+}
+
+// Base is the root HTML layout for all pages.
+templ Base(params BaseParams) {
+	<!DOCTYPE html>
+	<html lang="en" class="h-full">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<meta name="description" content={ params.Description }/>
+			<title>{ params.Title } - Sentinel</title>
+			<!-- Tailwind CSS via CDN for development -->
+			<script src="https://cdn.tailwindcss.com"></script>
+			<script>
+				tailwind.config = {
+					darkMode: 'class',
+				}
+			</script>
+			<link rel="stylesheet" href="/static/css/styles.css"/>
+			<script src="/static/js/htmx.min.js"></script>
+			<script src="/static/js/theme.js"></script>
+		</head>
+		<body class="h-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
+			{ children... }
+		</body>
+	</html>
+}
+
+// AuthenticatedParams contains parameters for authenticated pages.
+type AuthenticatedParams struct {
+	Title       string
+	Description string
+	Username    string
+	Role        string
+	ActiveNav   string
+}
+
+// Authenticated is the layout wrapper for authenticated pages with sidebar.
+templ Authenticated(params AuthenticatedParams) {
+	@Base(BaseParams{Title: params.Title, Description: params.Description}) {
+		<div class="min-h-full">
+			<!-- Top navigation bar -->
+			<nav class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+				<div class="mx-auto px-4 sm:px-6 lg:px-8">
+					<div class="flex h-16 items-center justify-between">
+						<!-- Logo and title -->
+						<div class="flex items-center">
+							<div class="flex-shrink-0">
+								<svg class="h-8 w-8 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/>
+								</svg>
+							</div>
+							<div class="ml-3">
+								<span class="text-xl font-bold text-gray-900 dark:text-white">Sentinel</span>
+								<span class="ml-2 text-sm text-gray-500 dark:text-gray-400">Gateway Management</span>
+							</div>
+						</div>
+						<!-- Right side: user info and theme toggle -->
+						<div class="flex items-center gap-4">
+							<!-- Theme toggle -->
+							<button
+								id="theme-toggle"
+								type="button"
+								class="rounded-lg p-2.5 text-sm text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-700"
+								onclick="toggleTheme()"
+							>
+								<!-- Sun icon (shown in dark mode) -->
+								<svg id="theme-toggle-light-icon" class="hidden h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+									<path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path>
+								</svg>
+								<!-- Moon icon (shown in light mode) -->
+								<svg id="theme-toggle-dark-icon" class="hidden h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+									<path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+								</svg>
+							</button>
+							<!-- User dropdown -->
+							<div class="relative">
+								<div class="flex items-center gap-2">
+									<div class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-white text-sm font-medium">
+										{ string(params.Username[0]) }
+									</div>
+									<div class="hidden md:block">
+										<p class="text-sm font-medium text-gray-700 dark:text-gray-200">{ params.Username }</p>
+										<p class="text-xs text-gray-500 dark:text-gray-400 capitalize">{ params.Role }</p>
+									</div>
+								</div>
+							</div>
+							<!-- Logout -->
+							<form action="/logout" method="POST">
+								<button
+									type="submit"
+									class="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+								>
+									Logout
+								</button>
+							</form>
+						</div>
+					</div>
+				</div>
+			</nav>
+			<!-- Main content with sidebar -->
+			<div class="flex">
+				<!-- Sidebar -->
+				<aside class="hidden lg:flex lg:flex-shrink-0">
+					<div class="flex w-64 flex-col">
+						<div class="flex min-h-0 flex-1 flex-col border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+							<div class="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
+								<nav class="mt-5 flex-1 space-y-1 px-2">
+									@navItem("/", "Dashboard", params.ActiveNav == "dashboard") {
+										<svg class="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/>
+										</svg>
+									}
+									@navItem("/services", "Services", params.ActiveNav == "services") {
+										<svg class="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M5.25 14.25h13.5m-13.5 0a3 3 0 01-3-3m3 3a3 3 0 100 6h13.5a3 3 0 100-6m-16.5-3a3 3 0 013-3h13.5a3 3 0 013 3m-19.5 0a4.5 4.5 0 01.9-2.7L5.737 5.1a3.375 3.375 0 012.7-1.35h7.126c1.062 0 2.062.5 2.7 1.35l2.587 3.45a4.5 4.5 0 01.9 2.7m0 0a3 3 0 01-3 3m0 3h.008v.008h-.008v-.008zm0-6h.008v.008h-.008v-.008zm-3 6h.008v.008h-.008v-.008zm0-6h.008v.008h-.008v-.008z"/>
+										</svg>
+									}
+									@navItem("/dhcp", "DHCP Leases", params.ActiveNav == "dhcp") {
+										<svg class="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 011.06 0z"/>
+										</svg>
+									}
+									@navItem("/network", "Network", params.ActiveNav == "network") {
+										<svg class="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"/>
+										</svg>
+									}
+									@navItem("/firewall", "Firewall", params.ActiveNav == "firewall") {
+										<svg class="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.249-8.25-3.286zm0 13.036h.008v.008H12v-.008z"/>
+										</svg>
+									}
+									@navItem("/connections", "Connections", params.ActiveNav == "connections") {
+										<svg class="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/>
+										</svg>
+									}
+								</nav>
+							</div>
+						</div>
+					</div>
+				</aside>
+				<!-- Main content -->
+				<main class="flex-1 p-6">
+					{ children... }
+				</main>
+			</div>
+		</div>
+	}
+}
+
+// navItem renders a navigation item in the sidebar.
+templ navItem(href string, label string, active bool) {
+	if active {
+		<a
+			href={ templ.SafeURL(href) }
+			class="group flex items-center rounded-md px-2 py-2 text-sm font-medium bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200"
+		>
+			{ children... }
+			{ label }
+		</a>
+	} else {
+		<a
+			href={ templ.SafeURL(href) }
+			class="group flex items-center rounded-md px-2 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
+		>
+			{ children... }
+			{ label }
+		</a>
+	}
+}

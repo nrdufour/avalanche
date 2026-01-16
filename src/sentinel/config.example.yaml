@@ -1,0 +1,161 @@
+# Sentinel Configuration Example
+# Copy this file to config.yaml and adjust for your environment
+
+server:
+  host: "127.0.0.1"
+  port: 8080
+  read_timeout: 30s
+  write_timeout: 30s
+
+# Authentication configuration
+auth:
+  # Local authentication (username/password)
+  local:
+    enabled: true
+    users:
+      # Generate password hash with: make hash-password PASSWORD=yourpassword
+      - username: admin
+        # Default password: "changeme" - CHANGE THIS!
+        password_hash: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.G0rGq9vDvUpuKW"
+        role: admin
+      # Additional users can be added here
+      # - username: operator
+      #   password_hash: "$2a$12$..."
+      #   role: operator
+
+  # Kanidm OIDC authentication (optional)
+  oidc:
+    enabled: false
+    issuer: "https://auth.internal/oauth2/openid/sentinel"
+    client_id: "sentinel"
+    client_secret_file: "/run/secrets/sentinel-oidc-secret"
+    redirect_url: "https://sentinel.internal/auth/callback"
+    scopes:
+      - openid
+      - profile
+      - email
+      - groups
+    # Map Kanidm groups to sentinel roles
+    role_mapping:
+      idm_admins: admin
+      sentinel_operators: operator
+      sentinel_viewers: viewer
+
+# Session configuration
+session:
+  # Secret key for session encryption (32+ bytes recommended)
+  # Generate with: openssl rand -base64 32
+  secret: "change-me-to-a-random-32-byte-string-in-production"
+  # Or use a file: secret_file: "/run/secrets/sentinel-session-secret"
+  lifetime: 24h
+  secure: true  # Set to false for local development without HTTPS
+
+# Services to monitor and manage
+services:
+  # systemd services
+  systemd:
+    - name: kea-dhcp4-server
+      display_name: "Kea DHCP4"
+      description: "DHCP server for IP address assignment"
+      can_restart: true
+
+    - name: kea-dhcp-ddns-server
+      display_name: "Kea DDNS"
+      description: "Dynamic DNS updates from DHCP"
+      can_restart: true
+
+    - name: knot
+      display_name: "Knot DNS"
+      description: "Authoritative DNS server"
+      can_restart: true
+
+    - name: kresd@1
+      display_name: "Kresd Resolver"
+      description: "Recursive DNS resolver"
+      can_restart: true
+
+    - name: adguardhome
+      display_name: "AdGuard Home"
+      description: "DNS filtering and ad blocking"
+      can_restart: true
+
+    - name: nginx
+      display_name: "Nginx"
+      description: "Reverse proxy"
+      can_restart: true
+
+    - name: tailscaled
+      display_name: "Tailscale"
+      description: "VPN subnet router"
+      can_restart: false  # Restarting may disconnect remote access
+
+  # Docker containers
+  docker:
+    enabled: true
+    socket: "unix:///var/run/docker.sock"
+    containers:
+      - name: omada-controller
+        display_name: "Omada Controller"
+        description: "TP-Link WiFi AP management"
+        can_restart: true
+
+# Data collectors configuration
+collectors:
+  # Kea DHCP
+  kea:
+    control_socket: "/run/kea/kea-dhcp4-ctrl.sock"
+    lease_file: "/var/lib/kea/dhcp4.leases"
+
+  # AdGuard Home API
+  adguard:
+    api_url: "http://127.0.0.1:3003"
+    # Credentials for AdGuard API (if authentication enabled)
+    # username: "admin"
+    # password_file: "/run/secrets/adguard-password"
+
+  # Network interfaces to monitor
+  network:
+    interfaces:
+      - name: wan0
+        display_name: "WAN"
+        description: "External internet connection"
+      - name: lan0
+        display_name: "LAN"
+        description: "Primary internal network (10.0.0.0/24)"
+      - name: lab0
+        display_name: "Lab"
+        description: "Lab/K3s network (10.1.0.0/24)"
+      - name: lab1
+        display_name: "Lab2"
+        description: "Secondary lab network (10.2.0.0/24)"
+      - name: tailscale0
+        display_name: "Tailscale"
+        description: "VPN interface"
+
+# Network diagnostics configuration
+diagnostics:
+  # Allowed targets for ping, traceroute, etc.
+  # Supports CIDR notation and wildcards
+  allowed_targets:
+    - "*.internal"
+    - "10.0.0.0/8"
+    - "192.168.0.0/16"
+    - "1.1.1.1"
+    - "8.8.8.8"
+    - "9.9.9.9"
+
+  # Command timeouts
+  ping_timeout: 10s
+  traceroute_timeout: 30s
+  dns_timeout: 5s
+  port_timeout: 5s
+
+# Prometheus metrics
+metrics:
+  enabled: true
+  path: "/metrics"
+
+# Logging configuration
+logging:
+  level: "info"  # debug, info, warn, error
+  format: "json"  # json or console

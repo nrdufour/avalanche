@@ -1,0 +1,520 @@
+package pages
+
+import (
+	"fmt"
+	"forge.internal/nemo/avalanche/src/sentinel/internal/collector"
+	"forge.internal/nemo/avalanche/src/sentinel/templates/layouts"
+)
+
+// FirewallParams contains parameters for the firewall logs page.
+type FirewallParams struct {
+	Username string
+	Role     string
+	Stats    *collector.FirewallStats
+}
+
+// FirewallPage renders the firewall logs page.
+templ FirewallPage(params FirewallParams) {
+	@layouts.Authenticated(layouts.AuthenticatedParams{
+		Title:       "Firewall",
+		Description: "Firewall logs and statistics",
+		Username:    params.Username,
+		Role:        params.Role,
+		ActiveNav:   "firewall",
+	}) {
+		<div class="space-y-6">
+			<!-- Page header -->
+			<div class="flex items-center justify-between">
+				<div>
+					<h1 class="text-2xl font-bold text-gray-900 dark:text-white">Firewall Logs</h1>
+					<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+						View nftables firewall logs and blocked connections
+					</p>
+				</div>
+				<div class="flex gap-2">
+					<button
+						id="stream-toggle"
+						onclick="toggleStream()"
+						class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+					>
+						<svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z"/>
+						</svg>
+						<span id="stream-text">Start Live Stream</span>
+					</button>
+					<button
+						hx-get="/api/firewall/logs"
+						hx-target="#firewall-table"
+						hx-swap="innerHTML"
+						class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+					>
+						<svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
+						</svg>
+						Refresh
+					</button>
+				</div>
+			</div>
+
+			<!-- Stats cards -->
+			<div id="firewall-stats" hx-get="/api/firewall/stats" hx-trigger="load, every 30s" hx-swap="innerHTML">
+				@FirewallStats(params.Stats)
+			</div>
+
+			<!-- Filters -->
+			<div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4">
+				<div class="flex flex-wrap gap-4 items-end">
+					<!-- Action filter -->
+					<div class="flex-1 min-w-[150px]">
+						<label for="action-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Action</label>
+						<select
+							id="action-filter"
+							class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+							hx-get="/api/firewall/logs"
+							hx-trigger="change"
+							hx-target="#firewall-table"
+							hx-include="[name='protocol'], [name='search'], [name='since']"
+							name="action"
+						>
+							<option value="">All actions</option>
+							<option value="DROP">Drop</option>
+							<option value="REJECT">Reject</option>
+							<option value="ACCEPT">Accept</option>
+							<option value="LOG">Log</option>
+						</select>
+					</div>
+
+					<!-- Protocol filter -->
+					<div class="flex-1 min-w-[150px]">
+						<label for="protocol-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Protocol</label>
+						<select
+							id="protocol-filter"
+							class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+							hx-get="/api/firewall/logs"
+							hx-trigger="change"
+							hx-target="#firewall-table"
+							hx-include="[name='action'], [name='search'], [name='since']"
+							name="protocol"
+						>
+							<option value="">All protocols</option>
+							<option value="TCP">TCP</option>
+							<option value="UDP">UDP</option>
+							<option value="ICMP">ICMP</option>
+						</select>
+					</div>
+
+					<!-- Time range filter -->
+					<div class="flex-1 min-w-[150px]">
+						<label for="since-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Time Range</label>
+						<select
+							id="since-filter"
+							class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+							hx-get="/api/firewall/logs"
+							hx-trigger="change"
+							hx-target="#firewall-table"
+							hx-include="[name='action'], [name='protocol'], [name='search']"
+							name="since"
+						>
+							<option value="15 minutes ago">Last 15 minutes</option>
+							<option value="1 hour ago" selected>Last hour</option>
+							<option value="6 hours ago">Last 6 hours</option>
+							<option value="24 hours ago">Last 24 hours</option>
+						</select>
+					</div>
+
+					<!-- Search -->
+					<div class="flex-1 min-w-[200px]">
+						<label for="search-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
+						<input
+							type="text"
+							id="search-filter"
+							name="search"
+							placeholder="IP, port, or interface..."
+							class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+							hx-get="/api/firewall/logs"
+							hx-trigger="keyup changed delay:500ms"
+							hx-target="#firewall-table"
+							hx-include="[name='action'], [name='protocol'], [name='since']"
+						/>
+					</div>
+				</div>
+			</div>
+
+			<!-- Live stream indicator -->
+			<div id="stream-indicator" class="hidden bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4">
+				<div class="flex items-center">
+					<div class="flex-shrink-0">
+						<span class="relative flex h-3 w-3">
+							<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+							<span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+						</span>
+					</div>
+					<div class="ml-3">
+						<p class="text-sm font-medium text-emerald-800 dark:text-emerald-200">
+							Live streaming firewall logs...
+						</p>
+					</div>
+				</div>
+			</div>
+
+			<!-- Firewall logs table -->
+			<div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+				<div id="firewall-table" hx-get="/api/firewall/logs" hx-trigger="load" hx-swap="innerHTML">
+					<div class="flex items-center justify-center py-12">
+						<svg class="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+						</svg>
+						<span class="ml-2 text-gray-500 dark:text-gray-400">Loading firewall logs...</span>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- SSE streaming script -->
+		<script>
+			let eventSource = null;
+			let isStreaming = false;
+
+			function toggleStream() {
+				if (isStreaming) {
+					stopStream();
+				} else {
+					startStream();
+				}
+			}
+
+			function startStream() {
+				if (eventSource) {
+					eventSource.close();
+				}
+
+				eventSource = new EventSource('/api/firewall/stream');
+
+				eventSource.addEventListener('connected', function(e) {
+					console.log('Stream connected');
+					isStreaming = true;
+					updateStreamUI(true);
+				});
+
+				eventSource.addEventListener('log', function(e) {
+					const entry = JSON.parse(e.data);
+					prependLogEntry(entry);
+				});
+
+				eventSource.addEventListener('error', function(e) {
+					console.error('Stream error:', e);
+					if (eventSource.readyState === EventSource.CLOSED) {
+						stopStream();
+					}
+				});
+			}
+
+			function stopStream() {
+				if (eventSource) {
+					eventSource.close();
+					eventSource = null;
+				}
+				isStreaming = false;
+				updateStreamUI(false);
+			}
+
+			function updateStreamUI(streaming) {
+				const button = document.getElementById('stream-toggle');
+				const text = document.getElementById('stream-text');
+				const indicator = document.getElementById('stream-indicator');
+
+				if (streaming) {
+					button.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+					button.classList.add('bg-red-600', 'hover:bg-red-700');
+					text.textContent = 'Stop Live Stream';
+					indicator.classList.remove('hidden');
+				} else {
+					button.classList.remove('bg-red-600', 'hover:bg-red-700');
+					button.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+					text.textContent = 'Start Live Stream';
+					indicator.classList.add('hidden');
+				}
+			}
+
+			function prependLogEntry(entry) {
+				const table = document.querySelector('#firewall-table tbody');
+				if (!table) return;
+
+				const row = document.createElement('tr');
+				row.className = 'hover:bg-gray-50 dark:hover:bg-gray-700 animate-pulse';
+
+				var portSpan = function(port) {
+					return port ? '<span class="text-gray-500 dark:text-gray-400">:' + port + '</span>' : '';
+				};
+
+				row.innerHTML =
+					'<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">' +
+						new Date(entry.timestamp).toLocaleTimeString() +
+					'</td>' +
+					'<td class="px-6 py-4 whitespace-nowrap">' +
+						'<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ' + getActionBadgeClass(entry.action) + '">' +
+							entry.action +
+						'</span>' +
+					'</td>' +
+					'<td class="px-6 py-4 whitespace-nowrap">' +
+						'<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ' + getProtocolBadgeClass(entry.protocol) + '">' +
+							entry.protocol +
+						'</span>' +
+					'</td>' +
+					'<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">' +
+						'<span class="font-mono">' + entry.src_ip + '</span>' +
+						portSpan(entry.src_port) +
+					'</td>' +
+					'<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">' +
+						'<span class="font-mono">' + entry.dst_ip + '</span>' +
+						portSpan(entry.dst_port) +
+					'</td>' +
+					'<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">' +
+						(entry.in_interface || '-') +
+					'</td>';
+
+				table.insertBefore(row, table.firstChild);
+
+				// Remove animation after a moment
+				setTimeout(function() { row.classList.remove('animate-pulse'); }, 2000);
+
+				// Keep only last 100 rows
+				while (table.children.length > 100) {
+					table.removeChild(table.lastChild);
+				}
+			}
+
+			function getActionBadgeClass(action) {
+				switch (action) {
+					case 'DROP':
+						return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+					case 'REJECT':
+						return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+					case 'ACCEPT':
+						return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+					default:
+						return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
+				}
+			}
+
+			function getProtocolBadgeClass(protocol) {
+				switch (protocol) {
+					case 'TCP':
+						return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+					case 'UDP':
+						return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+					case 'ICMP':
+						return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+					default:
+						return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
+				}
+			}
+
+			// Stop stream on page unload
+			window.addEventListener('beforeunload', stopStream);
+		</script>
+	}
+}
+
+// FirewallStats renders the firewall statistics cards.
+templ FirewallStats(stats *collector.FirewallStats) {
+	<div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+		<!-- Total entries -->
+		<div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+			<div class="p-5">
+				<div class="flex items-center">
+					<div class="flex-shrink-0">
+						<svg class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.249-8.25-3.286zm0 13.036h.008v.008H12v-.008z"/>
+						</svg>
+					</div>
+					<div class="ml-5 w-0 flex-1">
+						<dl>
+							<dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Entries</dt>
+							<dd class="text-lg font-semibold text-gray-900 dark:text-white">
+								if stats != nil {
+									{ fmt.Sprintf("%d", stats.TotalEntries) }
+								} else {
+									0
+								}
+							</dd>
+						</dl>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Dropped -->
+		<div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+			<div class="p-5">
+				<div class="flex items-center">
+					<div class="flex-shrink-0">
+						<svg class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+						</svg>
+					</div>
+					<div class="ml-5 w-0 flex-1">
+						<dl>
+							<dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Dropped</dt>
+							<dd class="text-lg font-semibold text-gray-900 dark:text-white">
+								if stats != nil {
+									{ fmt.Sprintf("%d", stats.ByAction["DROP"]) }
+								} else {
+									0
+								}
+							</dd>
+						</dl>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Rejected -->
+		<div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+			<div class="p-5">
+				<div class="flex items-center">
+					<div class="flex-shrink-0">
+						<svg class="h-6 w-6 text-orange-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+						</svg>
+					</div>
+					<div class="ml-5 w-0 flex-1">
+						<dl>
+							<dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Rejected</dt>
+							<dd class="text-lg font-semibold text-gray-900 dark:text-white">
+								if stats != nil {
+									{ fmt.Sprintf("%d", stats.ByAction["REJECT"]) }
+								} else {
+									0
+								}
+							</dd>
+						</dl>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Top blocked source -->
+		<div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+			<div class="p-5">
+				<div class="flex items-center">
+					<div class="flex-shrink-0">
+						<svg class="h-6 w-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M3 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 010 1.953l-7.108 4.062A1.125 1.125 0 013 16.81V8.688zM12.75 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 010 1.953l-7.108 4.062a1.125 1.125 0 01-1.683-.977V8.688z"/>
+						</svg>
+					</div>
+					<div class="ml-5 w-0 flex-1">
+						<dl>
+							<dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Top Blocked Source</dt>
+							<dd class="text-sm font-semibold text-gray-900 dark:text-white font-mono truncate">
+								if stats != nil && len(stats.TopBlockedSrcs) > 0 {
+									{ stats.TopBlockedSrcs[0].IP }
+									<span class="text-gray-500 dark:text-gray-400 font-sans">({ fmt.Sprintf("%d", stats.TopBlockedSrcs[0].Count) })</span>
+								} else {
+									<span class="text-gray-400 dark:text-gray-500">None</span>
+								}
+							</dd>
+						</dl>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+// FirewallTable renders the firewall logs table.
+templ FirewallTable(logs []collector.FirewallLogEntry) {
+	if len(logs) == 0 {
+		<div class="text-center py-12">
+			<svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.249-8.25-3.286zm0 13.036h.008v.008H12v-.008z"/>
+			</svg>
+			<h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No firewall logs</h3>
+			<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">No logs match your filters in the selected time range.</p>
+		</div>
+	} else {
+		<div class="overflow-x-auto">
+			<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+				<thead class="bg-gray-50 dark:bg-gray-900">
+					<tr>
+						<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Time</th>
+						<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Action</th>
+						<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Protocol</th>
+						<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Source</th>
+						<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Destination</th>
+						<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Interface</th>
+					</tr>
+				</thead>
+				<tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+					for _, entry := range logs {
+						<tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+							<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+								{ entry.Timestamp.Format("15:04:05") }
+							</td>
+							<td class="px-6 py-4 whitespace-nowrap">
+								<span class={ "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium", actionBadgeClass(entry.Action) }>
+									{ entry.Action }
+								</span>
+							</td>
+							<td class="px-6 py-4 whitespace-nowrap">
+								<span class={ "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium", fwProtocolBadgeClass(entry.Protocol) }>
+									{ entry.Protocol }
+								</span>
+							</td>
+							<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+								<span class="font-mono">{ entry.SrcIP }</span>
+								if entry.SrcPort > 0 {
+									<span class="text-gray-500 dark:text-gray-400">:{ fmt.Sprintf("%d", entry.SrcPort) }</span>
+								}
+							</td>
+							<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+								<span class="font-mono">{ entry.DstIP }</span>
+								if entry.DstPort > 0 {
+									<span class="text-gray-500 dark:text-gray-400">:{ fmt.Sprintf("%d", entry.DstPort) }</span>
+								}
+							</td>
+							<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+								if entry.InInterface != "" {
+									{ entry.InInterface }
+								} else {
+									-
+								}
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+		<div class="bg-gray-50 dark:bg-gray-900 px-6 py-3 text-sm text-gray-500 dark:text-gray-400">
+			Showing { fmt.Sprintf("%d", len(logs)) } log entries
+		</div>
+	}
+}
+
+// Helper functions for badge styling
+func actionBadgeClass(action string) string {
+	switch action {
+	case "DROP":
+		return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+	case "REJECT":
+		return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
+	case "ACCEPT":
+		return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+	default:
+		return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+	}
+}
+
+func fwProtocolBadgeClass(protocol string) string {
+	switch protocol {
+	case "TCP":
+		return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+	case "UDP":
+		return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+	case "ICMP":
+		return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+	default:
+		return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+	}
+}

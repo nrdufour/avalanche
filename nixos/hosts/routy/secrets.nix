@@ -19,6 +19,18 @@
           owner = "root";
           group = "root";
         };
+
+        "sentinel_admin_password_hash" = {
+          mode = "0400";
+          owner = "sentinel";
+          group = "sentinel";
+        };
+
+        "sentinel_session_secret" = {
+          mode = "0400";
+          owner = "sentinel";
+          group = "sentinel";
+        };
       };
     };
   };

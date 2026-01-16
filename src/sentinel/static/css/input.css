@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for Sentinel */
+
+@layer base {
+    /* Smooth transitions for theme switching */
+    html {
+        transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+    }
+
+    /* Custom scrollbar for dark mode */
+    .dark ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    .dark ::-webkit-scrollbar-track {
+        background: #1f2937;
+    }
+
+    .dark ::-webkit-scrollbar-thumb {
+        background: #4b5563;
+        border-radius: 4px;
+    }
+
+    .dark ::-webkit-scrollbar-thumb:hover {
+        background: #6b7280;
+    }
+}
+
+@layer components {
+    /* Service status indicator animation */
+    .status-indicator {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.5;
+        }
+    }
+
+    /* Loading spinner */
+    .spinner {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    /* Toast notification styles */
+    .toast {
+        @apply fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300;
+    }
+
+    .toast-success {
+        @apply bg-green-500 text-white;
+    }
+
+    .toast-error {
+        @apply bg-red-500 text-white;
+    }
+
+    .toast-info {
+        @apply bg-blue-500 text-white;
+    }
+
+    /* Card hover effect */
+    .card-hover {
+        @apply transition-shadow duration-200;
+    }
+
+    .card-hover:hover {
+        @apply shadow-lg;
+    }
+}
+
+@layer utilities {
+    /* htmx loading indicator */
+    .htmx-request .htmx-indicator {
+        opacity: 1;
+    }
+
+    .htmx-indicator {
+        opacity: 0;
+        transition: opacity 200ms ease-in;
+    }
+
+    /* Monospace font for technical data */
+    .font-mono-tight {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-variant-numeric: tabular-nums;
+    }
+}
