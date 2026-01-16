@@ -47,6 +47,9 @@ in
           "lab0"
           "lab1"
         ];
+        # Retry opening sockets if interfaces aren't ready at startup
+        service-sockets-retry-wait-time = 5000;  # 5 seconds between retries
+        service-sockets-max-retries = 60;        # Try for up to 5 minutes
       };
 
       subnet4 = [
@@ -277,10 +280,12 @@ in
   systemd.services.kea-dhcp4-server = {
     after = [
       "systemd-networkd.service"
+      "network-online.target"
       "sys-subsystem-net-devices-lan0.device"
       "sys-subsystem-net-devices-lab0.device"
       "sys-subsystem-net-devices-lab1.device"
     ];
+    wants = [ "network-online.target" ];
     requires = [
       "sys-subsystem-net-devices-lan0.device"
       "sys-subsystem-net-devices-lab0.device"
