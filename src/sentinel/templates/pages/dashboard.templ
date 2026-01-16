@@ -156,11 +156,12 @@ templ serviceCard(svc ServiceStatus) {
 }
 
 // statusBadge renders a status indicator badge.
+// Colors chosen to be distinguishable with deuteranopia (red-green colorblindness).
 templ statusBadge(status string) {
 	switch status {
 		case "running":
-			<span class="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/50 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:text-green-300">
-				<svg class="mr-1 h-2 w-2 fill-green-500" viewBox="0 0 8 8">
+			<span class="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/50 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:text-blue-300">
+				<svg class="mr-1 h-2 w-2 fill-blue-500" viewBox="0 0 8 8">
 					<circle cx="4" cy="4" r="3"/>
 				</svg>
 				Running
@@ -198,8 +199,9 @@ templ interfaceCard(iface InterfaceStatus) {
 					<h3 class="text-sm font-medium text-gray-900 dark:text-white">{ iface.DisplayName }</h3>
 					<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{ iface.Name }</p>
 				</div>
+				// Colors chosen to be distinguishable with deuteranopia (red-green colorblindness).
 				if iface.Status == "up" {
-					<span class="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/50 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:text-green-300">
+					<span class="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/50 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:text-blue-300">
 						Up
 					</span>
 				} else {
@@ -257,8 +259,9 @@ templ InterfaceCardPartial(iface InterfaceStatus) {
 }
 
 // StatsPartial renders the stats cards (for htmx updates).
+// Icon colors chosen to be distinguishable with deuteranopia (avoiding green).
 templ StatsPartial(stats DashboardStats) {
-	@statCard("Active DHCP Leases", formatInt(stats.ActiveLeases), "text-green-600 dark:text-green-400") {
+	@statCard("Active DHCP Leases", formatInt(stats.ActiveLeases), "text-cyan-600 dark:text-cyan-400") {
 		<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
 			<path stroke-linecap="round" stroke-linejoin="round" d="M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 011.06 0z"/>
 		</svg>

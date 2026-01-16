@@ -178,11 +178,12 @@ templ ConnectionsStats(stats *collector.ConnectionStats, totalCount int) {
 		</div>
 
 		<!-- UDP connections -->
+		<!-- Icon color chosen to be distinguishable with deuteranopia (cyan instead of green) -->
 		<div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
 			<div class="p-5">
 				<div class="flex items-center">
 					<div class="flex-shrink-0">
-						<svg class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+						<svg class="h-6 w-6 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
 							<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/>
 						</svg>
 					</div>
@@ -295,12 +296,13 @@ templ ConnectionsTable(connections []collector.Connection) {
 }
 
 // Helper functions for badge styling
+// Colors chosen to be distinguishable with deuteranopia (red-green colorblindness).
 func protocolBadgeClass(protocol string) string {
 	switch protocol {
 	case "tcp":
 		return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
 	case "udp":
-		return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+		return "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200"
 	case "icmp":
 		return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
 	default:

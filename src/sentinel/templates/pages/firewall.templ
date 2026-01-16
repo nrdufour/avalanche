@@ -427,6 +427,7 @@ templ FirewallPage(params FirewallParams) {
 				}
 			}
 
+			// Colors chosen to be distinguishable with deuteranopia (red-green colorblindness).
 			function getActionBadgeClass(action) {
 				switch (action) {
 					case 'DROP':
@@ -434,18 +435,19 @@ templ FirewallPage(params FirewallParams) {
 					case 'REJECT':
 						return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
 					case 'ACCEPT':
-						return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+						return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
 					default:
 						return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
 				}
 			}
 
+			// Colors chosen to be distinguishable with deuteranopia (red-green colorblindness).
 			function getProtocolBadgeClass(protocol) {
 				switch (protocol) {
 					case 'TCP':
 						return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
 					case 'UDP':
-						return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+						return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200';
 					case 'ICMP':
 						return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
 					default:
@@ -767,6 +769,7 @@ func truncatePrefix(prefix string) string {
 }
 
 // Helper functions for badge styling
+// Colors chosen to be distinguishable with deuteranopia (red-green colorblindness).
 func actionBadgeClass(action string) string {
 	switch action {
 	case "DROP":
@@ -774,18 +777,19 @@ func actionBadgeClass(action string) string {
 	case "REJECT":
 		return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
 	case "ACCEPT":
-		return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+		return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
 	default:
 		return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
 	}
 }
 
+// Colors chosen to be distinguishable with deuteranopia (red-green colorblindness).
 func fwProtocolBadgeClass(protocol string) string {
 	switch protocol {
 	case "TCP":
 		return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
 	case "UDP":
-		return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+		return "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200"
 	case "ICMP":
 		return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
 	default:
