@@ -383,11 +383,7 @@ templ FirewallPage(params FirewallParams) {
 					return prefix.length > 20 ? prefix.substring(0, 17) + '...' : prefix;
 				};
 
-				var srcDisplay = '';
-				if (entry.src_flag) {
-					srcDisplay += '<span class="mr-1" title="' + (entry.src_country || '') + '">' + entry.src_flag + '</span>';
-				}
-				srcDisplay += '<span class="font-mono"' + (entry.src_hostname ? ' title="' + entry.src_hostname + '"' : '') + '>' + entry.src_ip + '</span>';
+				var srcDisplay = '<span class="font-mono"' + (entry.src_hostname ? ' title="' + entry.src_hostname + '"' : '') + '>' + entry.src_ip + '</span>';
 				if (entry.src_port) {
 					srcDisplay += '<span class="text-gray-500 dark:text-gray-400">:' + entry.src_port + '</span>';
 				}
@@ -729,9 +725,6 @@ templ FirewallTable(logs []collector.FirewallLogEntry) {
 								</span>
 							</td>
 							<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-								if entry.SrcFlag != "" {
-									<span class="mr-1" title={ entry.SrcCountry }>{ entry.SrcFlag }</span>
-								}
 								if entry.SrcHostname != "" {
 									<span class="font-mono" title={ entry.SrcHostname }>{ entry.SrcIP }</span>
 								} else {

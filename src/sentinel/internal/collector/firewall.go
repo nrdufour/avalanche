@@ -32,8 +32,6 @@ type FirewallLogEntry struct {
 	Action       string    `json:"action"` // DROP, ACCEPT, etc. (inferred from prefix)
 	Raw          string    `json:"raw,omitempty"`
 	// Enrichment fields (populated by handler, not collector)
-	SrcCountry   string    `json:"src_country,omitempty"`
-	SrcFlag      string    `json:"src_flag,omitempty"`
 	SrcHostname  string    `json:"src_hostname,omitempty"`
 }
 

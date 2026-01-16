@@ -19,7 +19,6 @@ import (
 	"forge.internal/nemo/avalanche/src/sentinel/internal/auth"
 	"forge.internal/nemo/avalanche/src/sentinel/internal/collector"
 	"forge.internal/nemo/avalanche/src/sentinel/internal/config"
-	"forge.internal/nemo/avalanche/src/sentinel/internal/geolocation"
 	"forge.internal/nemo/avalanche/src/sentinel/internal/handler"
 	"forge.internal/nemo/avalanche/src/sentinel/internal/metrics"
 	"forge.internal/nemo/avalanche/src/sentinel/internal/middleware"
@@ -121,18 +120,6 @@ func main() {
 	firewallCollector := collector.NewFirewallCollector(30 * time.Second)
 	log.Info().Msg("Firewall log collector initialized")
 
-	// Initialize geolocation service (optional)
-	var geoipService *geolocation.Service
-	if cfg.Geolocation.Enabled && cfg.Geolocation.Database != "" {
-		geoipService = geolocation.NewService(cfg.Geolocation.Database, cfg.Geolocation.CacheSize)
-		if geoipService.Enabled() {
-			defer geoipService.Close()
-			log.Info().Str("database", cfg.Geolocation.Database).Msg("Geolocation service initialized")
-		} else {
-			log.Warn().Str("database", cfg.Geolocation.Database).Msg("Geolocation database not found, IP geolocation disabled")
-		}
-	}
-
 	// Initialize DNS cache for reverse lookups
 	dnsCache := collector.NewDNSCache(5000, time.Hour, 500*time.Millisecond)
 	log.Info().Msg("DNS cache initialized")
@@ -174,7 +161,7 @@ func main() {
 	dhcpHandler := handler.NewDHCPHandler(sessions, cfg, keaCollector)
 	networkHandler := handler.NewNetworkHandler(sessions, cfg, diagnosticsRunner, adguardCollector)
 	connectionsHandler := handler.NewConnectionsHandler(sessions, cfg, conntrackCollector)
-	firewallHandler := handler.NewFirewallHandler(sessions, cfg, firewallCollector, geoipService, dnsCache)
+	firewallHandler := handler.NewFirewallHandler(sessions, cfg, firewallCollector, dnsCache)
 
 	// Create router
 	r := chi.NewRouter()

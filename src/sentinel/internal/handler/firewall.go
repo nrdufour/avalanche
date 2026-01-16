@@ -12,7 +12,6 @@ import (
 	"forge.internal/nemo/avalanche/src/sentinel/internal/auth"
 	"forge.internal/nemo/avalanche/src/sentinel/internal/collector"
 	"forge.internal/nemo/avalanche/src/sentinel/internal/config"
-	"forge.internal/nemo/avalanche/src/sentinel/internal/geolocation"
 	"forge.internal/nemo/avalanche/src/sentinel/templates/pages"
 )
 
@@ -21,17 +20,15 @@ type FirewallHandler struct {
 	sessions *auth.SessionManager
 	cfg      *config.Config
 	firewall *collector.FirewallCollector
-	geoip    *geolocation.Service
 	dnsCache *collector.DNSCache
 }
 
 // NewFirewallHandler creates a new firewall handler.
-func NewFirewallHandler(sessions *auth.SessionManager, cfg *config.Config, firewall *collector.FirewallCollector, geoip *geolocation.Service, dnsCache *collector.DNSCache) *FirewallHandler {
+func NewFirewallHandler(sessions *auth.SessionManager, cfg *config.Config, firewall *collector.FirewallCollector, dnsCache *collector.DNSCache) *FirewallHandler {
 	return &FirewallHandler{
 		sessions: sessions,
 		cfg:      cfg,
 		firewall: firewall,
-		geoip:    geoip,
 		dnsCache: dnsCache,
 	}
 }
@@ -152,16 +149,9 @@ func (h *FirewallHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 	component.Render(r.Context(), w)
 }
 
-// enrichEntries adds geolocation and hostname data to log entries.
+// enrichEntries adds hostname data to log entries.
 func (h *FirewallHandler) enrichEntries(entries []collector.FirewallLogEntry) {
 	for i := range entries {
-		// Add geolocation
-		if h.geoip != nil && h.geoip.Enabled() {
-			code, flag := h.geoip.LookupCountryWithFlag(entries[i].SrcIP)
-			entries[i].SrcCountry = code
-			entries[i].SrcFlag = flag
-		}
-
 		// Add reverse DNS (async lookup - returns cached or empty)
 		if h.dnsCache != nil {
 			entries[i].SrcHostname = h.dnsCache.LookupAddrAsync(entries[i].SrcIP)
@@ -246,12 +236,7 @@ func (h *FirewallHandler) StreamLogs(w http.ResponseWriter, r *http.Request) {
 	// Stream logs
 	ctx := r.Context()
 	err := h.firewall.StreamLogs(ctx, func(entry collector.FirewallLogEntry) {
-		// Enrich entry with geolocation and hostname
-		if h.geoip != nil && h.geoip.Enabled() {
-			code, flag := h.geoip.LookupCountryWithFlag(entry.SrcIP)
-			entry.SrcCountry = code
-			entry.SrcFlag = flag
-		}
+		// Enrich entry with hostname
 		if h.dnsCache != nil {
 			entry.SrcHostname = h.dnsCache.LookupAddrAsync(entry.SrcIP)
 		}

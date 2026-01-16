@@ -11,15 +11,14 @@ import (
 
 // Config represents the complete application configuration.
 type Config struct {
-	Server       ServerConfig       `yaml:"server"`
-	Auth         AuthConfig         `yaml:"auth"`
-	Session      SessionConfig      `yaml:"session"`
-	Services     ServicesConfig     `yaml:"services"`
-	Collectors   CollectorsConfig   `yaml:"collectors"`
-	Diagnostics  DiagnosticsConfig  `yaml:"diagnostics"`
-	Geolocation  GeolocationConfig  `yaml:"geolocation"`
-	Metrics      MetricsConfig      `yaml:"metrics"`
-	Logging      LoggingConfig      `yaml:"logging"`
+	Server      ServerConfig      `yaml:"server"`
+	Auth        AuthConfig        `yaml:"auth"`
+	Session     SessionConfig     `yaml:"session"`
+	Services    ServicesConfig    `yaml:"services"`
+	Collectors  CollectorsConfig  `yaml:"collectors"`
+	Diagnostics DiagnosticsConfig `yaml:"diagnostics"`
+	Metrics     MetricsConfig     `yaml:"metrics"`
+	Logging     LoggingConfig     `yaml:"logging"`
 }
 
 // ServerConfig holds HTTP server settings.
@@ -139,13 +138,6 @@ type DiagnosticsConfig struct {
 	PortTimeout       time.Duration `yaml:"port_timeout"`
 }
 
-// GeolocationConfig holds IP geolocation settings.
-type GeolocationConfig struct {
-	Enabled   bool   `yaml:"enabled"`
-	Database  string `yaml:"database"`
-	CacheSize int    `yaml:"cache_size"`
-}
-
 // MetricsConfig holds Prometheus metrics settings.
 type MetricsConfig struct {
 	Enabled bool   `yaml:"enabled"`
@@ -237,11 +229,6 @@ func (c *Config) applyDefaults() {
 	// Docker defaults
 	if c.Services.Docker.Socket == "" {
 		c.Services.Docker.Socket = "unix:///var/run/docker.sock"
-	}
-
-	// Geolocation defaults
-	if c.Geolocation.CacheSize == 0 {
-		c.Geolocation.CacheSize = 10000
 	}
 }
 
