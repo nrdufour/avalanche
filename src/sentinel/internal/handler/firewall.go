@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -223,6 +224,13 @@ func (h *FirewallHandler) StreamLogs(w http.ResponseWriter, r *http.Request) {
 	// This works with chi middleware that wraps the ResponseWriter
 	rc := http.NewResponseController(w)
 
+	// Disable write timeout for SSE - these are long-lived connections
+	// A zero time value disables the deadline
+	if err := rc.SetWriteDeadline(time.Time{}); err != nil {
+		// Not all ResponseWriters support SetWriteDeadline, continue anyway
+		// The connection may still timeout but we tried
+	}
+
 	// Test if we can flush
 	if err := rc.Flush(); err != nil {
 		http.Error(w, "Streaming not supported", http.StatusInternalServerError)
@@ -332,14 +340,10 @@ func (h *FirewallHandler) GetChartData(w http.ResponseWriter, r *http.Request) {
 		data = append(data, *point)
 	}
 
-	// Sort by time
-	for i := 0; i < len(data)-1; i++ {
-		for j := i + 1; j < len(data); j++ {
-			if data[i].Time > data[j].Time {
-				data[i], data[j] = data[j], data[i]
-			}
-		}
-	}
+	// Sort by time ascending
+	sort.Slice(data, func(i, j int) bool {
+		return data[i].Time < data[j].Time
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
@@ -459,14 +463,10 @@ func (h *FirewallHandler) GetAggregatedLogs(w http.ResponseWriter, r *http.Reque
 		result = append(result, *agg)
 	}
 
-	// Sort by count (descending)
-	for i := 0; i < len(result)-1; i++ {
-		for j := i + 1; j < len(result); j++ {
-			if result[j].Count > result[i].Count {
-				result[i], result[j] = result[j], result[i]
-			}
-		}
-	}
+	// Sort by count descending
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Count > result[j].Count
+	})
 
 	// Limit to top 100
 	if len(result) > 100 {

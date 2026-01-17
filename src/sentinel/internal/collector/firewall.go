@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -359,13 +360,9 @@ func getTopPorts(counts map[string]int, n int) []PortCount {
 	}
 
 	// Sort by count descending
-	for i := 0; i < len(items)-1; i++ {
-		for j := i + 1; j < len(items); j++ {
-			if items[j].Count > items[i].Count {
-				items[i], items[j] = items[j], items[i]
-			}
-		}
-	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].Count > items[j].Count
+	})
 
 	if len(items) > n {
 		items = items[:n]

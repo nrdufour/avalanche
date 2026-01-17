@@ -8,6 +8,7 @@ import (
 	"net"
 	"os/exec"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -220,14 +221,10 @@ func (c *ConntrackCollector) GetTopTalkers(ctx context.Context, limit int) ([]Ta
 		result = append(result, *t)
 	}
 
-	// Sort by TotalBytes descending (bubble sort for simplicity)
-	for i := 0; i < len(result)-1; i++ {
-		for j := i + 1; j < len(result); j++ {
-			if result[j].TotalBytes > result[i].TotalBytes {
-				result[i], result[j] = result[j], result[i]
-			}
-		}
-	}
+	// Sort by TotalBytes descending
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].TotalBytes > result[j].TotalBytes
+	})
 
 	// Limit results
 	if len(result) > limit {
@@ -358,14 +355,10 @@ func getTopN(counts map[string]int, n int) []IPCount {
 		items = append(items, IPCount{IP: ip, Count: count})
 	}
 
-	// Sort by count descending (simple bubble sort for small n)
-	for i := 0; i < len(items)-1; i++ {
-		for j := i + 1; j < len(items); j++ {
-			if items[j].Count > items[i].Count {
-				items[i], items[j] = items[j], items[i]
-			}
-		}
-	}
+	// Sort by count descending
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].Count > items[j].Count
+	})
 
 	// Return top N
 	if len(items) > n {
