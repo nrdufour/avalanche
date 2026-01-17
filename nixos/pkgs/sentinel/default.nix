@@ -5,7 +5,7 @@
 
 buildGoModule rec {
   pname = "sentinel";
-  version = "0.2.1";
+  version = "0.2.2";
 
   # Source from local src/sentinel directory
   # This path is relative to the flake root
@@ -33,11 +33,7 @@ buildGoModule rec {
     "-X main.BuildTime=nixbuild"
   ];
 
-  # Copy static files
-  postInstall = ''
-    mkdir -p $out/share/sentinel
-    cp -r static $out/share/sentinel/
-  '';
+  # Static files are embedded in the binary, no postInstall needed
 
   meta = with lib; {
     description = "Gateway management and monitoring tool for NixOS routers";
@@ -45,10 +41,10 @@ buildGoModule rec {
       Sentinel is a web-based gateway management tool that provides:
       - Service monitoring and control (systemd, Docker)
       - DHCP lease viewing (Kea integration)
-      - Network diagnostics (ping, traceroute, DNS lookup)
       - Firewall log viewing (nftables)
       - Connection tracking (conntrack)
-      - Prometheus metrics endpoint
+      - Network interface bandwidth monitoring
+      - LLDP neighbor discovery
     '';
     homepage = "https://forge.internal/nemo/avalanche";
     license = licenses.mit;

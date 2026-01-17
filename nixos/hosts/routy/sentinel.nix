@@ -138,28 +138,6 @@
       }
     ];
 
-    # Diagnostics configuration
-    diagnostics = {
-      allowedTargets = [
-        "*.internal"
-        "10.0.0.0/8"
-        "192.168.0.0/16"
-        "1.1.1.1"
-        "8.8.8.8"
-        "9.9.9.9"
-      ];
-      pingTimeout = "10s";
-      tracerouteTimeout = "30s";
-      dnsTimeout = "5s";
-      portTimeout = "5s";
-    };
-
-    # Prometheus metrics
-    metrics = {
-      enable = true;
-      path = "/metrics";
-    };
-
     # Logging
     logging = {
       level = "info";

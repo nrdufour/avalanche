@@ -106,19 +106,6 @@ let
       };
     };
 
-    diagnostics = {
-      allowed_targets = cfg.diagnostics.allowedTargets;
-      ping_timeout = cfg.diagnostics.pingTimeout;
-      traceroute_timeout = cfg.diagnostics.tracerouteTimeout;
-      dns_timeout = cfg.diagnostics.dnsTimeout;
-      port_timeout = cfg.diagnostics.portTimeout;
-    };
-
-    metrics = {
-      enabled = cfg.metrics.enable;
-      path = cfg.metrics.path;
-    };
-
     logging = {
       level = cfg.logging.level;
       format = cfg.logging.format;
@@ -221,17 +208,6 @@ let
         "system": {
           "disk_mount_points": ${builtins.toJSON cfg.collectors.system.diskMountPoints}
         }
-      },
-      "diagnostics": {
-        "allowed_targets": ${builtins.toJSON cfg.diagnostics.allowedTargets},
-        "ping_timeout": "${cfg.diagnostics.pingTimeout}",
-        "traceroute_timeout": "${cfg.diagnostics.tracerouteTimeout}",
-        "dns_timeout": "${cfg.diagnostics.dnsTimeout}",
-        "port_timeout": "${cfg.diagnostics.portTimeout}"
-      },
-      "metrics": {
-        "enabled": ${boolToString cfg.metrics.enable},
-        "path": "${cfg.metrics.path}"
       },
       "logging": {
         "level": "${cfg.logging.level}",
@@ -529,49 +505,6 @@ in
       };
     };
 
-    # Diagnostics
-    diagnostics = {
-      allowedTargets = mkOption {
-        type = types.listOf types.str;
-        default = [ "*.internal" "10.0.0.0/8" "192.168.0.0/16" ];
-        description = "Allowed targets for diagnostics (glob patterns and CIDR)";
-      };
-      pingTimeout = mkOption {
-        type = types.str;
-        default = "10s";
-        description = "Ping timeout";
-      };
-      tracerouteTimeout = mkOption {
-        type = types.str;
-        default = "30s";
-        description = "Traceroute timeout";
-      };
-      dnsTimeout = mkOption {
-        type = types.str;
-        default = "5s";
-        description = "DNS lookup timeout";
-      };
-      portTimeout = mkOption {
-        type = types.str;
-        default = "5s";
-        description = "Port check timeout";
-      };
-    };
-
-    # Metrics
-    metrics = {
-      enable = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Enable Prometheus metrics endpoint";
-      };
-      path = mkOption {
-        type = types.str;
-        default = "/metrics";
-        description = "Metrics endpoint path";
-      };
-    };
-
     # Logging
     logging = {
       level = mkOption {
@@ -657,11 +590,8 @@ in
       wantedBy = [ "multi-user.target" ];
       after = [ "network.target" ];
 
-      # Network diagnostic tools needed by sentinel
+      # Tools needed by sentinel
       path = with pkgs; [
-        iputils      # ping
-        traceroute   # traceroute
-        bind.dnsutils # dig
         fping        # WAN latency measurements
         lldpd        # LLDP neighbor discovery (lldpctl)
         tailscale    # Tailscale peer status
@@ -674,7 +604,6 @@ in
         ExecStart = "${cfg.package}/bin/sentinel -config ${configFile}";
         Restart = "always";
         RestartSec = 5;
-        WorkingDirectory = "${cfg.package}/share/sentinel";
 
         # Runtime directory for config file with secrets
         RuntimeDirectory = "sentinel";
