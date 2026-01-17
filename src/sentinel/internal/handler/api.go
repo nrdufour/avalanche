@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 
 	"forge.internal/nemo/avalanche/src/sentinel/internal/auth"
@@ -21,7 +20,6 @@ type APIHandler struct {
 	cfg                 *config.Config
 	sessions            *auth.SessionManager
 	systemd             *service.SystemdManager
-	docker              *service.DockerManager
 	networkCollector    *collector.NetworkCollector
 	systemCollector     *collector.SystemCollector
 	keaCollector        *collector.KeaCollector
@@ -36,7 +34,6 @@ func NewAPIHandler(
 	cfg *config.Config,
 	sessions *auth.SessionManager,
 	systemd *service.SystemdManager,
-	docker *service.DockerManager,
 	kea *collector.KeaCollector,
 	adguard *collector.AdGuardCollector,
 	conntrack *collector.ConntrackCollector,
@@ -61,7 +58,6 @@ func NewAPIHandler(
 		cfg:                 cfg,
 		sessions:            sessions,
 		systemd:             systemd,
-		docker:              docker,
 		networkCollector:    collector.NewNetworkCollector(interfaces),
 		systemCollector:     collector.NewSystemCollector(cfg.Collectors.System.DiskMountPoints),
 		keaCollector:        kea,
@@ -77,7 +73,6 @@ type ServiceStatusResponse struct {
 	Name        string `json:"name"`
 	DisplayName string `json:"display_name"`
 	Status      string `json:"status"`
-	CanRestart  bool   `json:"can_restart"`
 	Type        string `json:"type"`
 }
 
@@ -113,40 +108,8 @@ func (h *APIHandler) GetServicesStatus(w http.ResponseWriter, r *http.Request) {
 					DisplayName: svc.DisplayName,
 					Description: svc.Description,
 					Status:      status,
-					CanRestart:  svc.CanRestart,
 					Type:        "systemd",
 				})
-			}
-		}
-	}
-
-	// Get Docker container names
-	if h.docker != nil && h.cfg.Services.Docker.Enabled {
-		containerNames := make([]string, len(h.cfg.Services.Docker.Containers))
-		for i, c := range h.cfg.Services.Docker.Containers {
-			containerNames[i] = c.Name
-		}
-
-		if len(containerNames) > 0 {
-			statuses, err := h.docker.GetContainersStatus(ctx, containerNames)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to get Docker container status")
-			} else {
-				for _, container := range h.cfg.Services.Docker.Containers {
-					status := "unknown"
-					if s, ok := statuses[container.Name]; ok {
-						status = s.StatusString()
-					}
-
-					services = append(services, pages.ServiceStatus{
-						Name:        container.Name,
-						DisplayName: container.DisplayName,
-						Description: container.Description,
-						Status:      status,
-						CanRestart:  container.CanRestart,
-						Type:        "docker",
-					})
-				}
 			}
 		}
 	}
@@ -189,38 +152,7 @@ func (h *APIHandler) GetServicesStatusJSON(w http.ResponseWriter, r *http.Reques
 						Name:        svc.Name,
 						DisplayName: svc.DisplayName,
 						Status:      status,
-						CanRestart:  svc.CanRestart,
 						Type:        "systemd",
-					})
-				}
-			}
-		}
-	}
-
-	// Get Docker containers
-	if h.docker != nil && h.cfg.Services.Docker.Enabled {
-		containerNames := make([]string, len(h.cfg.Services.Docker.Containers))
-		for i, c := range h.cfg.Services.Docker.Containers {
-			containerNames[i] = c.Name
-		}
-
-		if len(containerNames) > 0 {
-			statuses, err := h.docker.GetContainersStatus(ctx, containerNames)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to get Docker status")
-			} else {
-				for _, container := range h.cfg.Services.Docker.Containers {
-					status := "unknown"
-					if s, ok := statuses[container.Name]; ok {
-						status = s.StatusString()
-					}
-
-					services = append(services, ServiceStatusResponse{
-						Name:        container.Name,
-						DisplayName: container.DisplayName,
-						Status:      status,
-						CanRestart:  container.CanRestart,
-						Type:        "docker",
 					})
 				}
 			}
@@ -229,93 +161,6 @@ func (h *APIHandler) GetServicesStatusJSON(w http.ResponseWriter, r *http.Reques
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(services)
-}
-
-// RestartService handles service restart requests.
-func (h *APIHandler) RestartService(w http.ResponseWriter, r *http.Request) {
-	serviceName := chi.URLParam(r, "name")
-	if serviceName == "" {
-		http.Error(w, "Service name required", http.StatusBadRequest)
-		return
-	}
-
-	// Check if user has permission (operator or admin)
-	if !h.sessions.HasMinRole(r, "operator") {
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-	defer cancel()
-
-	// Find service in config and check if restart is allowed
-	var serviceType string
-	var canRestart bool
-
-	for _, svc := range h.cfg.Services.Systemd {
-		if svc.Name == serviceName {
-			serviceType = "systemd"
-			canRestart = svc.CanRestart
-			break
-		}
-	}
-
-	if serviceType == "" {
-		for _, container := range h.cfg.Services.Docker.Containers {
-			if container.Name == serviceName {
-				serviceType = "docker"
-				canRestart = container.CanRestart
-				break
-			}
-		}
-	}
-
-	if serviceType == "" {
-		http.Error(w, "Service not found", http.StatusNotFound)
-		return
-	}
-
-	if !canRestart {
-		http.Error(w, "Service restart not allowed", http.StatusForbidden)
-		return
-	}
-
-	user := h.sessions.GetUser(r)
-	log.Info().
-		Str("service", serviceName).
-		Str("type", serviceType).
-		Str("user", user.Username).
-		Msg("Service restart requested")
-
-	var err error
-	switch serviceType {
-	case "systemd":
-		if h.systemd == nil {
-			http.Error(w, "Systemd manager not available", http.StatusServiceUnavailable)
-			return
-		}
-		err = h.systemd.RestartUnit(ctx, serviceName)
-	case "docker":
-		if h.docker == nil {
-			http.Error(w, "Docker manager not available", http.StatusServiceUnavailable)
-			return
-		}
-		err = h.docker.RestartContainer(ctx, serviceName)
-	}
-
-	if err != nil {
-		log.Error().Err(err).Str("service", serviceName).Msg("Failed to restart service")
-		http.Error(w, "Failed to restart service: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	log.Info().Str("service", serviceName).Msg("Service restarted successfully")
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "ok",
-		"message": "Service restart initiated",
-	})
 }
 
 // InterfaceStatusResponse represents network interface status in JSON.

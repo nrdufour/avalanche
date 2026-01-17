@@ -73,17 +73,6 @@ func main() {
 		defer systemdMgr.Close()
 	}
 
-	// Initialize Docker manager (if enabled)
-	var dockerMgr *service.DockerManager
-	if cfg.Services.Docker.Enabled {
-		dockerMgr, err = service.NewDockerManager(cfg.Services.Docker.Socket)
-		if err != nil {
-			log.Warn().Err(err).Msg("Failed to connect to Docker, container management disabled")
-		} else {
-			defer dockerMgr.Close()
-		}
-	}
-
 	// Initialize Kea DHCP collector
 	var keaCollector *collector.KeaCollector
 	if cfg.Collectors.Kea.LeaseFile != "" {
@@ -146,7 +135,7 @@ func main() {
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(localAuth, sessions)
 	dashboardHandler := handler.NewDashboardHandler(sessions, cfg, keaCollector, adguardCollector, conntrackCollector)
-	apiHandler := handler.NewAPIHandler(cfg, sessions, systemdMgr, dockerMgr, keaCollector, adguardCollector, conntrackCollector, bandwidthCollector)
+	apiHandler := handler.NewAPIHandler(cfg, sessions, systemdMgr, keaCollector, adguardCollector, conntrackCollector, bandwidthCollector)
 	dhcpHandler := handler.NewDHCPHandler(sessions, cfg, keaCollector)
 	networkHandler := handler.NewNetworkHandler(sessions, cfg, adguardCollector, lldpCollector)
 	connectionsHandler := handler.NewConnectionsHandler(sessions, cfg, conntrackCollector, dnsCache)
@@ -186,10 +175,9 @@ func main() {
 
 		// API routes
 		r.Route("/api", func(r chi.Router) {
-			// Service status and control
+			// Service status
 			r.Get("/services/status", apiHandler.GetServicesStatus)
 			r.Get("/services/status.json", apiHandler.GetServicesStatusJSON)
-			r.Post("/services/{name}/restart", apiHandler.RestartService)
 
 			// Network interfaces
 			r.Get("/network/interfaces", apiHandler.GetNetworkInterfaces)

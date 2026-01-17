@@ -34,43 +34,36 @@
         name = "kea-dhcp4-server";
         displayName = "Kea DHCP4";
         description = "DHCP server for IP address assignment";
-        canRestart = true;
       }
       {
         name = "kea-dhcp-ddns-server";
         displayName = "Kea DDNS";
         description = "Dynamic DNS updates from DHCP";
-        canRestart = true;
       }
       {
         name = "knot";
         displayName = "Knot DNS";
         description = "Authoritative DNS server";
-        canRestart = true;
       }
       {
         name = "kresd@1";
         displayName = "Kresd Resolver";
         description = "Recursive DNS resolver";
-        canRestart = true;
       }
       {
         name = "adguardhome";
         displayName = "AdGuard Home";
         description = "DNS filtering and ad blocking";
-        canRestart = true;
       }
       {
         name = "nginx";
         displayName = "Nginx";
         description = "Reverse proxy";
-        canRestart = true;
       }
       {
         name = "tailscaled";
         displayName = "Tailscale";
         description = "VPN subnet router";
-        canRestart = false;  # Don't allow restart - would disconnect users
       }
     ];
 

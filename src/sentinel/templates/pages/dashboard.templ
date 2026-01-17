@@ -13,7 +13,6 @@ type ServiceStatus struct {
 	DisplayName string
 	Description string
 	Status      string // "running", "stopped", "failed", "unknown"
-	CanRestart  bool
 	Type        string // "systemd" or "docker"
 }
 
@@ -193,24 +192,10 @@ templ serviceCard(svc ServiceStatus) {
 				</div>
 				@statusBadge(svc.Status)
 			</div>
-			<div class="mt-4 flex items-center justify-between">
+			<div class="mt-4">
 				<span class="inline-flex items-center rounded-md bg-gray-100 dark:bg-gray-700 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-300">
 					{ svc.Type }
 				</span>
-				if svc.CanRestart {
-					<button
-						type="button"
-						class="inline-flex items-center rounded-md bg-indigo-50 dark:bg-indigo-900/50 px-2 py-1 text-xs font-medium text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900 disabled:opacity-50"
-						hx-post={ "/api/services/" + svc.Name + "/restart" }
-						hx-confirm={ "Are you sure you want to restart " + svc.DisplayName + "?" }
-						hx-swap="none"
-					>
-						<svg class="mr-1 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
-						</svg>
-						Restart
-					</button>
-				}
 			</div>
 		</div>
 	</div>

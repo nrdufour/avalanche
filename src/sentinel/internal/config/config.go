@@ -70,7 +70,6 @@ type SessionConfig struct {
 // ServicesConfig holds the list of services to monitor.
 type ServicesConfig struct {
 	Systemd []SystemdService `yaml:"systemd"`
-	Docker  DockerConfig     `yaml:"docker"`
 }
 
 // SystemdService represents a systemd service to monitor.
@@ -78,22 +77,6 @@ type SystemdService struct {
 	Name        string `yaml:"name"`
 	DisplayName string `yaml:"display_name"`
 	Description string `yaml:"description"`
-	CanRestart  bool   `yaml:"can_restart"`
-}
-
-// DockerConfig holds Docker container monitoring settings.
-type DockerConfig struct {
-	Enabled    bool              `yaml:"enabled"`
-	Socket     string            `yaml:"socket"`
-	Containers []DockerContainer `yaml:"containers"`
-}
-
-// DockerContainer represents a Docker container to monitor.
-type DockerContainer struct {
-	Name        string `yaml:"name"`
-	DisplayName string `yaml:"display_name"`
-	Description string `yaml:"description"`
-	CanRestart  bool   `yaml:"can_restart"`
 }
 
 // CollectorsConfig holds data collector settings.
@@ -225,10 +208,6 @@ func (c *Config) applyDefaults() {
 		c.Logging.Format = "json"
 	}
 
-	// Docker defaults
-	if c.Services.Docker.Socket == "" {
-		c.Services.Docker.Socket = "unix:///var/run/docker.sock"
-	}
 
 	// System collector defaults
 	if len(c.Collectors.System.DiskMountPoints) == 0 {

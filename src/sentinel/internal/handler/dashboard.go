@@ -57,23 +57,8 @@ func (h *DashboardHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 			DisplayName: svc.DisplayName,
 			Description: svc.Description,
 			Status:      "unknown", // Will be updated by API
-			CanRestart:  svc.CanRestart,
 			Type:        "systemd",
 		})
-	}
-
-	// Add Docker containers
-	if h.cfg.Services.Docker.Enabled {
-		for _, container := range h.cfg.Services.Docker.Containers {
-			services = append(services, pages.ServiceStatus{
-				Name:        container.Name,
-				DisplayName: container.DisplayName,
-				Description: container.Description,
-				Status:      "unknown", // Will be updated by API
-				CanRestart:  container.CanRestart,
-				Type:        "docker",
-			})
-		}
 	}
 
 	// Build interface list from config

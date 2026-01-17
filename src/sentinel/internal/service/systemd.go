@@ -145,43 +145,6 @@ func (m *SystemdManager) GetUnitsStatus(ctx context.Context, names []string) (ma
 	return result, nil
 }
 
-// RestartUnit restarts a systemd unit.
-func (m *SystemdManager) RestartUnit(ctx context.Context, name string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.conn == nil {
-		return fmt.Errorf("connection closed")
-	}
-
-	// Ensure the name has .service suffix if not specified
-	if !strings.Contains(name, ".") {
-		name = name + ".service"
-	}
-
-	// Create a channel to receive the job result
-	jobCh := make(chan string, 1)
-
-	// Start the restart job
-	_, err := m.conn.RestartUnitContext(ctx, name, "replace", jobCh)
-	if err != nil {
-		return fmt.Errorf("restarting unit %s: %w", name, err)
-	}
-
-	// Wait for the job to complete with timeout
-	select {
-	case result := <-jobCh:
-		if result != "done" {
-			return fmt.Errorf("restart job failed: %s", result)
-		}
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(30 * time.Second):
-		return fmt.Errorf("restart timed out")
-	}
-}
-
 // StopUnit stops a systemd unit.
 func (m *SystemdManager) StopUnit(ctx context.Context, name string) error {
 	m.mu.Lock()

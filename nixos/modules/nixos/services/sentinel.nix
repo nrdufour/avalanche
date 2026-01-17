@@ -61,12 +61,7 @@ let
         name = s.name;
         display_name = s.displayName;
         description = s.description;
-        can_restart = s.canRestart;
       }) cfg.services.systemd;
-      docker = {
-        enabled = cfg.services.docker.enable;
-        socket = cfg.services.docker.socket;
-      };
     };
 
     collectors = {
@@ -166,12 +161,7 @@ let
           name = s.name;
           display_name = s.displayName;
           description = s.description;
-          can_restart = s.canRestart;
-        }) cfg.services.systemd)},
-        "docker": {
-          "enabled": ${boolToString cfg.services.docker.enable},
-          "socket": "${cfg.services.docker.socket}"
-        }
+        }) cfg.services.systemd)}
       },
       "collectors": {
         "kea": {
@@ -261,11 +251,6 @@ let
         type = types.str;
         default = "";
         description = "Service description";
-      };
-      canRestart = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Whether the service can be restarted from the UI";
       };
     };
   };
@@ -393,18 +378,6 @@ in
         type = types.listOf serviceType;
         default = [ ];
         description = "Systemd services to monitor";
-      };
-      docker = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "Enable Docker container monitoring";
-        };
-        socket = mkOption {
-          type = types.str;
-          default = "/var/run/docker.sock";
-          description = "Docker socket path";
-        };
       };
     };
 
