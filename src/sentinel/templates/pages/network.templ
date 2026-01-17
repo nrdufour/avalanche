@@ -6,75 +6,17 @@ import (
 	"forge.internal/nemo/avalanche/src/sentinel/templates/layouts"
 )
 
-// NetworkPageParams contains parameters for the network diagnostics page.
+// NetworkPageParams contains parameters for the network status page.
 type NetworkPageParams struct {
-	Username       string
-	Role           string
-	AllowedTargets []string
+	Username string
+	Role     string
 }
 
-// PingResult contains ping results for display.
-type PingResult struct {
-	Host          string
-	IP            string
-	PacketsSent   int
-	PacketsRecv   int
-	PacketLoss    float64
-	MinRTT        string
-	AvgRTT        string
-	MaxRTT        string
-	ResponseTimes []string
-	Error         string
-}
-
-// TracerouteResult contains traceroute results for display.
-type TracerouteResult struct {
-	Host  string
-	Hops  []TracerouteHop
-	Error string
-}
-
-// TracerouteHop represents a single traceroute hop.
-type TracerouteHop struct {
-	Number  int
-	Host    string
-	IP      string
-	RTT     []string
-	Timeout bool
-}
-
-// DNSResult contains DNS lookup results for display.
-type DNSResult struct {
-	Query     string
-	QueryType string
-	Server    string
-	Answers   []DNSAnswer
-	QueryTime string
-	Error     string
-}
-
-// DNSAnswer represents a DNS answer.
-type DNSAnswer struct {
-	Name  string
-	Type  string
-	TTL   int
-	Value string
-}
-
-// PortResult contains port check results for display.
-type PortResult struct {
-	Host    string
-	Port    int
-	Open    bool
-	Latency string
-	Error   string
-}
-
-// NetworkPage renders the network diagnostics page.
+// NetworkPage renders the network status page.
 templ NetworkPage(params NetworkPageParams) {
 	@layouts.Authenticated(layouts.AuthenticatedParams{
-		Title:       "Network Diagnostics",
-		Description: "Network diagnostic tools",
+		Title:       "Network Status",
+		Description: "Network status and information",
 		Username:    params.Username,
 		Role:        params.Role,
 		ActiveNav:   "network",
@@ -82,9 +24,9 @@ templ NetworkPage(params NetworkPageParams) {
 		<div class="space-y-6">
 			<!-- Page header -->
 			<div class="border-b border-gray-200 dark:border-gray-700 pb-5">
-				<h1 class="text-2xl font-bold text-gray-900 dark:text-white">Network Diagnostics</h1>
+				<h1 class="text-2xl font-bold text-gray-900 dark:text-white">Network Status</h1>
 				<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-					Run network diagnostic tools from the gateway
+					Network interface status and LLDP neighbors
 				</p>
 			</div>
 			<!-- Bandwidth chart -->
@@ -123,188 +65,6 @@ templ NetworkPage(params NetworkPageParams) {
 							</svg>
 							<span class="ml-2 text-gray-500 dark:text-gray-400">Loading...</span>
 						</div>
-					</div>
-				</div>
-			</div>
-			<!-- Diagnostic tools grid -->
-			<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-				<!-- Ping tool -->
-				<div class="bg-white dark:bg-gray-800 shadow rounded-lg border border-gray-200 dark:border-gray-700">
-					<div class="px-4 py-5 sm:p-6">
-						<h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Ping</h3>
-						<form hx-post="/api/network/ping" hx-target="#ping-results" hx-swap="innerHTML">
-							<div class="space-y-4">
-								<div>
-									<label for="ping-host" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Host</label>
-									<input
-										type="text"
-										name="host"
-										id="ping-host"
-										class="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:text-white"
-										placeholder="10.0.0.1 or hostname.internal"
-										required
-									/>
-								</div>
-								<div>
-									<label for="ping-count" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Count</label>
-									<select
-										name="count"
-										id="ping-count"
-										class="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:text-white"
-									>
-										<option value="4">4 packets</option>
-										<option value="8">8 packets</option>
-										<option value="10">10 packets</option>
-									</select>
-								</div>
-								<button
-									type="submit"
-									class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-								>
-									<svg class="mr-2 h-4 w-4 htmx-indicator spinner" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-										<path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
-									</svg>
-									Run Ping
-								</button>
-							</div>
-						</form>
-						<div id="ping-results" class="mt-4"></div>
-					</div>
-				</div>
-				<!-- Traceroute tool -->
-				<div class="bg-white dark:bg-gray-800 shadow rounded-lg border border-gray-200 dark:border-gray-700">
-					<div class="px-4 py-5 sm:p-6">
-						<h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Traceroute</h3>
-						<form hx-post="/api/network/traceroute" hx-target="#traceroute-results" hx-swap="innerHTML">
-							<div class="space-y-4">
-								<div>
-									<label for="trace-host" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Host</label>
-									<input
-										type="text"
-										name="host"
-										id="trace-host"
-										class="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:text-white"
-										placeholder="10.0.0.1 or hostname.internal"
-										required
-									/>
-								</div>
-								<button
-									type="submit"
-									class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-								>
-									<svg class="mr-2 h-4 w-4 htmx-indicator spinner" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-										<path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
-									</svg>
-									Run Traceroute
-								</button>
-							</div>
-						</form>
-						<div id="traceroute-results" class="mt-4"></div>
-					</div>
-				</div>
-				<!-- DNS Lookup tool -->
-				<div class="bg-white dark:bg-gray-800 shadow rounded-lg border border-gray-200 dark:border-gray-700">
-					<div class="px-4 py-5 sm:p-6">
-						<h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">DNS Lookup</h3>
-						<form hx-post="/api/network/dns" hx-target="#dns-results" hx-swap="innerHTML">
-							<div class="space-y-4">
-								<div>
-									<label for="dns-query" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Query</label>
-									<input
-										type="text"
-										name="query"
-										id="dns-query"
-										class="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:text-white"
-										placeholder="example.com"
-										required
-									/>
-								</div>
-								<div class="grid grid-cols-2 gap-4">
-									<div>
-										<label for="dns-type" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Type</label>
-										<select
-											name="type"
-											id="dns-type"
-											class="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:text-white"
-										>
-											<option value="A">A</option>
-											<option value="AAAA">AAAA</option>
-											<option value="CNAME">CNAME</option>
-											<option value="MX">MX</option>
-											<option value="TXT">TXT</option>
-											<option value="NS">NS</option>
-											<option value="PTR">PTR</option>
-										</select>
-									</div>
-									<div>
-										<label for="dns-server" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Server (optional)</label>
-										<input
-											type="text"
-											name="server"
-											id="dns-server"
-											class="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:text-white"
-											placeholder="10.0.0.53"
-										/>
-									</div>
-								</div>
-								<button
-									type="submit"
-									class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-								>
-									<svg class="mr-2 h-4 w-4 htmx-indicator spinner" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-										<path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
-									</svg>
-									Lookup
-								</button>
-							</div>
-						</form>
-						<div id="dns-results" class="mt-4"></div>
-					</div>
-				</div>
-				<!-- Port Check tool -->
-				<div class="bg-white dark:bg-gray-800 shadow rounded-lg border border-gray-200 dark:border-gray-700">
-					<div class="px-4 py-5 sm:p-6">
-						<h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Port Check</h3>
-						<form hx-post="/api/network/port" hx-target="#port-results" hx-swap="innerHTML">
-							<div class="space-y-4">
-								<div class="grid grid-cols-2 gap-4">
-									<div>
-										<label for="port-host" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Host</label>
-										<input
-											type="text"
-											name="host"
-											id="port-host"
-											class="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:text-white"
-											placeholder="10.0.0.1"
-											required
-										/>
-									</div>
-									<div>
-										<label for="port-number" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Port</label>
-										<input
-											type="number"
-											name="port"
-											id="port-number"
-											min="1"
-											max="65535"
-											class="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:text-white"
-											placeholder="80"
-											required
-										/>
-									</div>
-								</div>
-								<button
-									type="submit"
-									class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-								>
-									<svg class="mr-2 h-4 w-4 htmx-indicator spinner" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-										<path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
-									</svg>
-									Check Port
-								</button>
-							</div>
-						</form>
-						<div id="port-results" class="mt-4"></div>
 					</div>
 				</div>
 			</div>
@@ -452,111 +212,6 @@ templ NetworkPage(params NetworkPageParams) {
 			});
 		</script>
 	}
-}
-
-// PingResultPartial renders ping results.
-templ PingResultPartial(result PingResult) {
-	<div class="rounded-md bg-gray-50 dark:bg-gray-700 p-4 font-mono text-sm">
-		if result.Error != "" {
-			<div class="text-red-600 dark:text-red-400">Error: { result.Error }</div>
-		} else {
-			<div class="text-gray-700 dark:text-gray-300">
-				<p>PING { result.Host } ({ result.IP })</p>
-				<p class="mt-2">{ formatInt(result.PacketsSent) } packets transmitted, { formatInt(result.PacketsRecv) } received, { formatFloat(result.PacketLoss) }% packet loss</p>
-				if result.PacketsRecv > 0 {
-					<p class="mt-1">rtt min/avg/max = { result.MinRTT }/{ result.AvgRTT }/{ result.MaxRTT }</p>
-				}
-			</div>
-		}
-	</div>
-}
-
-// TracerouteResultPartial renders traceroute results.
-templ TracerouteResultPartial(result TracerouteResult) {
-	<div class="rounded-md bg-gray-50 dark:bg-gray-700 p-4 font-mono text-sm overflow-x-auto">
-		if result.Error != "" {
-			<div class="text-red-600 dark:text-red-400">Error: { result.Error }</div>
-		} else {
-			<div class="text-gray-700 dark:text-gray-300">
-				<p class="mb-2">traceroute to { result.Host }</p>
-				<table class="min-w-full">
-					for _, hop := range result.Hops {
-						<tr>
-							<td class="pr-4 text-right">{ formatInt(hop.Number) }</td>
-							<td class="pr-4">
-								if hop.Timeout {
-									<span class="text-gray-500">* * *</span>
-								} else {
-									{ hop.IP }
-								}
-							</td>
-							<td>
-								if !hop.Timeout && len(hop.RTT) > 0 {
-									{ hop.RTT[0] }
-								}
-							</td>
-						</tr>
-					}
-				</table>
-			</div>
-		}
-	</div>
-}
-
-// DNSResultPartial renders DNS lookup results.
-templ DNSResultPartial(result DNSResult) {
-	<div class="rounded-md bg-gray-50 dark:bg-gray-700 p-4 font-mono text-sm">
-		if result.Error != "" {
-			<div class="text-red-600 dark:text-red-400">Error: { result.Error }</div>
-		} else {
-			<div class="text-gray-700 dark:text-gray-300">
-				<p class="mb-2">; { result.Query } { result.QueryType } (query time: { result.QueryTime })</p>
-				if len(result.Answers) == 0 {
-					<p class="text-gray-500">No records found</p>
-				} else {
-					for _, answer := range result.Answers {
-						<p>{ answer.Name } { formatInt(answer.TTL) } IN { answer.Type } { answer.Value }</p>
-					}
-				}
-			</div>
-		}
-	</div>
-}
-
-// PortResultPartial renders port check results.
-// Colors chosen to be distinguishable with deuteranopia (red-green colorblindness).
-templ PortResultPartial(result PortResult) {
-	<div class="rounded-md bg-gray-50 dark:bg-gray-700 p-4 text-sm">
-		if result.Error != "" {
-			<div class="text-red-600 dark:text-red-400">Error: { result.Error }</div>
-		} else {
-			<div class="flex items-center gap-3">
-				if result.Open {
-					<span class="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/50 px-3 py-1 text-sm font-medium text-blue-800 dark:text-blue-300">
-						<svg class="mr-1.5 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-							<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/>
-						</svg>
-						Open
-					</span>
-				} else {
-					<span class="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/50 px-3 py-1 text-sm font-medium text-red-800 dark:text-red-300">
-						<svg class="mr-1.5 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-							<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"/>
-						</svg>
-						Closed
-					</span>
-				}
-				<span class="text-gray-700 dark:text-gray-300">{ result.Host }:{ formatInt(result.Port) }</span>
-				if result.Open {
-					<span class="text-gray-500 dark:text-gray-400">({ result.Latency })</span>
-				}
-			</div>
-		}
-	</div>
-}
-
-func formatFloat(f float64) string {
-	return fmt.Sprintf("%.1f", f)
 }
 
 // LLDPNeighborsPartial renders the LLDP neighbors table.

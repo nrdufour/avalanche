@@ -12,13 +12,12 @@ import (
 
 // Config represents the complete application configuration.
 type Config struct {
-	Server      ServerConfig      `yaml:"server"`
-	Auth        AuthConfig        `yaml:"auth"`
-	Session     SessionConfig     `yaml:"session"`
-	Services    ServicesConfig    `yaml:"services"`
-	Collectors  CollectorsConfig  `yaml:"collectors"`
-	Diagnostics DiagnosticsConfig `yaml:"diagnostics"`
-	Logging     LoggingConfig     `yaml:"logging"`
+	Server     ServerConfig     `yaml:"server"`
+	Auth       AuthConfig       `yaml:"auth"`
+	Session    SessionConfig    `yaml:"session"`
+	Services   ServicesConfig   `yaml:"services"`
+	Collectors CollectorsConfig `yaml:"collectors"`
+	Logging    LoggingConfig    `yaml:"logging"`
 }
 
 // ServerConfig holds HTTP server settings.
@@ -163,15 +162,6 @@ type NetworkInterface struct {
 	Description string `yaml:"description"`
 }
 
-// DiagnosticsConfig holds network diagnostics settings.
-type DiagnosticsConfig struct {
-	AllowedTargets    []string      `yaml:"allowed_targets"`
-	PingTimeout       time.Duration `yaml:"ping_timeout"`
-	TracerouteTimeout time.Duration `yaml:"traceroute_timeout"`
-	DNSTimeout        time.Duration `yaml:"dns_timeout"`
-	PortTimeout       time.Duration `yaml:"port_timeout"`
-}
-
 // LoggingConfig holds logging settings.
 type LoggingConfig struct {
 	Level  string `yaml:"level"`
@@ -225,20 +215,6 @@ func (c *Config) applyDefaults() {
 	// Session defaults
 	if c.Session.Lifetime == 0 {
 		c.Session.Lifetime = 24 * time.Hour
-	}
-
-	// Diagnostics defaults
-	if c.Diagnostics.PingTimeout == 0 {
-		c.Diagnostics.PingTimeout = 10 * time.Second
-	}
-	if c.Diagnostics.TracerouteTimeout == 0 {
-		c.Diagnostics.TracerouteTimeout = 30 * time.Second
-	}
-	if c.Diagnostics.DNSTimeout == 0 {
-		c.Diagnostics.DNSTimeout = 5 * time.Second
-	}
-	if c.Diagnostics.PortTimeout == 0 {
-		c.Diagnostics.PortTimeout = 5 * time.Second
 	}
 
 	// Logging defaults

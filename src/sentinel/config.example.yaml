@@ -132,24 +132,6 @@ collectors:
         display_name: "Tailscale"
         description: "VPN interface"
 
-# Network diagnostics configuration
-diagnostics:
-  # Allowed targets for ping, traceroute, etc.
-  # Supports CIDR notation and wildcards
-  allowed_targets:
-    - "*.internal"
-    - "10.0.0.0/8"
-    - "192.168.0.0/16"
-    - "1.1.1.1"
-    - "8.8.8.8"
-    - "9.9.9.9"
-
-  # Command timeouts
-  ping_timeout: 10s
-  traceroute_timeout: 30s
-  dns_timeout: 5s
-  port_timeout: 5s
-
 # Logging configuration
 logging:
   level: "info"  # debug, info, warn, error

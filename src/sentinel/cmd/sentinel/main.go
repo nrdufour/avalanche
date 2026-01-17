@@ -100,16 +100,6 @@ func main() {
 		log.Info().Str("api_url", cfg.Collectors.AdGuard.APIURL).Msg("AdGuard collector initialized")
 	}
 
-	// Initialize diagnostics runner
-	diagnosticsRunner := collector.NewDiagnosticsRunner(
-		cfg.Diagnostics.AllowedTargets,
-		cfg.Diagnostics.PingTimeout,
-		cfg.Diagnostics.TracerouteTimeout,
-		cfg.Diagnostics.DNSTimeout,
-		cfg.Diagnostics.PortTimeout,
-	)
-	log.Info().Int("allowed_targets", len(cfg.Diagnostics.AllowedTargets)).Msg("Diagnostics runner initialized")
-
 	// Initialize conntrack collector
 	conntrackCollector := collector.NewConntrackCollector(30 * time.Second)
 	log.Info().Msg("Conntrack collector initialized")
@@ -156,7 +146,7 @@ func main() {
 	dashboardHandler := handler.NewDashboardHandler(sessions, cfg, keaCollector, adguardCollector, conntrackCollector)
 	apiHandler := handler.NewAPIHandler(cfg, sessions, systemdMgr, dockerMgr, keaCollector, adguardCollector, conntrackCollector, bandwidthCollector)
 	dhcpHandler := handler.NewDHCPHandler(sessions, cfg, keaCollector)
-	networkHandler := handler.NewNetworkHandler(sessions, cfg, diagnosticsRunner, adguardCollector, lldpCollector)
+	networkHandler := handler.NewNetworkHandler(sessions, cfg, adguardCollector, lldpCollector)
 	connectionsHandler := handler.NewConnectionsHandler(sessions, cfg, conntrackCollector, dnsCache)
 	firewallHandler := handler.NewFirewallHandler(sessions, cfg, firewallCollector, dnsCache)
 	tailscaleHandler := handler.NewTailscaleHandler(sessions, cfg)
@@ -217,12 +207,7 @@ func main() {
 			// DHCP leases
 			r.Get("/dhcp/leases", dhcpHandler.GetLeases)
 
-			// Network diagnostics
-			r.Post("/network/ping", networkHandler.Ping)
-			r.Post("/network/traceroute", networkHandler.Traceroute)
-			r.Post("/network/dns", networkHandler.DNSLookup)
-			r.Post("/network/port", networkHandler.PortCheck)
-			r.Post("/network/dns/clear-cache", networkHandler.ClearDNSCache)
+			// Network info
 			r.Get("/network/lldp", networkHandler.GetLLDPNeighbors)
 
 			// Firewall logs
