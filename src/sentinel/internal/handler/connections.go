@@ -19,14 +19,16 @@ type ConnectionsHandler struct {
 	sessions  *auth.SessionManager
 	cfg       *config.Config
 	conntrack *collector.ConntrackCollector
+	dnsCache  *collector.DNSCache
 }
 
 // NewConnectionsHandler creates a new connections handler.
-func NewConnectionsHandler(sessions *auth.SessionManager, cfg *config.Config, conntrack *collector.ConntrackCollector) *ConnectionsHandler {
+func NewConnectionsHandler(sessions *auth.SessionManager, cfg *config.Config, conntrack *collector.ConntrackCollector, dnsCache *collector.DNSCache) *ConnectionsHandler {
 	return &ConnectionsHandler{
 		sessions:  sessions,
 		cfg:       cfg,
 		conntrack: conntrack,
+		dnsCache:  dnsCache,
 	}
 }
 
@@ -210,6 +212,13 @@ func (h *ConnectionsHandler) GetTopTalkers(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		http.Error(w, "Failed to get top talkers: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Resolve hostnames using DNS cache
+	if h.dnsCache != nil {
+		for i := range talkers {
+			talkers[i].Hostname = h.dnsCache.LookupAddrAsync(talkers[i].IP)
+		}
 	}
 
 	// Check if client wants JSON or HTML

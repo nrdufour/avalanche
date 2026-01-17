@@ -189,7 +189,7 @@ func main() {
 	apiHandler := handler.NewAPIHandler(cfg, sessions, systemdMgr, dockerMgr, keaCollector, adguardCollector, conntrackCollector, bandwidthCollector)
 	dhcpHandler := handler.NewDHCPHandler(sessions, cfg, keaCollector)
 	networkHandler := handler.NewNetworkHandler(sessions, cfg, diagnosticsRunner, adguardCollector, lldpCollector)
-	connectionsHandler := handler.NewConnectionsHandler(sessions, cfg, conntrackCollector)
+	connectionsHandler := handler.NewConnectionsHandler(sessions, cfg, conntrackCollector, dnsCache)
 	firewallHandler := handler.NewFirewallHandler(sessions, cfg, firewallCollector, dnsCache)
 	tailscaleHandler := handler.NewTailscaleHandler(sessions, cfg)
 
