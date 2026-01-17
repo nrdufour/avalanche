@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"flag"
+	"io/fs"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,6 +16,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
+	sentinel "forge.internal/nemo/avalanche/src/sentinel"
 	"forge.internal/nemo/avalanche/src/sentinel/internal/auth"
 	"forge.internal/nemo/avalanche/src/sentinel/internal/collector"
 	"forge.internal/nemo/avalanche/src/sentinel/internal/config"
@@ -161,8 +163,12 @@ func main() {
 	r.Use(chimiddleware.Recoverer)
 	r.Use(sessions.LoadAndSave)
 
-	// Static files (served from disk)
-	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+	// Static files (embedded in binary)
+	staticFS, err := fs.Sub(sentinel.StaticFS, "static")
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create static file subsystem")
+	}
+	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 
 	// Public routes
 	r.Get("/login", authHandler.LoginPage)
