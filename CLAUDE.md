@@ -6,7 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Avalanche is a unified infrastructure-as-code monorepo managing 17 NixOS hosts (ARM SBCs, x86 servers, and workstations) plus a Kubernetes cluster using GitOps. This consolidates configurations from previously separate repositories (snowy, snowpea, home-ops).
 
-**Recent Major Developments** (as of December 2025):
+**Recent Major Developments** (as of January 2026):
+- ✅ Sentinel gateway dashboard for routy network management (`src/sentinel/`)
 - ✅ NPU (Neural Processing Unit) integration on Orange Pi 5 Plus nodes (mainline kernel + Mesa Teflon)
 - ✅ Network architecture refactored: Tailscale for remote access, Gluetun for VPN egress
 - ✅ Documentation reorganized into structured categories (architecture, guides, plans, troubleshooting)
@@ -282,6 +283,73 @@ fj actions tasks                          # Check build status
 fj actions dispatch build-all             # Trigger manual build
 ```
 
+### Sentinel (Gateway Dashboard)
+
+Web-based gateway management dashboard for routy. Provides unified visibility into network services, DHCP, firewall, and connections.
+
+**Location**: `src/sentinel/`
+**Access**: `https://sentinel.internal` (via Tailscale)
+**Stack**: Go + chi + htmx + Templ + Tailwind CSS
+
+#### Building & Running
+```bash
+cd src/sentinel
+
+# Build (generates templates + CSS + binary)
+make build
+
+# Development mode with auto-reload
+make dev
+
+# Run tests
+make test
+
+# Generate bcrypt password hash for config
+make hash-password PASSWORD=yourpassword
+```
+
+#### Features
+- **Dashboard**: Service health, interface status, system resources
+- **Services**: Monitor/restart Kea DHCP, Knot DNS, Kresd, AdGuard Home, Nginx, Tailscale, Omada
+- **DHCP Leases**: View active leases across networks (lan0, lab0, lab1)
+- **Firewall Logs**: Real-time streaming via SSE, filtering by IP/port/protocol
+- **Connections**: Active NAT connections via conntrack, top talkers
+- **Network**: Interface stats, LLDP neighbor discovery
+- **Tailscale**: Connected peer status
+
+#### Configuration
+Config file: `src/sentinel/config.yaml` (example at `config.example.yaml`)
+
+Key sections:
+- `server`: Host, port, timeouts
+- `auth.local`: Username/password (bcrypt hashes), roles (admin/operator/viewer)
+- `session`: Cookie secret, lifetime
+- `services`: Systemd services to monitor/control
+- `collectors`: Kea socket, AdGuard API, network interfaces, LLDP, bandwidth
+
+#### Project Structure
+```
+src/sentinel/
+├── cmd/sentinel/main.go      # Entry point
+├── internal/
+│   ├── auth/                 # Authentication & sessions
+│   ├── collector/            # Data collectors (kea, adguard, conntrack, firewall, etc.)
+│   ├── config/               # YAML config loading
+│   ├── handler/              # HTTP handlers
+│   ├── middleware/           # Auth, logging, recovery
+│   └── service/              # systemd D-Bus integration
+├── templates/                # Templ templates (layouts, pages, components)
+├── static/                   # CSS, JS (embedded in binary)
+└── Makefile
+```
+
+#### Security Requirements
+Runs as `sentinel` user with:
+- `CAP_NET_ADMIN` - conntrack, network diagnostics
+- `CAP_NET_RAW` - ping, traceroute
+- Group `systemd-journal` - log access
+- Group `kea` - DHCP lease file access
+
 ## Infrastructure Details
 
 ### NixOS Hosts (17 total)
@@ -436,6 +504,9 @@ sudo kanidm group add-members <groupname> <username> --name idm_admin
   - Apps: `kubernetes/base/apps/<category>/<app>/`
   - Infrastructure: `kubernetes/base/infra/<category>/<service>/`
   - ArgoCD apps: `kubernetes/base/<category>/<name>-app.yaml`
+- **Source Code** (`src/`):
+  - Custom tools and applications developed for this infrastructure
+  - `src/sentinel/` - Gateway management dashboard (Go)
 - **Documentation**:
   - Architecture: `docs/architecture/<domain>/`
   - Guides: `docs/guides/<topic>/`

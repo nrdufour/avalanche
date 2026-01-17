@@ -36,6 +36,7 @@ avalanche/
 │   ├── nixos/
 │   ├── kubernetes/
 │   └── cloud/
+├── src/                # Custom tools (sentinel gateway dashboard)
 └── docs/               # Documentation
     └── migration/      # Migration process documentation
 ```
@@ -67,6 +68,7 @@ avalanche/
 **Network:**
 - Tailscale: Mesh VPN with exit node support
 - knot-dns: DNS server
+- Sentinel: Gateway dashboard for routy (services, DHCP, firewall, connections)
 
 **Kubernetes:**
 - ArgoCD: GitOps deployment
