@@ -214,10 +214,10 @@ func (h *ConnectionsHandler) GetTopTalkers(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Resolve hostnames using DNS cache
+	// Resolve hostnames using DNS cache (synchronous for small result set)
 	if h.dnsCache != nil {
 		for i := range talkers {
-			talkers[i].Hostname = h.dnsCache.LookupAddrAsync(talkers[i].IP)
+			talkers[i].Hostname = h.dnsCache.LookupAddr(talkers[i].IP)
 		}
 	}
 

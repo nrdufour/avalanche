@@ -53,12 +53,13 @@ func (d *DNSCache) LookupAddr(ipStr string) string {
 	}
 	d.mu.RUnlock()
 
-	// Skip private IPs - they won't have useful reverse DNS
+	// Validate IP
 	ip := net.ParseIP(ipStr)
 	if ip == nil {
 		return ""
 	}
-	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() {
+	// Skip loopback and link-local, but allow private IPs (internal network hosts)
+	if ip.IsLoopback() || ip.IsLinkLocalUnicast() {
 		return ""
 	}
 
