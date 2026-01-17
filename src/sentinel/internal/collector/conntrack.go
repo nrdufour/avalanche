@@ -4,6 +4,7 @@ package collector
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"net"
 	"os/exec"
 	"regexp"
@@ -60,6 +61,17 @@ type ConntrackCollector struct {
 	timeout       time.Duration
 }
 
+// validProtocols is the whitelist of allowed protocol values for conntrack queries.
+var validProtocols = map[string]bool{
+	"tcp":  true,
+	"udp":  true,
+	"icmp": true,
+	"sctp": true,
+	"gre":  true,
+	"esp":  true,
+	"ah":   true,
+}
+
 // NewConntrackCollector creates a new conntrack collector.
 func NewConntrackCollector(timeout time.Duration) *ConntrackCollector {
 	// Find conntrack binary
@@ -90,6 +102,12 @@ func (c *ConntrackCollector) GetConnections(ctx context.Context) ([]Connection, 
 
 // GetConnectionsByProtocol retrieves connections filtered by protocol.
 func (c *ConntrackCollector) GetConnectionsByProtocol(ctx context.Context, protocol string) ([]Connection, error) {
+	// Validate protocol against whitelist to prevent argument injection
+	protocol = strings.ToLower(strings.TrimSpace(protocol))
+	if !validProtocols[protocol] {
+		return nil, fmt.Errorf("invalid protocol %q: must be one of tcp, udp, icmp, sctp, gre, esp, ah", protocol)
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 

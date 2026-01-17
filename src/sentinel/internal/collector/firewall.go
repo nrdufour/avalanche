@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -64,6 +65,29 @@ func NewFirewallCollector(timeout time.Duration) *FirewallCollector {
 	}
 }
 
+// validSincePattern matches valid journalctl --since values.
+// Allows: "N unit ago" (e.g., "1 hour ago", "30 minutes ago"),
+// dates like "2024-01-15" or "2024-01-15 10:00:00",
+// and special values like "today", "yesterday".
+var validSincePattern = regexp.MustCompile(`^(\d{1,4}[\s-]\w+[\s-]?\w*\s*(ago)?|\d{4}-\d{2}-\d{2}(\s+\d{2}:\d{2}(:\d{2})?)?|today|yesterday)$`)
+
+// isValidSince checks if the since parameter is safe to pass to journalctl.
+func isValidSince(since string) bool {
+	since = strings.TrimSpace(since)
+	// Reject empty, options (starting with -), or values with suspicious characters
+	if since == "" || strings.HasPrefix(since, "-") {
+		return false
+	}
+	// Only allow alphanumeric, spaces, colons, and hyphens
+	for _, c := range since {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+			(c >= '0' && c <= '9') || c == ' ' || c == ':' || c == '-') {
+			return false
+		}
+	}
+	return validSincePattern.MatchString(since)
+}
+
 // GetLogs retrieves recent firewall log entries.
 func (f *FirewallCollector) GetLogs(ctx context.Context, limit int, since string) ([]FirewallLogEntry, error) {
 	ctx, cancel := context.WithTimeout(ctx, f.timeout)
@@ -79,6 +103,10 @@ func (f *FirewallCollector) GetLogs(ctx context.Context, limit int, since string
 	}
 
 	if since != "" {
+		// Validate since parameter to prevent argument injection
+		if !isValidSince(since) {
+			return nil, fmt.Errorf("invalid since parameter: must be a valid time specification like '1 hour ago' or '2024-01-15'")
+		}
 		args = append(args, "--since", since)
 	} else {
 		// Default to last hour
