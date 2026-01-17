@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -305,7 +306,7 @@ func readSecretFile(path string) (string, error) {
 		return "", err
 	}
 	// Trim whitespace (common with mounted secrets)
-	return string(data), nil
+	return strings.TrimSpace(string(data)), nil
 }
 
 // validate checks that the configuration is valid.
