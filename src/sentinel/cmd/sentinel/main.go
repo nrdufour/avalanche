@@ -118,18 +118,14 @@ func main() {
 	// Initialize bandwidth collector if enabled
 	var bandwidthCollector *collector.BandwidthCollector
 	if cfg.Collectors.Bandwidth.Enabled {
-		interfaces := make([]string, len(cfg.Collectors.Network.Interfaces))
-		for i, iface := range cfg.Collectors.Network.Interfaces {
-			interfaces[i] = iface.Name
-		}
 		bandwidthCollector = collector.NewBandwidthCollector(
-			interfaces,
+			cfg.InterfaceNames(),
 			cfg.Collectors.Bandwidth.SampleRate,
 			cfg.Collectors.Bandwidth.Retention,
 		)
 		bandwidthCollector.Start(context.Background())
 		defer bandwidthCollector.Stop()
-		log.Info().Int("interfaces", len(interfaces)).Msg("Bandwidth collector started")
+		log.Info().Int("interfaces", len(cfg.Collectors.Network.Interfaces)).Msg("Bandwidth collector started")
 	}
 
 	// Initialize handlers

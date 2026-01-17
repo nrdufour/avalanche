@@ -327,3 +327,12 @@ func isValidRole(role string) bool {
 func (c *Config) Address() string {
 	return fmt.Sprintf("%s:%d", c.Server.Host, c.Server.Port)
 }
+
+// InterfaceNames returns a slice of network interface names from the config.
+func (c *Config) InterfaceNames() []string {
+	names := make([]string, len(c.Collectors.Network.Interfaces))
+	for i, iface := range c.Collectors.Network.Interfaces {
+		names[i] = iface.Name
+	}
+	return names
+}

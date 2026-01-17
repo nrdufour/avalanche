@@ -39,12 +39,6 @@ func NewAPIHandler(
 	conntrack *collector.ConntrackCollector,
 	bandwidth *collector.BandwidthCollector,
 ) *APIHandler {
-	// Build interface list from config
-	interfaces := make([]string, len(cfg.Collectors.Network.Interfaces))
-	for i, iface := range cfg.Collectors.Network.Interfaces {
-		interfaces[i] = iface.Name
-	}
-
 	// Initialize WAN collector if enabled
 	var wanCollector *collector.WANCollector
 	if cfg.Collectors.WAN.Enabled {
@@ -58,7 +52,7 @@ func NewAPIHandler(
 		cfg:                 cfg,
 		sessions:            sessions,
 		systemd:             systemd,
-		networkCollector:    collector.NewNetworkCollector(interfaces),
+		networkCollector:    collector.NewNetworkCollector(cfg.InterfaceNames()),
 		systemCollector:     collector.NewSystemCollector(cfg.Collectors.System.DiskMountPoints),
 		keaCollector:        kea,
 		adguardCollector:    adguard,
