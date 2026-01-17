@@ -5,7 +5,7 @@
 
 buildGoModule rec {
   pname = "sentinel";
-  version = "0.2.0";
+  version = "0.2.1";
 
   # Source from local src/sentinel directory
   # This path is relative to the flake root

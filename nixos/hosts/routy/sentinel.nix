@@ -100,7 +100,7 @@
     collectors.bandwidth = {
       enable = true;
       sampleRate = "5s";
-      retention = "1h";
+      retention = "24h";
     };
 
     # LLDP neighbor discovery
