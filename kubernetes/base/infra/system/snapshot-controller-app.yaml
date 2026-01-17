@@ -19,9 +19,22 @@ spec:
   destination:
     namespace: system
     name: 'in-cluster'
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: snapshot-controller-conversion-webhook
+      namespace: system
+      jsonPointers:
+        - /data
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: volumegroupsnapshotcontents.groupsnapshot.storage.k8s.io
+      jsonPointers:
+        - /spec/conversion/webhook/clientConfig/caBundle
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - RespectIgnoreDifferences=true
