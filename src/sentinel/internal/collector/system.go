@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -25,14 +27,46 @@ type SystemStats struct {
 	SwapFree    uint64
 	SwapUsed    uint64
 	SwapPercent float64
+	CPUUsage    float64     `json:"cpu_usage"`
+	CPUCores    int         `json:"cpu_cores"`
+	Disks       []DiskStats `json:"disks"`
+}
+
+// DiskStats represents disk usage statistics for a mount point.
+type DiskStats struct {
+	MountPoint  string  `json:"mount_point"`
+	Device      string  `json:"device,omitempty"`
+	Total       uint64  `json:"total"`
+	Used        uint64  `json:"used"`
+	Free        uint64  `json:"free"`
+	UsedPercent float64 `json:"used_percent"`
 }
 
 // SystemCollector collects system-level statistics.
-type SystemCollector struct{}
+type SystemCollector struct {
+	diskMountPoints []string
+	// For CPU usage calculation (delta between reads)
+	prevCPUStats cpuStats
+	prevCPUTime  time.Time
+}
+
+type cpuStats struct {
+	user, nice, system, idle, iowait, irq, softirq, steal uint64
+}
+
+func (c cpuStats) total() uint64 {
+	return c.user + c.nice + c.system + c.idle + c.iowait + c.irq + c.softirq + c.steal
+}
+
+func (c cpuStats) idle_total() uint64 {
+	return c.idle + c.iowait
+}
 
 // NewSystemCollector creates a new system collector.
-func NewSystemCollector() *SystemCollector {
-	return &SystemCollector{}
+func NewSystemCollector(diskMountPoints []string) *SystemCollector {
+	return &SystemCollector{
+		diskMountPoints: diskMountPoints,
+	}
 }
 
 // Collect gathers system statistics.
@@ -86,7 +120,126 @@ func (c *SystemCollector) Collect() (*SystemStats, error) {
 		}
 	}
 
+	// Get CPU info
+	stats.CPUCores = runtime.NumCPU()
+	stats.CPUUsage = c.calculateCPUUsage()
+
+	// Get disk stats
+	stats.Disks = c.collectDiskStats()
+
 	return stats, nil
+}
+
+// calculateCPUUsage calculates CPU usage percentage based on delta from previous reading.
+func (c *SystemCollector) calculateCPUUsage() float64 {
+	current, err := readCPUStats()
+	if err != nil {
+		return 0
+	}
+
+	now := time.Now()
+
+	// If this is the first reading or too much time has passed, store and return 0
+	if c.prevCPUTime.IsZero() || now.Sub(c.prevCPUTime) > time.Minute {
+		c.prevCPUStats = current
+		c.prevCPUTime = now
+		return 0
+	}
+
+	// Calculate delta
+	totalDelta := current.total() - c.prevCPUStats.total()
+	idleDelta := current.idle_total() - c.prevCPUStats.idle_total()
+
+	// Store current for next calculation
+	c.prevCPUStats = current
+	c.prevCPUTime = now
+
+	if totalDelta == 0 {
+		return 0
+	}
+
+	// CPU usage = (total - idle) / total * 100
+	return float64(totalDelta-idleDelta) / float64(totalDelta) * 100
+}
+
+// readCPUStats reads CPU statistics from /proc/stat.
+func readCPUStats() (cpuStats, error) {
+	file, err := os.Open("/proc/stat")
+	if err != nil {
+		return cpuStats{}, err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "cpu ") {
+			fields := strings.Fields(line)
+			if len(fields) < 8 {
+				return cpuStats{}, fmt.Errorf("invalid cpu stat format")
+			}
+
+			var stats cpuStats
+			stats.user, _ = strconv.ParseUint(fields[1], 10, 64)
+			stats.nice, _ = strconv.ParseUint(fields[2], 10, 64)
+			stats.system, _ = strconv.ParseUint(fields[3], 10, 64)
+			stats.idle, _ = strconv.ParseUint(fields[4], 10, 64)
+			stats.iowait, _ = strconv.ParseUint(fields[5], 10, 64)
+			stats.irq, _ = strconv.ParseUint(fields[6], 10, 64)
+			stats.softirq, _ = strconv.ParseUint(fields[7], 10, 64)
+			if len(fields) > 8 {
+				stats.steal, _ = strconv.ParseUint(fields[8], 10, 64)
+			}
+
+			return stats, nil
+		}
+	}
+
+	return cpuStats{}, fmt.Errorf("cpu line not found in /proc/stat")
+}
+
+// collectDiskStats gathers disk usage for configured mount points.
+func (c *SystemCollector) collectDiskStats() []DiskStats {
+	var disks []DiskStats
+
+	for _, mountPoint := range c.diskMountPoints {
+		stat, err := getDiskStats(mountPoint)
+		if err != nil {
+			continue
+		}
+		disks = append(disks, stat)
+	}
+
+	return disks
+}
+
+// getDiskStats returns disk usage statistics for a mount point.
+func getDiskStats(mountPoint string) (DiskStats, error) {
+	var stat syscall.Statfs_t
+	if err := syscall.Statfs(mountPoint, &stat); err != nil {
+		return DiskStats{}, err
+	}
+
+	// Calculate sizes in bytes
+	total := stat.Blocks * uint64(stat.Bsize)
+	free := stat.Bfree * uint64(stat.Bsize)
+	avail := stat.Bavail * uint64(stat.Bsize)
+
+	// Used = total - free (for root), but available might be less due to reserved blocks
+	used := total - free
+	usedPercent := float64(0)
+	if total > 0 {
+		// Use (total - avail) for user-visible percentage since some blocks are reserved for root
+		usedPercent = float64(total-avail) / float64(total) * 100
+	}
+
+	return DiskStats{
+		MountPoint:  mountPoint,
+		Total:       total,
+		Used:        used,
+		Free:        avail, // Report available space (user-accessible)
+		UsedPercent: usedPercent,
+	}, nil
 }
 
 // readUptime reads system uptime from /proc/uptime.

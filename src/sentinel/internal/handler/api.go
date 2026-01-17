@@ -18,15 +18,17 @@ import (
 
 // APIHandler handles API requests for services and network.
 type APIHandler struct {
-	cfg                *config.Config
-	sessions           *auth.SessionManager
-	systemd            *service.SystemdManager
-	docker             *service.DockerManager
-	networkCollector   *collector.NetworkCollector
-	systemCollector    *collector.SystemCollector
-	keaCollector       *collector.KeaCollector
-	adguardCollector   *collector.AdGuardCollector
-	conntrackCollector *collector.ConntrackCollector
+	cfg                 *config.Config
+	sessions            *auth.SessionManager
+	systemd             *service.SystemdManager
+	docker              *service.DockerManager
+	networkCollector    *collector.NetworkCollector
+	systemCollector     *collector.SystemCollector
+	keaCollector        *collector.KeaCollector
+	adguardCollector    *collector.AdGuardCollector
+	conntrackCollector  *collector.ConntrackCollector
+	wanCollector        *collector.WANCollector
+	bandwidthCollector  *collector.BandwidthCollector
 }
 
 // NewAPIHandler creates a new API handler.
@@ -38,6 +40,7 @@ func NewAPIHandler(
 	kea *collector.KeaCollector,
 	adguard *collector.AdGuardCollector,
 	conntrack *collector.ConntrackCollector,
+	bandwidth *collector.BandwidthCollector,
 ) *APIHandler {
 	// Build interface list from config
 	interfaces := make([]string, len(cfg.Collectors.Network.Interfaces))
@@ -45,16 +48,27 @@ func NewAPIHandler(
 		interfaces[i] = iface.Name
 	}
 
+	// Initialize WAN collector if enabled
+	var wanCollector *collector.WANCollector
+	if cfg.Collectors.WAN.Enabled {
+		wanCollector = collector.NewWANCollector(
+			cfg.Collectors.WAN.LatencyTargets,
+			cfg.Collectors.WAN.CacheDuration,
+		)
+	}
+
 	return &APIHandler{
-		cfg:                cfg,
-		sessions:           sessions,
-		systemd:            systemd,
-		docker:             docker,
-		networkCollector:   collector.NewNetworkCollector(interfaces),
-		systemCollector:    collector.NewSystemCollector(),
-		keaCollector:       kea,
-		adguardCollector:   adguard,
-		conntrackCollector: conntrack,
+		cfg:                 cfg,
+		sessions:            sessions,
+		systemd:             systemd,
+		docker:              docker,
+		networkCollector:    collector.NewNetworkCollector(interfaces),
+		systemCollector:     collector.NewSystemCollector(cfg.Collectors.System.DiskMountPoints),
+		keaCollector:        kea,
+		adguardCollector:    adguard,
+		conntrackCollector:  conntrack,
+		wanCollector:        wanCollector,
+		bandwidthCollector:  bandwidth,
 	}
 }
 
@@ -456,4 +470,129 @@ func (h *APIHandler) GetDashboardStats(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stats)
+}
+
+// GetWANStatus returns WAN status information.
+func (h *APIHandler) GetWANStatus(w http.ResponseWriter, r *http.Request) {
+	if h.wanCollector == nil {
+		http.Error(w, "WAN monitoring not enabled", http.StatusNotFound)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	stats, err := h.wanCollector.Collect(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to collect WAN stats")
+		http.Error(w, "Failed to collect WAN stats", http.StatusInternalServerError)
+		return
+	}
+
+	// Check if client wants HTML (htmx) or JSON
+	if r.Header.Get("HX-Request") == "true" {
+		w.Header().Set("Content-Type", "text/html")
+		pages.WANStatusPartial(convertWANStats(stats)).Render(ctx, w)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(stats)
+}
+
+// convertWANStats converts collector WAN stats to page WAN stats.
+func convertWANStats(stats *collector.WANStats) pages.WANStatus {
+	targets := make([]pages.WANTarget, len(stats.Targets))
+	for i, t := range stats.Targets {
+		targets[i] = pages.WANTarget{
+			Name:       t.Name,
+			IP:         t.IP,
+			Latency:    t.Latency,
+			PacketLoss: t.PacketLoss,
+			Status:     t.Status,
+		}
+	}
+
+	return pages.WANStatus{
+		PublicIP:  stats.PublicIP,
+		Targets:   targets,
+		LastCheck: stats.LastCheck,
+	}
+}
+
+// GetTimers returns systemd timer status.
+func (h *APIHandler) GetTimers(w http.ResponseWriter, r *http.Request) {
+	if h.systemd == nil {
+		http.Error(w, "Systemd manager not available", http.StatusNotFound)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	timers, err := h.systemd.GetTimers(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get timers")
+		http.Error(w, "Failed to get timers", http.StatusInternalServerError)
+		return
+	}
+
+	// Check if client wants HTML (htmx) or JSON
+	if r.Header.Get("HX-Request") == "true" {
+		timerInfos := make([]pages.TimerInfo, len(timers))
+		for i, t := range timers {
+			timerInfos[i] = pages.TimerInfo{
+				Name:        t.Name,
+				Description: t.Description,
+				Active:      t.Active,
+				NextRun:     t.NextRun,
+				LastRun:     t.LastRun,
+				Unit:        t.Unit,
+			}
+		}
+
+		w.Header().Set("Content-Type", "text/html")
+		pages.TimersPartial(timerInfos).Render(ctx, w)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(timers)
+}
+
+// GetBandwidth returns bandwidth history for interfaces.
+func (h *APIHandler) GetBandwidth(w http.ResponseWriter, r *http.Request) {
+	if h.bandwidthCollector == nil {
+		http.Error(w, "Bandwidth monitoring not enabled", http.StatusNotFound)
+		return
+	}
+
+	// Parse query parameters
+	ifaceName := r.URL.Query().Get("interface")
+	sinceStr := r.URL.Query().Get("since")
+
+	var since time.Duration
+	if sinceStr != "" {
+		parsed, err := time.ParseDuration(sinceStr)
+		if err == nil {
+			since = parsed
+		}
+	}
+
+	// Default to 1 hour
+	if since == 0 {
+		since = time.Hour
+	}
+
+	var response interface{}
+	if ifaceName != "" {
+		// Get history for specific interface
+		response = h.bandwidthCollector.GetHistory(ifaceName, since)
+	} else {
+		// Get history for all interfaces
+		response = h.bandwidthCollector.GetAllHistory(since)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }

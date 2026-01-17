@@ -4,6 +4,7 @@ package collector
 import (
 	"bufio"
 	"context"
+	"net"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -43,6 +44,14 @@ type ConnectionStats struct {
 type IPCount struct {
 	IP    string `json:"ip"`
 	Count int    `json:"count"`
+}
+
+// TalkerStats represents bandwidth usage for a single IP.
+type TalkerStats struct {
+	IP          string `json:"ip"`
+	Hostname    string `json:"hostname,omitempty"`
+	TotalBytes  int64  `json:"total_bytes"`
+	Connections int    `json:"connections"`
 }
 
 // ConntrackCollector collects connection tracking data from netfilter conntrack.
@@ -158,6 +167,65 @@ func (c *ConntrackCollector) GetCount(ctx context.Context) (int, error) {
 	}
 
 	return count, nil
+}
+
+// GetTopTalkers retrieves the top talkers by bandwidth (internal IPs only).
+// It aggregates bytes by source IP for connections originating from private IP ranges.
+func (c *ConntrackCollector) GetTopTalkers(ctx context.Context, limit int) ([]TalkerStats, error) {
+	connections, err := c.GetConnections(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if limit <= 0 {
+		limit = 10
+	}
+
+	// Aggregate bytes and connections by source IP (internal IPs only)
+	talkers := make(map[string]*TalkerStats)
+	for _, conn := range connections {
+		// Only include internal (private) source IPs
+		if !isPrivateIP(conn.SrcIP) {
+			continue
+		}
+
+		if _, ok := talkers[conn.SrcIP]; !ok {
+			talkers[conn.SrcIP] = &TalkerStats{IP: conn.SrcIP}
+		}
+		talkers[conn.SrcIP].TotalBytes += conn.Bytes
+		talkers[conn.SrcIP].Connections++
+	}
+
+	// Convert to slice and sort by bytes descending
+	result := make([]TalkerStats, 0, len(talkers))
+	for _, t := range talkers {
+		result = append(result, *t)
+	}
+
+	// Sort by TotalBytes descending (bubble sort for simplicity)
+	for i := 0; i < len(result)-1; i++ {
+		for j := i + 1; j < len(result); j++ {
+			if result[j].TotalBytes > result[i].TotalBytes {
+				result[i], result[j] = result[j], result[i]
+			}
+		}
+	}
+
+	// Limit results
+	if len(result) > limit {
+		result = result[:limit]
+	}
+
+	return result, nil
+}
+
+// isPrivateIP checks if an IP address is in a private range.
+func isPrivateIP(ipStr string) bool {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false
+	}
+	return ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast()
 }
 
 // parseConntrackOutput parses the output of conntrack -L.

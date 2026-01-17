@@ -2,6 +2,7 @@ package pages
 
 import (
 	"fmt"
+	"time"
 
 	"forge.internal/nemo/avalanche/src/sentinel/templates/layouts"
 )
@@ -44,6 +45,32 @@ type DashboardStats struct {
 	Uptime            string
 }
 
+// WANStatus represents WAN connection status.
+type WANStatus struct {
+	PublicIP  string
+	Targets   []WANTarget
+	LastCheck time.Time
+}
+
+// WANTarget represents a WAN latency target.
+type WANTarget struct {
+	Name       string
+	IP         string
+	Latency    float64 // ms
+	PacketLoss float64 // percentage
+	Status     string  // "healthy", "degraded", "down"
+}
+
+// TimerInfo represents a systemd timer for display.
+type TimerInfo struct {
+	Name        string
+	Description string
+	Active      bool
+	NextRun     time.Time
+	LastRun     time.Time
+	Unit        string
+}
+
 // Dashboard renders the main dashboard page.
 templ Dashboard(params DashboardParams) {
 	@layouts.Authenticated(layouts.AuthenticatedParams{
@@ -69,6 +96,24 @@ templ Dashboard(params DashboardParams) {
 				hx-swap="innerHTML"
 			>
 				@StatsPartial(params.Stats)
+			</div>
+			<!-- WAN status - loads via htmx -->
+			<div
+				class="grid grid-cols-1 gap-4 lg:grid-cols-2"
+				hx-get="/api/wan/status"
+				hx-trigger="load, every 60s"
+				hx-swap="innerHTML"
+			>
+				<!-- WAN status card will be loaded here -->
+				<div class="rounded-lg bg-white dark:bg-gray-800 shadow border border-gray-200 dark:border-gray-700 overflow-hidden animate-pulse">
+					<div class="p-4">
+						<div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-3"></div>
+						<div class="space-y-2">
+							<div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-32"></div>
+							<div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-28"></div>
+						</div>
+					</div>
+				</div>
 			</div>
 			<!-- Services section -->
 			<div>
@@ -96,6 +141,22 @@ templ Dashboard(params DashboardParams) {
 					for _, iface := range params.Interfaces {
 						@interfaceCard(iface)
 					}
+				</div>
+			</div>
+			<!-- Systemd Timers section -->
+			<div>
+				<h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Scheduled Tasks</h2>
+				<div
+					class="overflow-hidden bg-white dark:bg-gray-800 shadow ring-1 ring-black ring-opacity-5 dark:ring-gray-700 rounded-lg"
+					hx-get="/api/timers"
+					hx-trigger="load, every 60s"
+					hx-swap="innerHTML"
+				>
+					<!-- Timers will be loaded here -->
+					<div class="p-4 animate-pulse">
+						<div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-2"></div>
+						<div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -281,4 +342,217 @@ templ StatsPartial(stats DashboardStats) {
 			<path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
 		</svg>
 	}
+}
+
+// WANStatusPartial renders the WAN status card (for htmx updates).
+templ WANStatusPartial(status WANStatus) {
+	<div class="rounded-lg bg-white dark:bg-gray-800 shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
+		<div class="p-4">
+			<div class="flex items-center justify-between mb-3">
+				<h3 class="text-sm font-medium text-gray-900 dark:text-white">WAN Status</h3>
+				if status.PublicIP != "" {
+					<span class="text-xs font-mono text-gray-500 dark:text-gray-400">{ status.PublicIP }</span>
+				}
+			</div>
+			<div class="space-y-2">
+				for _, target := range status.Targets {
+					@wanTargetRow(target)
+				}
+			</div>
+			if !status.LastCheck.IsZero() {
+				<div class="mt-3 text-xs text-gray-400 dark:text-gray-500">
+					Updated { formatTimeAgo(status.LastCheck) }
+				</div>
+			}
+		</div>
+	</div>
+}
+
+// wanTargetRow renders a single WAN target row.
+templ wanTargetRow(target WANTarget) {
+	<div class="flex items-center justify-between py-1">
+		<div class="flex items-center space-x-2">
+			@wanStatusDot(target.Status)
+			<span class="text-sm font-mono text-gray-600 dark:text-gray-300">{ target.IP }</span>
+		</div>
+		<div class="text-sm text-gray-500 dark:text-gray-400">
+			if target.Status == "down" {
+				<span class="text-red-600 dark:text-red-400">Unreachable</span>
+			} else {
+				<span>{ formatLatency(target.Latency) }</span>
+				if target.PacketLoss > 0 {
+					<span class="ml-2 text-orange-600 dark:text-orange-400">{ formatPacketLoss(target.PacketLoss) } loss</span>
+				}
+			}
+		</div>
+	</div>
+}
+
+// wanStatusDot renders a status indicator dot.
+// Colors chosen to be distinguishable with deuteranopia.
+templ wanStatusDot(status string) {
+	switch status {
+		case "healthy":
+			<span class="h-2 w-2 rounded-full bg-blue-500"></span>
+		case "degraded":
+			<span class="h-2 w-2 rounded-full bg-orange-500"></span>
+		default:
+			<span class="h-2 w-2 rounded-full bg-red-500"></span>
+	}
+}
+
+// formatLatency formats latency in milliseconds.
+func formatLatency(ms float64) string {
+	if ms < 1 {
+		return fmt.Sprintf("%.2f ms", ms)
+	}
+	return fmt.Sprintf("%.1f ms", ms)
+}
+
+// formatPacketLoss formats packet loss percentage.
+func formatPacketLoss(loss float64) string {
+	if loss == float64(int(loss)) {
+		return fmt.Sprintf("%d%%", int(loss))
+	}
+	return fmt.Sprintf("%.1f%%", loss)
+}
+
+// formatTimeAgo formats a time as relative "X ago" string.
+func formatTimeAgo(t time.Time) string {
+	d := time.Since(t)
+	if d < time.Minute {
+		return "just now"
+	}
+	if d < time.Hour {
+		mins := int(d.Minutes())
+		if mins == 1 {
+			return "1 minute ago"
+		}
+		return fmt.Sprintf("%d minutes ago", mins)
+	}
+	hours := int(d.Hours())
+	if hours == 1 {
+		return "1 hour ago"
+	}
+	return fmt.Sprintf("%d hours ago", hours)
+}
+
+// TimersPartial renders the timers table (for htmx updates).
+templ TimersPartial(timers []TimerInfo) {
+	if len(timers) == 0 {
+		<div class="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
+			No scheduled tasks found
+		</div>
+	} else {
+		<table class="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
+			<thead class="bg-gray-50 dark:bg-gray-700">
+				<tr>
+					<th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">Timer</th>
+					<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Status</th>
+					<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Last Run</th>
+					<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Next Run</th>
+				</tr>
+			</thead>
+			<tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+				for _, timer := range timers {
+					@timerRow(timer)
+				}
+			</tbody>
+		</table>
+	}
+}
+
+// timerRow renders a single timer row.
+templ timerRow(timer TimerInfo) {
+	<tr>
+		<td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
+			<div class="font-medium text-gray-900 dark:text-white">{ formatTimerName(timer.Name) }</div>
+			if timer.Description != "" {
+				<div class="text-gray-500 dark:text-gray-400 truncate max-w-xs">{ timer.Description }</div>
+			}
+		</td>
+		<td class="whitespace-nowrap px-3 py-4 text-sm">
+			if timer.Active {
+				<span class="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/50 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:text-blue-300">
+					<span class="mr-1 h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+					Active
+				</span>
+			} else {
+				<span class="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 px-2.5 py-0.5 text-xs font-medium text-gray-800 dark:text-gray-300">
+					Inactive
+				</span>
+			}
+		</td>
+		<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
+			if timer.LastRun.IsZero() {
+				<span class="text-gray-400 dark:text-gray-500">Never</span>
+			} else {
+				{ formatTimerTime(timer.LastRun) }
+			}
+		</td>
+		<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
+			if timer.NextRun.IsZero() {
+				<span class="text-gray-400 dark:text-gray-500">-</span>
+			} else {
+				{ formatTimerTime(timer.NextRun) }
+			}
+		</td>
+	</tr>
+}
+
+// formatTimerName formats a timer name for display (removes .timer suffix).
+func formatTimerName(name string) string {
+	if len(name) > 6 && name[len(name)-6:] == ".timer" {
+		return name[:len(name)-6]
+	}
+	return name
+}
+
+// formatTimerTime formats a time for timer display.
+func formatTimerTime(t time.Time) string {
+	now := time.Now()
+	d := t.Sub(now)
+
+	// For past times
+	if d < 0 {
+		d = -d
+		if d < time.Minute {
+			return "just now"
+		}
+		if d < time.Hour {
+			mins := int(d.Minutes())
+			if mins == 1 {
+				return "1 min ago"
+			}
+			return fmt.Sprintf("%d min ago", mins)
+		}
+		if d < 24*time.Hour {
+			hours := int(d.Hours())
+			if hours == 1 {
+				return "1 hour ago"
+			}
+			return fmt.Sprintf("%d hours ago", hours)
+		}
+		return t.Format("Jan 2 15:04")
+	}
+
+	// For future times
+	if d < time.Minute {
+		return "in < 1 min"
+	}
+	if d < time.Hour {
+		mins := int(d.Minutes())
+		if mins == 1 {
+			return "in 1 min"
+		}
+		return fmt.Sprintf("in %d min", mins)
+	}
+	if d < 24*time.Hour {
+		hours := int(d.Hours())
+		if hours == 1 {
+			return "in 1 hour"
+		}
+		return fmt.Sprintf("in %d hours", hours)
+	}
+	return t.Format("Jan 2 15:04")
 }

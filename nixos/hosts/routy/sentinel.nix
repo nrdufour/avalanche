@@ -86,6 +86,29 @@
       username = "";  # No auth needed for local access
     };
 
+    # WAN status monitoring
+    collectors.wan = {
+      enable = true;
+      latencyTargets = [ "1.1.1.1" "8.8.8.8" ];
+      cacheDuration = "5m";
+    };
+
+    # Tailscale peer monitoring
+    collectors.tailscale.enable = true;
+
+    # Bandwidth history tracking
+    collectors.bandwidth = {
+      enable = true;
+      sampleRate = "5s";
+      retention = "1h";
+    };
+
+    # LLDP neighbor discovery
+    collectors.lldp.enable = true;
+
+    # System resource monitoring
+    collectors.system.diskMountPoints = [ "/" "/srv" ];
+
     # Network interfaces to monitor
     collectors.network.interfaces = [
       {

@@ -35,7 +35,7 @@ func NewDashboardHandler(
 		keaCollector:       kea,
 		adguardCollector:   adguard,
 		conntrackCollector: conntrack,
-		systemCollector:    collector.NewSystemCollector(),
+		systemCollector:    collector.NewSystemCollector(cfg.Collectors.System.DiskMountPoints),
 	}
 }
 

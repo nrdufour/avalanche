@@ -120,6 +120,18 @@ func main() {
 	firewallCollector := collector.NewFirewallCollector(30 * time.Second)
 	log.Info().Msg("Firewall log collector initialized")
 
+	// Initialize LLDP collector (if enabled)
+	var lldpCollector *collector.LLDPCollector
+	if cfg.Collectors.LLDP.Enabled {
+		lldpCollector = collector.NewLLDPCollector(10 * time.Second)
+		if lldpCollector.IsAvailable() {
+			log.Info().Str("path", lldpCollector.GetPath()).Msg("LLDP collector initialized")
+		} else {
+			log.Warn().Str("path", lldpCollector.GetPath()).Msg("LLDP collector enabled but lldpctl not found")
+			lldpCollector = nil
+		}
+	}
+
 	// Initialize DNS cache for reverse lookups
 	dnsCache := collector.NewDNSCache(5000, time.Hour, 500*time.Millisecond)
 	log.Info().Msg("DNS cache initialized")
@@ -154,14 +166,32 @@ func main() {
 		log.Info().Str("path", cfg.Metrics.Path).Msg("Metrics collector started")
 	}
 
+	// Initialize bandwidth collector if enabled
+	var bandwidthCollector *collector.BandwidthCollector
+	if cfg.Collectors.Bandwidth.Enabled {
+		interfaces := make([]string, len(cfg.Collectors.Network.Interfaces))
+		for i, iface := range cfg.Collectors.Network.Interfaces {
+			interfaces[i] = iface.Name
+		}
+		bandwidthCollector = collector.NewBandwidthCollector(
+			interfaces,
+			cfg.Collectors.Bandwidth.SampleRate,
+			cfg.Collectors.Bandwidth.Retention,
+		)
+		bandwidthCollector.Start(context.Background())
+		defer bandwidthCollector.Stop()
+		log.Info().Int("interfaces", len(interfaces)).Msg("Bandwidth collector started")
+	}
+
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(localAuth, sessions)
 	dashboardHandler := handler.NewDashboardHandler(sessions, cfg, keaCollector, adguardCollector, conntrackCollector)
-	apiHandler := handler.NewAPIHandler(cfg, sessions, systemdMgr, dockerMgr, keaCollector, adguardCollector, conntrackCollector)
+	apiHandler := handler.NewAPIHandler(cfg, sessions, systemdMgr, dockerMgr, keaCollector, adguardCollector, conntrackCollector, bandwidthCollector)
 	dhcpHandler := handler.NewDHCPHandler(sessions, cfg, keaCollector)
-	networkHandler := handler.NewNetworkHandler(sessions, cfg, diagnosticsRunner, adguardCollector)
+	networkHandler := handler.NewNetworkHandler(sessions, cfg, diagnosticsRunner, adguardCollector, lldpCollector)
 	connectionsHandler := handler.NewConnectionsHandler(sessions, cfg, conntrackCollector)
 	firewallHandler := handler.NewFirewallHandler(sessions, cfg, firewallCollector, dnsCache)
+	tailscaleHandler := handler.NewTailscaleHandler(sessions, cfg)
 
 	// Create router
 	r := chi.NewRouter()
@@ -206,8 +236,20 @@ func main() {
 			r.Get("/network/interfaces", apiHandler.GetNetworkInterfaces)
 			r.Get("/network/interfaces.json", apiHandler.GetNetworkInterfacesJSON)
 
+			// Bandwidth history
+			r.Get("/network/bandwidth", apiHandler.GetBandwidth)
+
 			// Dashboard stats
 			r.Get("/stats", apiHandler.GetDashboardStats)
+
+			// WAN status
+			r.Get("/wan/status", apiHandler.GetWANStatus)
+
+			// Tailscale
+			r.Get("/tailscale/peers", tailscaleHandler.GetPeers)
+
+			// Systemd timers
+			r.Get("/timers", apiHandler.GetTimers)
 
 			// DHCP leases
 			r.Get("/dhcp/leases", dhcpHandler.GetLeases)
@@ -218,6 +260,7 @@ func main() {
 			r.Post("/network/dns", networkHandler.DNSLookup)
 			r.Post("/network/port", networkHandler.PortCheck)
 			r.Post("/network/dns/clear-cache", networkHandler.ClearDNSCache)
+			r.Get("/network/lldp", networkHandler.GetLLDPNeighbors)
 
 			// Firewall logs
 			r.Get("/firewall/logs", firewallHandler.GetLogs)
@@ -229,11 +272,13 @@ func main() {
 			// Connection tracking
 			r.Get("/connections", connectionsHandler.GetConnections)
 			r.Get("/connections/stats", connectionsHandler.GetConnectionStats)
+			r.Get("/connections/talkers", connectionsHandler.GetTopTalkers)
 		})
 
 		// Pages
 		r.Get("/dhcp", dhcpHandler.DHCPPage)
 		r.Get("/network", networkHandler.NetworkPage)
+		r.Get("/tailscale", tailscaleHandler.TailscalePage)
 		r.Get("/firewall", firewallHandler.FirewallPage)
 		r.Get("/connections", connectionsHandler.ConnectionsPage)
 	})

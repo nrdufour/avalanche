@@ -85,6 +85,25 @@ let
           description = i.description;
         }) cfg.collectors.network.interfaces;
       };
+      wan = {
+        enabled = cfg.collectors.wan.enable;
+        latency_targets = cfg.collectors.wan.latencyTargets;
+        cache_duration = cfg.collectors.wan.cacheDuration;
+      };
+      tailscale = {
+        enabled = cfg.collectors.tailscale.enable;
+      };
+      bandwidth = {
+        enabled = cfg.collectors.bandwidth.enable;
+        sample_rate = cfg.collectors.bandwidth.sampleRate;
+        retention = cfg.collectors.bandwidth.retention;
+      };
+      lldp = {
+        enabled = cfg.collectors.lldp.enable;
+      };
+      system = {
+        disk_mount_points = cfg.collectors.system.diskMountPoints;
+      };
     };
 
     diagnostics = {
@@ -182,6 +201,25 @@ let
             display_name = i.displayName;
             description = i.description;
           }) cfg.collectors.network.interfaces)}
+        },
+        "wan": {
+          "enabled": ${boolToString cfg.collectors.wan.enable},
+          "latency_targets": ${builtins.toJSON cfg.collectors.wan.latencyTargets},
+          "cache_duration": "${cfg.collectors.wan.cacheDuration}"
+        },
+        "tailscale": {
+          "enabled": ${boolToString cfg.collectors.tailscale.enable}
+        },
+        "bandwidth": {
+          "enabled": ${boolToString cfg.collectors.bandwidth.enable},
+          "sample_rate": "${cfg.collectors.bandwidth.sampleRate}",
+          "retention": "${cfg.collectors.bandwidth.retention}"
+        },
+        "lldp": {
+          "enabled": ${boolToString cfg.collectors.lldp.enable}
+        },
+        "system": {
+          "disk_mount_points": ${builtins.toJSON cfg.collectors.system.diskMountPoints}
         }
       },
       "diagnostics": {
@@ -429,6 +467,66 @@ in
           description = "Network interfaces to monitor";
         };
       };
+
+      wan = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Enable WAN status monitoring";
+        };
+        latencyTargets = mkOption {
+          type = types.listOf types.str;
+          default = [ "1.1.1.1" "8.8.8.8" ];
+          description = "IP addresses to measure latency to";
+        };
+        cacheDuration = mkOption {
+          type = types.str;
+          default = "5m";
+          description = "How long to cache WAN status results";
+        };
+      };
+
+      tailscale = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Enable Tailscale peer monitoring";
+        };
+      };
+
+      bandwidth = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Enable bandwidth history tracking";
+        };
+        sampleRate = mkOption {
+          type = types.str;
+          default = "5s";
+          description = "How often to sample bandwidth";
+        };
+        retention = mkOption {
+          type = types.str;
+          default = "1h";
+          description = "How long to retain bandwidth history";
+        };
+      };
+
+      lldp = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Enable LLDP neighbor discovery";
+        };
+      };
+
+      system = {
+        diskMountPoints = mkOption {
+          type = types.listOf types.str;
+          default = [ "/" ];
+          description = "Disk mount points to monitor";
+        };
+      };
     };
 
     # Diagnostics
@@ -514,7 +612,8 @@ in
       description = "Sentinel gateway management service";
       extraGroups = [
         "systemd-journal"  # Read journald logs
-      ] ++ optionals config.services.kea.dhcp4.enable [ "kea" ];
+      ] ++ optionals config.services.kea.dhcp4.enable [ "kea" ]
+        ++ optionals cfg.collectors.lldp.enable [ "_lldpd" ];  # Access lldpd socket
     };
     users.groups.sentinel = { };
 
@@ -563,6 +662,9 @@ in
         iputils      # ping
         traceroute   # traceroute
         bind.dnsutils # dig
+        fping        # WAN latency measurements
+        lldpd        # LLDP neighbor discovery (lldpctl)
+        tailscale    # Tailscale peer status
       ];
 
       serviceConfig = {

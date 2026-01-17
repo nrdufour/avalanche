@@ -99,9 +99,43 @@ type DockerContainer struct {
 
 // CollectorsConfig holds data collector settings.
 type CollectorsConfig struct {
-	Kea     KeaConfig     `yaml:"kea"`
-	AdGuard AdGuardConfig `yaml:"adguard"`
-	Network NetworkConfig `yaml:"network"`
+	Kea       KeaConfig       `yaml:"kea"`
+	AdGuard   AdGuardConfig   `yaml:"adguard"`
+	Network   NetworkConfig   `yaml:"network"`
+	System    SystemConfig    `yaml:"system"`
+	WAN       WANConfig       `yaml:"wan"`
+	Tailscale TailscaleConfig `yaml:"tailscale"`
+	Bandwidth BandwidthConfig `yaml:"bandwidth"`
+	LLDP      LLDPConfig      `yaml:"lldp"`
+}
+
+// WANConfig holds WAN status monitoring settings.
+type WANConfig struct {
+	Enabled        bool          `yaml:"enabled"`
+	LatencyTargets []string      `yaml:"latency_targets"`
+	CacheDuration  time.Duration `yaml:"cache_duration"`
+}
+
+// TailscaleConfig holds Tailscale monitoring settings.
+type TailscaleConfig struct {
+	Enabled bool `yaml:"enabled"`
+}
+
+// BandwidthConfig holds bandwidth monitoring settings.
+type BandwidthConfig struct {
+	Enabled    bool          `yaml:"enabled"`
+	SampleRate time.Duration `yaml:"sample_rate"`
+	Retention  time.Duration `yaml:"retention"`
+}
+
+// LLDPConfig holds LLDP neighbor discovery settings.
+type LLDPConfig struct {
+	Enabled bool `yaml:"enabled"`
+}
+
+// SystemConfig holds system resource monitoring settings.
+type SystemConfig struct {
+	DiskMountPoints []string `yaml:"disk_mount_points"`
 }
 
 // KeaConfig holds Kea DHCP collector settings.
@@ -229,6 +263,27 @@ func (c *Config) applyDefaults() {
 	// Docker defaults
 	if c.Services.Docker.Socket == "" {
 		c.Services.Docker.Socket = "unix:///var/run/docker.sock"
+	}
+
+	// System collector defaults
+	if len(c.Collectors.System.DiskMountPoints) == 0 {
+		c.Collectors.System.DiskMountPoints = []string{"/"}
+	}
+
+	// WAN collector defaults
+	if len(c.Collectors.WAN.LatencyTargets) == 0 {
+		c.Collectors.WAN.LatencyTargets = []string{"1.1.1.1", "8.8.8.8"}
+	}
+	if c.Collectors.WAN.CacheDuration == 0 {
+		c.Collectors.WAN.CacheDuration = 5 * time.Minute
+	}
+
+	// Bandwidth collector defaults
+	if c.Collectors.Bandwidth.SampleRate == 0 {
+		c.Collectors.Bandwidth.SampleRate = 5 * time.Second
+	}
+	if c.Collectors.Bandwidth.Retention == 0 {
+		c.Collectors.Bandwidth.Retention = 1 * time.Hour
 	}
 }
 

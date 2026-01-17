@@ -20,6 +20,16 @@ type UnitStatus struct {
 	SubState    string // "running", "dead", "failed", etc.
 }
 
+// TimerStatus represents the status of a systemd timer.
+type TimerStatus struct {
+	Name        string
+	Description string
+	Active      bool
+	NextRun     time.Time
+	LastRun     time.Time
+	Unit        string // The service unit this timer triggers
+}
+
 // SystemdManager manages systemd services via D-Bus.
 type SystemdManager struct {
 	conn *dbus.Conn
@@ -268,4 +278,55 @@ func (s *UnitStatus) StatusString() string {
 		return "active"
 	}
 	return "stopped"
+}
+
+// GetTimers returns the status of all systemd timers.
+func (m *SystemdManager) GetTimers(ctx context.Context) ([]*TimerStatus, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.conn == nil {
+		return nil, fmt.Errorf("connection closed")
+	}
+
+	// List all loaded units and filter for timers
+	units, err := m.conn.ListUnitsContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("listing units: %w", err)
+	}
+
+	var timers []*TimerStatus
+	for _, unit := range units {
+		if !strings.HasSuffix(unit.Name, ".timer") {
+			continue
+		}
+
+		timer := &TimerStatus{
+			Name:        unit.Name,
+			Description: unit.Description,
+			Active:      unit.ActiveState == "active",
+			Unit:        strings.TrimSuffix(unit.Name, ".timer") + ".service",
+		}
+
+		// Get timer-specific properties
+		props, err := m.conn.GetUnitTypePropertiesContext(ctx, unit.Name, "Timer")
+		if err == nil {
+			// NextElapseUSecRealtime is in microseconds since epoch
+			if nextElapse, ok := props["NextElapseUSecRealtime"].(uint64); ok && nextElapse > 0 {
+				timer.NextRun = time.UnixMicro(int64(nextElapse))
+			}
+			// LastTriggerUSec is in microseconds since epoch
+			if lastTrigger, ok := props["LastTriggerUSec"].(uint64); ok && lastTrigger > 0 {
+				timer.LastRun = time.UnixMicro(int64(lastTrigger))
+			}
+			// Get the actual unit this timer triggers
+			if triggerUnit, ok := props["Unit"].(string); ok && triggerUnit != "" {
+				timer.Unit = triggerUnit
+			}
+		}
+
+		timers = append(timers, timer)
+	}
+
+	return timers, nil
 }

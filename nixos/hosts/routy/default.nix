@@ -43,7 +43,11 @@
     tcpdump    # Packet analysis for DDoS investigation
     ethtool    # Network interface statistics
     conntrack-tools # Connection tracking utilities
+    lldpd      # Link Layer Discovery Protocol daemon
   ];
+
+  # Enable LLDP daemon for network neighbor discovery
+  services.lldpd.enable = true;
 
   system.autoUpgrade = {
     enable = true;

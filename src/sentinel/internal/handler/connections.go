@@ -180,3 +180,48 @@ func (h *ConnectionsHandler) GetConnectionStats(w http.ResponseWriter, r *http.R
 	component := pages.ConnectionsStats(stats, count)
 	component.Render(r.Context(), w)
 }
+
+// GetTopTalkers returns the top bandwidth users by source IP.
+func (h *ConnectionsHandler) GetTopTalkers(w http.ResponseWriter, r *http.Request) {
+	user := h.sessions.GetUser(r)
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if h.conntrack == nil {
+		http.Error(w, "Conntrack collector not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	// Parse limit parameter
+	limitStr := r.URL.Query().Get("limit")
+	limit := 10
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	talkers, err := h.conntrack.GetTopTalkers(ctx, limit)
+	if err != nil {
+		http.Error(w, "Failed to get top talkers: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Check if client wants JSON or HTML
+	accept := r.Header.Get("Accept")
+	if strings.Contains(accept, "application/json") {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(talkers)
+		return
+	}
+
+	// Return HTML partial for htmx
+	w.Header().Set("Content-Type", "text/html")
+	component := pages.TopTalkersPartial(talkers)
+	component.Render(r.Context(), w)
+}
