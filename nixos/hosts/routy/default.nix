@@ -32,6 +32,9 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
+  # Enable connection tracking accounting for top talkers feature
+  boot.kernel.sysctl."net.netfilter.nf_conntrack_acct" = 1;
+
   # List packages installed in system profile.
   # You can use https://search.nixos.org/ to find more packages (and options).
   environment.systemPackages = with pkgs; [
