@@ -20,8 +20,11 @@
     extraConfig = ''
       log_level('debug')
 
-      -- define list of internal-only domains
-      internalDomains = policy.todnames({'internal'})
+      -- define list of internal-only domains (forward and reverse zones)
+      internalDomains = policy.todnames({
+        'internal',
+        '10.in-addr.arpa'  -- Reverse DNS for 10.0.0.0/8
+      })
 
       -- forward all queries belonging to domains in the list above to IP address '10.0.0.53'
       policy.add(policy.suffix(policy.FLAGS({'NO_CACHE'}), internalDomains))
