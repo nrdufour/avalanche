@@ -12,7 +12,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -20,7 +19,6 @@ import (
 	"forge.internal/nemo/avalanche/src/sentinel/internal/collector"
 	"forge.internal/nemo/avalanche/src/sentinel/internal/config"
 	"forge.internal/nemo/avalanche/src/sentinel/internal/handler"
-	"forge.internal/nemo/avalanche/src/sentinel/internal/metrics"
 	"forge.internal/nemo/avalanche/src/sentinel/internal/middleware"
 	"forge.internal/nemo/avalanche/src/sentinel/internal/service"
 )
@@ -136,36 +134,6 @@ func main() {
 	dnsCache := collector.NewDNSCache(5000, time.Hour, 500*time.Millisecond)
 	log.Info().Msg("DNS cache initialized")
 
-	// Initialize network collector for interface stats
-	interfaceNames := make([]string, len(cfg.Collectors.Network.Interfaces))
-	for i, iface := range cfg.Collectors.Network.Interfaces {
-		interfaceNames[i] = iface.Name
-	}
-	networkCollector := collector.NewNetworkCollector(interfaceNames)
-	log.Info().Int("interfaces", len(cfg.Collectors.Network.Interfaces)).Msg("Network collector initialized")
-
-	// Initialize Prometheus metrics
-	promMetrics := metrics.New(Version, BuildTime)
-	log.Info().Msg("Prometheus metrics initialized")
-
-	// Start metrics collector (if metrics are enabled)
-	var metricsCollector *metrics.Collector
-	if cfg.Metrics.Enabled {
-		metricsCollector = metrics.NewCollector(
-			promMetrics,
-			cfg,
-			systemdMgr,
-			keaCollector,
-			adguardCollector,
-			conntrackCollector,
-			networkCollector,
-			15*time.Second, // Collect every 15 seconds
-		)
-		metricsCollector.Start()
-		defer metricsCollector.Stop()
-		log.Info().Str("path", cfg.Metrics.Path).Msg("Metrics collector started")
-	}
-
 	// Initialize bandwidth collector if enabled
 	var bandwidthCollector *collector.BandwidthCollector
 	if cfg.Collectors.Bandwidth.Enabled {
@@ -202,11 +170,6 @@ func main() {
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(sessions.LoadAndSave)
-
-	// Metrics middleware (if enabled)
-	if cfg.Metrics.Enabled {
-		r.Use(middleware.MetricsMiddleware(promMetrics))
-	}
 
 	// Static files (served from disk)
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
@@ -282,12 +245,6 @@ func main() {
 		r.Get("/firewall", firewallHandler.FirewallPage)
 		r.Get("/connections", connectionsHandler.ConnectionsPage)
 	})
-
-	// Metrics endpoint (if enabled)
-	if cfg.Metrics.Enabled {
-		r.Handle(cfg.Metrics.Path, promhttp.Handler())
-		log.Info().Str("path", cfg.Metrics.Path).Msg("Prometheus metrics endpoint enabled")
-	}
 
 	// Create server
 	srv := &http.Server{

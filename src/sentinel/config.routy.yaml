@@ -103,10 +103,6 @@ diagnostics:
   dns_timeout: 5s
   port_timeout: 5s
 
-metrics:
-  enabled: true
-  path: "/metrics"
-
 logging:
   level: "debug"
   format: "console"

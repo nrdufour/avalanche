@@ -17,7 +17,6 @@ type Config struct {
 	Services    ServicesConfig    `yaml:"services"`
 	Collectors  CollectorsConfig  `yaml:"collectors"`
 	Diagnostics DiagnosticsConfig `yaml:"diagnostics"`
-	Metrics     MetricsConfig     `yaml:"metrics"`
 	Logging     LoggingConfig     `yaml:"logging"`
 }
 
@@ -172,12 +171,6 @@ type DiagnosticsConfig struct {
 	PortTimeout       time.Duration `yaml:"port_timeout"`
 }
 
-// MetricsConfig holds Prometheus metrics settings.
-type MetricsConfig struct {
-	Enabled bool   `yaml:"enabled"`
-	Path    string `yaml:"path"`
-}
-
 // LoggingConfig holds logging settings.
 type LoggingConfig struct {
 	Level  string `yaml:"level"`
@@ -245,11 +238,6 @@ func (c *Config) applyDefaults() {
 	}
 	if c.Diagnostics.PortTimeout == 0 {
 		c.Diagnostics.PortTimeout = 5 * time.Second
-	}
-
-	// Metrics defaults
-	if c.Metrics.Path == "" {
-		c.Metrics.Path = "/metrics"
 	}
 
 	// Logging defaults

@@ -150,11 +150,6 @@ diagnostics:
   dns_timeout: 5s
   port_timeout: 5s
 
-# Prometheus metrics
-metrics:
-  enabled: true
-  path: "/metrics"
-
 # Logging configuration
 logging:
   level: "info"  # debug, info, warn, error
