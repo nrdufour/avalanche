@@ -15,6 +15,16 @@
   boot.extraModulePackages = [ config.boot.kernelPackages.r8125 ];
   boot.blacklistedKernelModules = [ "r8169" ];
 
+  # Disable CPU turbo boost to prevent crashes during QEMU ARM64 emulation.
+  # The Beelink SER5 Max has a known power delivery issue where rapid core
+  # state transitions (common in QEMU workloads) cause instant reboots.
+  # See: docs/troubleshooting/hawk-qemu-arm64-reboots.md
+  # See: https://bbs.bee-link.com/d/9082-ser5-max-6800u-crashes
+  # Note: kernel param amd_pstate.no_boost=1 doesn't work with amd-pstate-epp driver
+  systemd.tmpfiles.rules = [
+    "w /sys/devices/system/cpu/cpufreq/boost - - - - 0"
+  ];
+
   networking = {
     hostName = "hawk";
     # Unique host identifier (kept for consistency)
