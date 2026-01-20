@@ -1,0 +1,36 @@
+name: Go Vendor Sync
+
+on:
+  push:
+    branches:
+      - 'renovate/**'
+    paths:
+      - 'src/sentinel/go.mod'
+
+jobs:
+  vendor:
+    runs-on: docker
+    container:
+      image: golang:1.23
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Re-vendor dependencies
+        working-directory: src/sentinel
+        run: |
+          go mod tidy
+          go mod vendor
+
+      - uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "chore(sentinel): sync vendor directory"
+          commit_options: '--no-verify --signoff'
+          file_pattern: 'src/sentinel/vendor/* src/sentinel/go.sum'
+          commit_user_name: Go Vendor Bot
+          commit_user_email: govendorbot@ptinem.casa
+          commit_author: Go Vendor Bot <govendorbot@ptinem.casa>
+          skip_dirty_check: false
+          skip_fetch: true
