@@ -17,7 +17,7 @@ spec:
     spec:
       initContainers:
       - name: collectstatic
-        image: wger/server:2.4-dev
+        image: wger/server:2.5-dev
         command: ["python3", "manage.py", "collectstatic", "--noinput"]
         volumeMounts:
           - name: static-files
@@ -31,7 +31,7 @@ spec:
 
       containers:
       - name: wger
-        image: wger/server:2.4-dev
+        image: wger/server:2.5-dev
         env:
           # Application settings
           - name: "SITE_URL"
