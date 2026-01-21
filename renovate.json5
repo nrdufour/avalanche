@@ -162,5 +162,15 @@
       allowedVersions: '<6',
       enabled: true,
     },
+    {
+      description: 'Pin Python to 3.12 for TensorFlow compatibility (TF lacks 3.13+ wheels)',
+      matchDatasources: [
+        'docker',
+      ],
+      matchPackageNames: [
+        'python',
+      ],
+      allowedVersions: '<3.13',
+    },
   ],
 }
