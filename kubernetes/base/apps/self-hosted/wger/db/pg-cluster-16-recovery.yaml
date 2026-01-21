@@ -1,0 +1,57 @@
+---
+# TEMPORARY RECOVERY CLUSTER
+# This cluster bootstraps from backup with PITR before the 2.5-dev migration
+# After verification, rename this to pg-cluster-16.yaml and delete the old cluster
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: wger-16-db-restore
+spec:
+  instances: 3
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.4-27
+  primaryUpdateStrategy: unsupervised
+
+  enableSuperuserAccess: true
+  enablePDB: true
+
+  affinity:
+    nodeSelector:
+      opi.feature.node.kubernetes.io/5plus: "true"
+    podAntiAffinityType: required
+
+  failoverDelay: 60
+  switchoverDelay: 60
+  startDelay: 60
+  stopDelay: 30
+  smartShutdownTimeout: 60
+
+  storage:
+    size: 5Gi
+    storageClass: openebs-hostpath
+
+  # Backup configuration for the restored cluster
+  backup:
+    target: "prefer-standby"
+
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: wger-backup-store
+        serverName: wger-16-v2  # New server name to avoid conflicts with v1
+
+  # Recovery from backup with PITR
+  # Target: January 21, 2026 04:00 EST (09:00 UTC) - just before the 2.5-dev migration
+  bootstrap:
+    recovery:
+      source: wger-backup
+      recoveryTarget:
+        targetTime: "2026-01-21 09:00:00.000000+00"
+
+  externalClusters:
+    - name: wger-backup
+      plugin:
+        name: barman-cloud.cloudnative-pg.io
+        parameters:
+          barmanObjectName: wger-backup-store
+          serverName: wger-16-v1

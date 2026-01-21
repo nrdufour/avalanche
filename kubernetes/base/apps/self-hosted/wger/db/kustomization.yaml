@@ -4,7 +4,9 @@ kind: Kustomization
 namespace: self-hosted
 resources:
 - pg-cluster-16.yaml
+- pg-cluster-16-recovery.yaml  # Restored from backup before 2.5-dev migration
 - scheduled-backup.yaml
+- scheduled-backup-restore.yaml
 - objectstore-external.yaml
 - objectstore-backup.yaml
 - cnpg-minio-external-secret.yaml

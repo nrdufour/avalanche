@@ -1,0 +1,14 @@
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: wger-16-db-restore
+spec:
+  schedule: "@daily"
+  method: plugin  # Use Barman Cloud Plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+  immediate: true
+  backupOwnerReference: self
+  cluster:
+    name: wger-16-db-restore

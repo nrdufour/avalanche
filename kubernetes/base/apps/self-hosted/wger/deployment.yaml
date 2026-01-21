@@ -69,27 +69,27 @@ spec:
           - name: "DJANGO_DB_DATABASE"
             valueFrom:
               secretKeyRef:
-                name: wger-16-db-app
+                name: wger-16-db-restore-app
                 key: dbname
           - name: "DJANGO_DB_USER"
             valueFrom:
               secretKeyRef:
-                name: wger-16-db-app
+                name: wger-16-db-restore-app
                 key: username
           - name: "DJANGO_DB_PASSWORD"
             valueFrom:
               secretKeyRef:
-                name: wger-16-db-app
+                name: wger-16-db-restore-app
                 key: password
           - name: "DJANGO_DB_HOST"
             valueFrom:
               secretKeyRef:
-                name: wger-16-db-app
+                name: wger-16-db-restore-app
                 key: host
           - name: "DJANGO_DB_PORT"
             valueFrom:
               secretKeyRef:
-                name: wger-16-db-app
+                name: wger-16-db-restore-app
                 key: port
           - name: "DJANGO_PERFORM_MIGRATIONS"
             value: "true"
