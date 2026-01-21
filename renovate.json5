@@ -8,9 +8,11 @@
     ':disableRateLimiting',
     ':dependencyDashboard',
     ':semanticCommits',
-    ':skipStatusChecks',
+    ':automergeRequireAllStatusChecksPassed',
     ':timezone(America/New_York)',
   ],
+  // Enable vulnerability alerts via OSV database
+  osvVulnerabilityAlerts: true,
   // Nix is disabled - flake.lock updates handled by Forgejo workflow
   nix: {
     enabled: false,
@@ -22,17 +24,10 @@
       '/(^|/)kubernetes/clusters/.+-app\\.yaml$/',
     ],
   },
-  // Flux Kustomizations (legacy, being migrated to ArgoCD)
-  flux: {
-    managerFilePatterns: [
-      '/(^|/)kubernetes/kubernetes/.+\\.yaml$/',
-    ],
-  },
   // Helm chart values files
   'helm-values': {
     managerFilePatterns: [
       '/(^|/)kubernetes/base/.+/helm-values\\.yaml$/',
-      '/(^|/)kubernetes/kubernetes/.+\\.yaml$/',
     ],
   },
   // Kubernetes manifests
@@ -54,11 +49,9 @@
       matchHost: 'ghcr.io',
     },
   ],
+  // Lock file maintenance disabled - flake.lock handled by dedicated Forgejo workflow
   lockFileMaintenance: {
     enabled: false,
-    extends: [
-      'schedule:daily',
-    ],
   },
   customManagers: [
     {
@@ -111,15 +104,39 @@
         '/^oci://ghcr\\.io//',
       ],
     },
+    // Grouping rules to reduce PR noise for related components
     {
-      description: 'Custom versioning for miniflux',
-      matchDatasources: [
-        'docker',
+      description: 'Group Immich updates (server + ML)',
+      matchDatasources: ['docker'],
+      matchPackagePatterns: ['^ghcr.io/immich-app/'],
+      groupName: 'immich',
+    },
+    {
+      description: 'Group Arr stack updates (Sonarr, Radarr, Prowlarr)',
+      matchDatasources: ['docker'],
+      matchPackagePatterns: ['^lscr.io/linuxserver/(sonarr|radarr|prowlarr|lidarr|readarr)'],
+      groupName: 'arr-stack',
+    },
+    {
+      description: 'Group Home Assistant ecosystem',
+      matchDatasources: ['docker'],
+      matchPackagePatterns: [
+        '^ghcr.io/home-assistant/',
+        '^ghcr.io/esphome/',
+        '^ghcr.io/zwave-js/',
       ],
-      versioning: 'regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-(?<compatibility>)$',
-      matchPackageNames: [
-        '/miniflux/',
-      ],
+      groupName: 'home-assistant',
+    },
+    {
+      description: 'Group RTL-SDR tools (rtl_433, rtlamr)',
+      matchDatasources: ['docker'],
+      matchPackagePatterns: ['rtl_433', 'rtlamr'],
+      groupName: 'rtl-sdr',
+    },
+    {
+      description: 'Require manual review for major updates',
+      matchUpdateTypes: ['major'],
+      automerge: false,
     },
     {
       description: 'Automerge minor and patch updates for stable versions',
@@ -153,14 +170,9 @@
     },
     {
       description: 'Pin actions/checkout to v5 (v6 incompatible with Forgejo runners)',
-      matchManagers: [
-        'github-actions',
-      ],
-      matchPackageNames: [
-        'actions/checkout',
-      ],
+      matchManagers: ['github-actions'],
+      matchPackageNames: ['actions/checkout'],
       allowedVersions: '<6',
-      enabled: true,
     },
     {
       description: 'Pin Python to 3.12 for TensorFlow compatibility (TF lacks 3.13+ wheels)',
@@ -171,6 +183,20 @@
         'python',
       ],
       allowedVersions: '<3.13',
+    },
+    // Pin digests for security-critical infrastructure images
+    {
+      description: 'Pin digests for security-critical images',
+      matchDatasources: ['docker'],
+      matchPackagePatterns: [
+        'ingress-nginx',
+        'cert-manager',
+        'external-secrets',
+        'kube-vip',
+        'external-dns',
+        'cloudnative-pg',
+      ],
+      pinDigests: true,
     },
   ],
 }
