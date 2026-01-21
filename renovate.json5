@@ -1,7 +1,7 @@
 {
   $schema: 'https://docs.renovatebot.com/renovate-schema.json',
   extends: [
-    'local>nemo/renovate-config',  // shared defaults
+    'gitea>nemo/renovate-config',  // shared defaults
     'docker:enableMajor',
     'replacements:k8s-registry-move',
   ],
