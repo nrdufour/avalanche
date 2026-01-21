@@ -11,4 +11,3 @@ resources:
   - wikijs-app.yaml
   - wallabag-app.yaml
   - miniflux-app.yaml
-  - wger-app.yaml
