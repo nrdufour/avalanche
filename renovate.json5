@@ -129,6 +129,7 @@
     // Pin digests for security-critical infrastructure images
     {
       description: 'Pin digests for security-critical images',
+      matchManagers: ['!argocd'],
       matchDatasources: ['docker'],
       matchPackageNames: [
         '/ingress-nginx/',
