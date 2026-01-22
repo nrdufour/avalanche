@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: miniflux
-        image: ghcr.io/miniflux/miniflux:2.0.51@sha256:9f3bca6a95428c04c8fb54ee723a5f69b9e419b0bf5dfd7a4d70dfb0414d60f1
+        image: ghcr.io/miniflux/miniflux:2.2.16@sha256:1f37163a178189eba09bf0a1c96d7335aa1fa474d4f958f51e0c5ad9f8136979
         envFrom:
           - secretRef:
               name: miniflux-admin-user-secret
