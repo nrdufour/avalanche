@@ -1,28 +1,24 @@
 {
   $schema: 'https://docs.renovatebot.com/renovate-schema.json',
   extends: [
-    'local>nemo/renovate-config//default.json5',  // shared defaults
+    'local>nemo/renovate-config//default.json5',
     'docker:enableMajor',
     'replacements:k8s-registry-move',
   ],
-  // Nix is disabled - flake.lock updates handled by Forgejo workflow
   nix: {
     enabled: false,
   },
-  // ArgoCD Application manifests
   argocd: {
     managerFilePatterns: [
       '/(^|/)kubernetes/base/.+-app\\.yaml$/',
       '/(^|/)kubernetes/clusters/.+-app\\.yaml$/',
     ],
   },
-  // Helm chart values files
   'helm-values': {
     managerFilePatterns: [
       '/(^|/)kubernetes/base/.+/helm-values\\.yaml$/',
     ],
   },
-  // Kubernetes manifests
   kubernetes: {
     managerFilePatterns: [
       '/(^|/)\\.justfiles/.+\\.yaml$/',
@@ -34,7 +30,6 @@
     '**/.archive/**',
     '**/resources/**',
   ],
-  // Lock file maintenance disabled - flake.lock handled by dedicated Forgejo workflow
   lockFileMaintenance: {
     enabled: false,
   },
@@ -42,7 +37,9 @@
     {
       customType: 'regex',
       description: 'Handle GitHub release URLs in Kustomize resources',
-      managerFilePatterns: ['/kustomization\\.yaml$/'],
+      managerFilePatterns: [
+        '/kustomization\\.yaml$/',
+      ],
       matchStrings: [
         '- https://github\\.com/(?<depName>[^/]+/[^/]+)/releases/download/v(?<currentValue>[^/]+)/',
       ],
@@ -63,7 +60,9 @@
     {
       customType: 'regex',
       description: 'Update Docker images in Nix files with let bindings',
-      managerFilePatterns: ['/\\.nix$/'],
+      managerFilePatterns: [
+        '/\\.nix$/',
+      ],
       matchStrings: [
         '\\s+image\\s*=\\s*"(?<depName>[^:]+):(?<currentValue>[^@]+)@(?<currentDigest>sha256:[a-f0-9]+)"',
       ],
@@ -74,71 +73,104 @@
   packageRules: [
     {
       description: 'Disable ArgoCD manager git-tags detection for OCI Helm charts (handled by regex manager)',
-      matchManagers: ['argocd'],
-      matchDatasources: ['git-tags'],
-      matchPackageNames: ['/^oci://ghcr\\.io//'],
+      matchManagers: [
+        'argocd',
+      ],
+      matchDatasources: [
+        'git-tags',
+      ],
+      matchPackageNames: [
+        '/^oci://ghcr\\.io//',
+      ],
       enabled: false,
     },
-    // Grouping rules to reduce PR noise for related components
     {
       description: 'Group Immich updates (server + ML)',
-      matchDatasources: ['docker'],
-      matchPackagePatterns: ['^ghcr.io/immich-app/'],
+      matchDatasources: [
+        'docker',
+      ],
       groupName: 'immich',
+      matchPackageNames: [
+        '/^ghcr.io/immich-app//',
+      ],
     },
     {
       description: 'Group Arr stack updates (Sonarr, Radarr, Prowlarr)',
-      matchDatasources: ['docker'],
-      matchPackagePatterns: ['^lscr.io/linuxserver/(sonarr|radarr|prowlarr|lidarr|readarr)'],
+      matchDatasources: [
+        'docker',
+      ],
       groupName: 'arr-stack',
+      matchPackageNames: [
+        '/^lscr.io/linuxserver/(sonarr|radarr|prowlarr|lidarr|readarr)/',
+      ],
     },
     {
       description: 'Group Home Assistant ecosystem',
-      matchDatasources: ['docker'],
-      matchPackagePatterns: [
-        '^ghcr.io/home-assistant/',
-        '^ghcr.io/esphome/',
-        '^ghcr.io/zwave-js/',
+      matchDatasources: [
+        'docker',
       ],
       groupName: 'home-assistant',
+      matchPackageNames: [
+        '/^ghcr.io/home-assistant//',
+        '/^ghcr.io/esphome//',
+        '/^ghcr.io/zwave-js//',
+      ],
     },
     {
       description: 'Group RTL-SDR tools (rtl_433, rtlamr)',
-      matchDatasources: ['docker'],
-      matchPackagePatterns: ['rtl_433', 'rtlamr'],
+      matchDatasources: [
+        'docker',
+      ],
       groupName: 'rtl-sdr',
+      matchPackageNames: [
+        '/rtl_433/',
+        '/rtlamr/',
+      ],
     },
     {
       description: 'Update renovate only daily',
-      extends: ['schedule:daily'],
-      matchPackageNames: ['ghcr.io/renovatebot/renovate'],
+      extends: [
+        'schedule:daily',
+      ],
+      matchPackageNames: [
+        'ghcr.io/renovatebot/renovate',
+      ],
       automerge: true,
     },
     {
       description: 'Block gluetun v3.40.2+ (breaks credential handling)',
-      matchDatasources: ['docker'],
-      matchPackageNames: ['ghcr.io/qdm12/gluetun'],
+      matchDatasources: [
+        'docker',
+      ],
+      matchPackageNames: [
+        'ghcr.io/qdm12/gluetun',
+      ],
       allowedVersions: '<3.40.2',
     },
     {
       description: 'Pin Python to 3.12 for TensorFlow compatibility (TF lacks 3.13+ wheels)',
-      matchDatasources: ['docker'],
-      matchPackageNames: ['python'],
+      matchDatasources: [
+        'docker',
+      ],
+      matchPackageNames: [
+        'python',
+      ],
       allowedVersions: '<3.13',
     },
-    // Pin digests for security-critical infrastructure images
     {
       description: 'Pin digests for security-critical images',
-      matchDatasources: ['docker'],
-      matchPackagePatterns: [
-        'ingress-nginx',
-        'cert-manager',
-        'external-secrets',
-        'kube-vip',
-        'external-dns',
-        'cloudnative-pg',
+      matchDatasources: [
+        'docker',
       ],
       pinDigests: true,
+      matchPackageNames: [
+        '/ingress-nginx/',
+        '/cert-manager/',
+        '/external-secrets/',
+        '/kube-vip/',
+        '/external-dns/',
+        '/cloudnative-pg/',
+      ],
     },
   ],
 }
