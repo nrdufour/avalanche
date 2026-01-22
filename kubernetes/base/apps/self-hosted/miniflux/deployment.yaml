@@ -34,7 +34,7 @@ spec:
           - name: "DEBUG"
             value: "1"
           - name: "LOG_DATE_TIME"
-            value: "15"
+            value: "1"
           - name: "POLLING_SCHEDULER"
             value: "entry_frequency"
           - name: "POLLING_FREQUENCY"
