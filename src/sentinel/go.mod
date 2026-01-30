@@ -5,7 +5,7 @@ go 1.25.5
 require (
 	github.com/a-h/templ v0.3.977
 	github.com/alexedwards/scs/v2 v2.9.0
-	github.com/coreos/go-systemd/v22 v22.6.0
+	github.com/coreos/go-systemd/v22 v22.7.0
 	github.com/go-chi/chi/v5 v5.2.4
 	github.com/rs/zerolog v1.34.0
 	golang.org/x/crypto v0.47.0
