@@ -39,9 +39,6 @@
     # Claude-code became a must-have as well
     inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.claude-code
 
-    # OpenClaw - coding agent
-    inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.openclaw
-
     # the contender ;) specially for ollama
     # Wrapped with OPENCODE_LIBC for NixOS compatibility
     (pkgs.writeShellScriptBin "opencode" ''
