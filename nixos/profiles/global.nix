@@ -26,8 +26,9 @@ with lib;
     time.timeZone = "America/New_York";
 
     environment.systemPackages = with pkgs; [
-      neofetch
+      fastfetch
       vim
+      helix
     ];
 
     ## TODO see where to place those

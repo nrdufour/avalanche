@@ -4,6 +4,7 @@
         # ./virtualbox.nix
         ./privateca
         ./vscode.nix
+        ./helix.nix
         ./libvirtd.nix
         # ./container.nix
         ./docker.nix
