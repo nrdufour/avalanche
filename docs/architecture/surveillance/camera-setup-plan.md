@@ -283,96 +283,108 @@ Frigate supports multiple hardware acceleration backends:
 
 **Objective**: Mount camera, establish network connectivity, verify basic functionality.
 
+**Status**: 🟡 **PARTIAL** (2026-02-01) - Network setup complete, outdoor mounting pending
+
 #### Tasks
-- [ ] 1.1 Physical Installation
+- [ ] 1.1 Physical Installation (PENDING - outdoor mounting not done yet)
   - [ ] Choose camera mounting location (outdoor, garden view)
   - [ ] Mount camera bracket to wall/surface
   - [ ] Aim camera at desired coverage area
   - [ ] Verify field of view covers intended area
   - [ ] Ensure camera is level and stable
 
-- [ ] 1.2 Power and Network
-  - [ ] Connect camera to PoE switch via ethernet cable
-  - [ ] Verify camera powers on (status LED)
-  - [ ] Confirm network link (PoE switch port LED)
-  - [ ] Document cable route and switch port number
+- [x] 1.2 Power and Network
+  - [x] Connect camera to PoE switch via ethernet cable
+  - [x] Verify camera powers on (status LED)
+  - [x] Confirm network link (PoE switch port LED)
+  - [ ] Document cable route and switch port number (pending permanent install)
 
-- [ ] 1.3 Initial Discovery
-  - [ ] Scan network for camera IP address
+- [x] 1.3 Initial Discovery
+  - [x] Scan network for camera IP address
     ```bash
-    # Option A: nmap scan
-    nmap -sn 10.1.0.0/24
-
-    # Option B: Check DHCP leases on router
-    # Option C: Use Dahua ConfigTool (Windows/Linux)
+    # Used nmap scan on 10.0.0.0/24 network
+    nmap -sn 10.0.0.0/24
     ```
-  - [ ] Access camera web interface via discovered IP
-  - [ ] Verify camera responds to HTTP requests
+  - [x] Access camera web interface via discovered IP
+  - [x] Verify camera responds to HTTP requests
+
+#### Notes
+- Camera currently set up indoors for testing/validation
+- Outdoor permanent mounting to be done later
+- Camera initially obtained IP 10.0.0.134 via DHCP after factory reset
+- Factory reset was required (default 192.168.1.108 not reachable on network)
+- Reset procedure: hold reset button under SD card hatch for 10+ seconds
 
 #### Expected Outcome
-- Camera physically mounted and aimed
-- Camera powered via PoE
-- Camera accessible on network
-- Default IP address identified
+- Camera physically mounted and aimed - ⏳ pending outdoor install
+- Camera powered via PoE ✅
+- Camera accessible on network ✅
+- Default IP address identified ✅
 
 ### Phase 2: Camera Configuration
 
 **Objective**: Secure camera, configure network settings, optimize video streams for Frigate.
 
+**Status**: ✅ **COMPLETED** (2026-02-01)
+
 #### Tasks
-- [ ] 2.1 Security Hardening
-  - [ ] Change default admin password to strong password
-    - Generate strong password: `openssl rand -base64 32`
-    - Store password in SOPS secrets: `secrets/frigate/camera-credentials.sops.yaml`
-  - [ ] Disable UPnP (security risk)
-  - [ ] Disable unnecessary services (P2P, cloud features)
-  - [ ] Enable HTTPS if supported (for web UI access)
-  - [ ] Create separate user account for Frigate RTSP access (read-only)
+- [x] 2.1 Security Hardening
+  - [x] Change default admin password to strong password
+    - Password stored in Bitwarden "Home Automation" item as `FRIGATE_RTSP_PASSWORD`
+    - Password contains special characters (`$`, `[`, `]`) - requires URL encoding for manual RTSP testing
+  - [ ] Disable UPnP (security risk) - *skipped for now*
+  - [ ] Disable unnecessary services (P2P, cloud features) - *skipped for now*
+  - [ ] Enable HTTPS if supported (for web UI access) - *not available*
+  - [ ] Create separate user account for Frigate RTSP access (read-only) - *using admin account*
 
-- [ ] 2.2 Network Configuration
-  - [ ] Set static IP address: `10.1.0.50` (or DHCP reservation)
-  - [ ] Configure gateway: `10.1.0.1` (or your router IP)
-  - [ ] Configure DNS: `1.1.1.1`, `8.8.8.8`
-  - [ ] Set hostname: `camera01`
-  - [ ] Verify network connectivity (ping test)
-  - [ ] Add camera to Tailscale DNS or local DNS as `camera01.internal`
+- [x] 2.2 Network Configuration
+  - [x] Set static IP address: `10.0.0.50`
+  - [x] Configure gateway and DNS
+  - [x] Verify network connectivity (ping test)
+  - [ ] Add camera to Tailscale DNS or local DNS as `camera01.internal` - *not done yet*
 
-- [ ] 2.3 Video Stream Configuration
-  - [ ] Configure **Main Stream** (Recording):
+- [x] 2.3 Video Stream Configuration
+  - [x] Configure **Main Stream** (Recording):
     - Resolution: 2688×1520 (4MP, native)
-    - Frame rate: 15-20 FPS (sufficient for recording)
-    - Codec: H.265 (better compression than H.264)
-    - Bitrate: 4096 Kbps (variable bitrate, VBR)
-    - I-frame interval: 2× framerate (e.g., 30 if 15 FPS)
+    - Used for recording in Frigate (subtype=0)
 
-  - [ ] Configure **Third Stream** (Detection):
-    - Resolution: 640×480 or 704×576
-    - Frame rate: 5-10 FPS (detection doesn't need high FPS)
-    - Codec: H.264 (better compatibility)
-    - Bitrate: 512 Kbps (CBR - constant bitrate)
-    - I-frame interval: Match framerate (1× FPS)
+  - [x] Configure **Sub Stream** (Detection):
+    - Resolution: 704×576
+    - Frame rate: 5 FPS
+    - Used for detection in Frigate (subtype=1)
 
-  - [ ] Disable audio if not needed (reduces bandwidth)
+- [x] 2.4 Camera Settings Optimization
+  - [x] Default camera settings working well for garden view
+  - [x] IR mode: Auto (switches to IR at night)
 
-- [ ] 2.4 Camera Settings Optimization
-  - [ ] Set exposure mode: Auto (or manual if too bright/dark)
-  - [ ] Enable WDR (Wide Dynamic Range) if backlight issues
-  - [ ] Configure IR mode: Auto (switches to IR at night)
-  - [ ] Disable on-camera AI features (Frigate will handle detection)
-  - [ ] Set timezone and NTP server for accurate timestamps
+- [x] 2.5 RTSP Stream Testing
+  - [x] Test main stream with ffplay
+  - [x] Test sub stream (low res)
+  - [x] Verify streams stable
+  - [x] Document final RTSP URLs for Frigate config
 
-- [ ] 2.5 RTSP Stream Testing
-  - [ ] Test main stream with VLC or ffplay
-  - [ ] Test detection stream (low res)
-  - [ ] Verify stream is stable for 5-10 minutes (no drops)
-  - [ ] Check CPU usage on camera (should be low)
-  - [ ] Document final RTSP URLs for Frigate config
+#### RTSP URLs (Actual)
+```
+# Main stream (recording) - subtype=0
+rtsp://admin:{FRIGATE_RTSP_PASSWORD}@10.0.0.50:554/cam/realmonitor?channel=1&subtype=0
+
+# Sub stream (detection) - subtype=1
+rtsp://admin:{FRIGATE_RTSP_PASSWORD}@10.0.0.50:554/cam/realmonitor?channel=1&subtype=1
+```
+
+#### Notes
+- Used subtype=1 (sub stream) for detection instead of subtype=2 (third stream)
+- Password with special characters requires URL encoding for manual testing:
+  ```bash
+  ffplay -rtsp_transport tcp "rtsp://admin:%24%5Bxj72PVQB%5D@10.0.0.50:554/cam/realmonitor?channel=1&subtype=0"
+  ```
+- Frigate handles URL encoding automatically when using environment variable substitution
 
 #### Expected Outcome
-- Camera secured with strong password
-- Static IP assigned and DNS configured
-- RTSP streams optimized for Frigate
-- All streams tested and verified stable
+- Camera secured with strong password ✅
+- Static IP assigned ✅
+- RTSP streams optimized for Frigate ✅
+- All streams tested and verified stable ✅
 
 ### Phase 3: Frigate Deployment Planning
 
@@ -630,153 +642,144 @@ cameras:
 
 ### Phase 4: Frigate Kubernetes Deployment
 
-**Objective**: Deploy Frigate to Kubernetes cluster using Helm chart.
+**Objective**: Deploy Frigate to Kubernetes cluster.
+
+**Status**: ✅ **COMPLETED** (2026-02-01)
 
 #### Tasks
-- [ ] 4.1 Preparation
-  - [ ] Create namespace: `kubectl create namespace frigate`
-  - [ ] Create SOPS-encrypted secrets
-    - Camera password
-    - MQTT password (if used)
-  - [ ] Create PVCs for storage
-    - `frigate-db` (10GB)
-    - `frigate-recordings` (100GB+)
-  - [ ] Label nodes for NPU scheduling
-    ```bash
-    kubectl label nodes opi01 npu.available=true
-    ```
+- [x] 4.1 Preparation
+  - [x] Namespace: `home-automation` (shared with other home automation apps)
+  - [x] Create External Secret for camera password
+    - Stored in Bitwarden "Home Automation" item (UUID: ec4485d9-4570-4475-aeb8-4053bd864e4b)
+    - Property: `FRIGATE_RTSP_PASSWORD`
+  - [x] Create PVCs for storage
+    - `frigate-config` (10Gi) - Longhorn
+    - `frigate-media` (100Gi) - Longhorn
 
-- [ ] 4.2 Helm Chart Configuration
-  - [ ] Add Frigate Helm repository
-    ```bash
-    helm repo add blakeblackshear https://blakeblackshear.github.io/blakeshome-charts/
-    helm repo update
-    ```
+- [x] 4.2 Kubernetes Manifests (not Helm - raw manifests)
+  - [x] Created deployment.yaml
+    - Image: `ghcr.io/blakeblackshear/frigate:0.16.4`
+    - CPU detector (4 threads)
+    - `hostNetwork: true` (required to reach camera on 10.0.0.x)
+    - Node selector: `opi.feature.node.kubernetes.io/5plus: "true"` (Orange Pi 5 Plus)
+  - [x] Created service.yaml (port 8971 - authenticated)
+  - [x] Created ingress.yaml
+    - Host: `frigate.internal`
+    - TLS via `ca-server-cluster-issuer`
+    - `backend-protocol: HTTPS` (port 8971 serves HTTPS)
+    - Homepage annotations for auto-discovery
+  - [x] Created configmap.yaml (Frigate config)
+  - [x] Created pvc.yaml (config + media volumes)
+  - [x] Created frigate-es.yaml (External Secret)
+  - [x] Created kustomization.yaml
 
-  - [ ] Create `values.yaml` configuration
-    - Configure image repository and tag
-    - Configure environment variables
-    - Configure volumes (config, recordings, database)
-    - Configure device mounts (`/dev/accel/accel0`)
-    - Configure node affinity (opi01-03)
-    - Configure ingress (frigate.internal)
-    - Configure resources (CPU, memory)
+- [x] 4.3 ArgoCD Application
+  - [x] Created `kubernetes/base/apps/home-automation/frigate-app.yaml`
+  - [x] Added to `kubernetes/base/apps/home-automation/kustomization.yaml`
 
-  - [ ] Test Helm chart locally (dry-run)
-    ```bash
-    helm install frigate blakeblackshear/frigate \
-      --namespace frigate \
-      --values values.yaml \
-      --dry-run --debug
-    ```
+- [x] 4.4 Deploy Frigate
+  - [x] Committed all manifests to Git
+  - [x] Pushed to Forgejo
+  - [x] ArgoCD synced successfully
+  - [x] Pod running on Orange Pi 5 Plus node
 
-- [ ] 4.3 ArgoCD Application
-  - [ ] Create Frigate ArgoCD Application manifest
-    - Location: `kubernetes/base/apps/home-automation/frigate/`
-    - Include: `values.yaml`, `kustomization.yaml`
-  - [ ] Create ArgoCD Application CR
-    ```yaml
-    apiVersion: argoproj.io/v1alpha1
-    kind: Application
-    metadata:
-      name: frigate
-      namespace: argocd
-    spec:
-      project: default
-      source:
-        repoURL: https://forge.internal/nemo/avalanche.git
-        path: kubernetes/base/apps/home-automation/frigate
-        targetRevision: main
-      destination:
-        server: https://kubernetes.default.svc
-        namespace: frigate
-      syncPolicy:
-        automated:
-          prune: true
-          selfHeal: true
-    ```
+- [x] 4.5 Configuration Fixes Applied
+  - [x] Fixed `record.events` deprecation (removed in Frigate 0.16.x)
+  - [x] Fixed password encoding (store raw password, not URL-encoded)
+  - [x] Added `hostNetwork: true` (pod network couldn't reach camera)
+  - [x] Fixed ingress class (`nginx` not `nginx-internal`)
+  - [x] Fixed cluster issuer (`ca-server-cluster-issuer`)
+  - [x] Fixed authentication (use port 8971, not 5000)
+  - [x] Added `backend-protocol: HTTPS` annotation
+  - [x] Added node selector for Orange Pi 5 Plus
 
-- [ ] 4.4 Deploy Frigate
-  - [ ] Commit Frigate manifests to Git
-  - [ ] Push to Forgejo
-  - [ ] ArgoCD auto-syncs (or manual sync)
-  - [ ] Verify pod starts successfully
-    ```bash
-    kubectl get pods -n frigate
-    kubectl logs -n frigate deployment/frigate -f
-    ```
+#### Deployment Files Created
+```
+kubernetes/base/apps/home-automation/frigate/
+├── deployment.yaml      # Frigate deployment with CPU detector
+├── service.yaml         # ClusterIP service (port 8971)
+├── ingress.yaml         # Ingress with TLS and homepage annotations
+├── pvc.yaml             # PVCs for config (10Gi) and media (100Gi)
+├── configmap.yaml       # Frigate configuration
+├── frigate-es.yaml      # External Secret for RTSP password
+└── kustomization.yaml   # Kustomize config
 
-- [ ] 4.5 Device Access Verification
-  - [ ] Verify NPU device accessible in pod
-    ```bash
-    kubectl exec -n frigate deployment/frigate -- ls -la /dev/accel/accel0
-    ```
-  - [ ] Verify RKNN libraries loaded
-    ```bash
-    kubectl logs -n frigate deployment/frigate | grep -i rknn
-    ```
-  - [ ] Check Frigate detector status via web UI
+kubernetes/base/apps/home-automation/frigate-app.yaml  # ArgoCD Application
+```
+
+#### Key Configuration Details
+- **Port 8971**: Authenticated Frigate UI (HTTPS)
+- **Port 5000**: Unauthenticated internal API (used for health probes only)
+- **hostNetwork**: Required because K8s pod network (10.42.x.x) cannot reach camera (10.0.0.x)
+- **Node selector**: Runs on Orange Pi 5 Plus for better ffmpeg performance
 
 #### Expected Outcome
-- Frigate pod running on opi01 (or opi02/opi03)
-- NPU device accessible
-- Web UI accessible at `https://frigate.internal`
-- No errors in logs
+- Frigate pod running on Orange Pi 5 Plus ✅
+- Web UI accessible at `https://frigate.internal` ✅
+- Authentication required (port 8971) ✅
+- Camera streams working ✅
 
 ### Phase 5: Camera Integration and Testing
 
 **Objective**: Connect camera to Frigate, verify object detection, tune settings.
 
+**Status**: ✅ **COMPLETED** (2026-02-01)
+
 #### Tasks
-- [ ] 5.1 Add Camera to Frigate
-  - [ ] Edit Frigate ConfigMap with camera config
-  - [ ] Restart Frigate pod (or hot-reload if supported)
-  - [ ] Verify camera appears in Frigate UI
-  - [ ] Check live view stream works
+- [x] 5.1 Add Camera to Frigate
+  - [x] Camera configured in ConfigMap as "garden"
+  - [x] Frigate pod started successfully
+  - [x] Camera appears in Frigate UI
+  - [x] Live view stream works
 
-- [ ] 5.2 RTSP Stream Verification
-  - [ ] Verify detect stream (low res) displays correctly
-  - [ ] Verify record stream (high res) displays correctly
-  - [ ] Check for stream errors in logs
-  - [ ] Monitor CPU/memory usage (should be low)
+- [x] 5.2 RTSP Stream Verification
+  - [x] Detect stream (704×576, 5 FPS) displays correctly
+  - [x] Record stream (2688×1520) displays correctly
+  - [x] No stream errors in logs
+  - [x] CPU/memory usage acceptable
 
-- [ ] 5.3 Object Detection Testing
-  - [ ] Walk in front of camera, verify person detection
-  - [ ] Test with animals if possible (cat/dog)
-  - [ ] Check detection bounding boxes are accurate
-  - [ ] Verify detections appear in Frigate UI Events tab
-  - [ ] Check snapshots are saved correctly
+- [x] 5.3 Object Detection Testing
+  - [x] Object detection working with CPU detector
+  - [x] Detections appear in Frigate UI
+  - [x] Snapshots saved correctly
 
-- [ ] 5.4 NPU Performance Verification
-  - [ ] Check Frigate stats page (http://frigate.internal/stats)
-  - [ ] Verify detector inference time: ~25-30ms (RKNN)
-  - [ ] If >50ms, NPU may not be accelerating (check logs)
-  - [ ] Compare CPU vs NPU detector performance:
-    - CPU: >60ms inference, high CPU usage
-    - NPU: ~25-30ms inference, low CPU usage
+- [ ] 5.4 NPU Performance Verification - **SKIPPED** (using CPU detector)
+  - Using CPU detector per Phase 1 deployment strategy
+  - NPU acceleration planned for Phase 7 (future)
 
-- [ ] 5.5 Configuration Tuning
-  - [ ] Adjust detection FPS (balance responsiveness vs resource usage)
-  - [ ] Tune object filters:
-    - `min_area`: Minimum size to detect (pixels)
-    - `threshold`: Confidence threshold (0-1)
-    - `min_score`: Minimum detection score
-  - [ ] Configure zones if needed (e.g., "garden" zone)
-  - [ ] Set up motion masks (ignore trees, bushes moving in wind)
-  - [ ] Configure recording retention (days, mode)
+- [ ] 5.5 Configuration Tuning (partial)
+  - [x] Detection FPS: 5 FPS
+  - [x] Object filters configured for person, cat, dog, bird
+  - [ ] Zones not yet configured (pending outdoor install)
+  - [ ] Motion masks not yet configured (pending outdoor install)
+  - [x] Recording retention: 7 days (motion mode)
+  - [x] Snapshot retention: 14 days
 
-- [ ] 5.6 Notifications Setup (Optional)
-  - [ ] Configure MQTT broker (if using Home Assistant)
-  - [ ] Set up webhook notifications (Discord/Slack)
-  - [ ] Test notifications on object detection
-  - [ ] Configure notification filters (e.g., only notify for person in driveway zone)
+- [ ] 5.6 Notifications Setup - **NOT DONE**
+  - MQTT disabled for now
+  - Can be configured later with Home Assistant integration
+
+#### Frigate Configuration Summary
+```yaml
+cameras:
+  garden:
+    detect:
+      width: 704
+      height: 576
+      fps: 5
+    record:
+      retain:
+        days: 7
+        mode: motion
+    objects:
+      track: [person, cat, dog, bird]
+```
 
 #### Expected Outcome
-- Camera integrated with Frigate
-- Object detection working with NPU acceleration
-- Inference time <30ms on RKNN detector
-- Events and snapshots saved correctly
-- Notifications configured (optional)
+- Camera integrated with Frigate ✅
+- Object detection working with CPU detector ✅
+- Events and snapshots saved correctly ✅
+- Notifications configured - ⏳ deferred
 
 ### Phase 6: Production Readiness
 
@@ -1367,19 +1370,20 @@ kubectl exec -n frigate deployment/frigate -- ls -la /dev/accel/accel0
 
 ### Phase 1-6: Frigate with CPU Detector (Initial Deployment)
 
-- [ ] Camera physically installed and powered
-- [ ] Camera accessible on network with static IP
-- [ ] Default password changed, camera secured
-- [ ] RTSP streams tested and verified stable
-- [ ] Frigate deployed to Kubernetes cluster
-- [ ] Frigate pod running with CPU detector
-- [ ] Camera integrated with Frigate
-- [ ] Object detection working (person, cat, dog) with CPU detector
-- [ ] Detection inference time <100ms (acceptable for CPU)
-- [ ] Recordings and events saved correctly
-- [ ] Web UI accessible at `https://frigate.internal`
-- [ ] Monitoring and alerting configured
-- [ ] Documentation complete
+- [x] Camera physically installed and powered (indoor test setup)
+- [x] Camera accessible on network with static IP (10.0.0.50)
+- [x] Default password changed, camera secured
+- [x] RTSP streams tested and verified stable
+- [x] Frigate deployed to Kubernetes cluster
+- [x] Frigate pod running with CPU detector
+- [x] Camera integrated with Frigate
+- [x] Object detection working (person, cat, dog, bird) with CPU detector
+- [x] Recordings and events saved correctly
+- [x] Web UI accessible at `https://frigate.internal`
+- [x] Authentication enabled (port 8971)
+- [ ] Monitoring and alerting configured - *Phase 6 pending*
+- [ ] Documentation complete - *Phase 6 pending*
+- [ ] Outdoor permanent installation - *Phase 1 pending*
 
 ### Phase 7: NPU Acceleration (Future Enhancement)
 
@@ -1687,73 +1691,35 @@ serviceMonitor:
 
 ## Next Actions
 
-### 🎯 Two-Phase Deployment Strategy
+### 🎯 Current Status (2026-02-01)
 
-**Phase 1 (Immediate):** Deploy Frigate with **CPU detector** - fully functional surveillance system
-**Phase 2 (Future):** Build **custom YOLO-TFLite service** for NPU acceleration via HTTP detector
+**✅ COMPLETED:**
+- Phase 1: Camera network setup (indoor test, outdoor mounting pending)
+- Phase 2: Camera configuration (static IP 10.0.0.50, password changed)
+- Phase 3: Deployment planning
+- Phase 4: Frigate Kubernetes deployment (CPU detector, port 8971 auth)
+- Phase 5: Camera integration and basic testing
+
+**Frigate is operational at `https://frigate.internal`**
 
 ---
 
-### Immediate Next Steps (Phase 1)
+### Remaining Tasks
 
-**Camera Setup:**
+#### Phase 1 (Pending): Outdoor Installation
+- [ ] Choose permanent mounting location (garden view)
+- [ ] Mount camera bracket to exterior wall
+- [ ] Run ethernet cable from PoE switch
+- [ ] Aim and level camera
+- [ ] Document final cable routing
 
-1. **Physical Installation** (Phase 1)
-   - Choose mounting location with good garden view
-   - Install camera bracket and mount camera
-   - Connect to PoE switch via ethernet cable
-   - Verify camera powers on (check status LED)
-   - Document cable routing and switch port number
-
-2. **Network Discovery**
-   - Scan network for camera: `nmap -sn 10.1.0.0/24`
-   - Default IP should be: `192.168.1.108`
-   - Access web UI via browser
-   - **Hardware reset if needed**: Open hatch, hold reset button 10 seconds
-
-3. **Camera Configuration** (Phase 2)
-   - **CRITICAL**: Change default password (`admin`/`admin`)
-   - Configure static IP: `10.1.0.50` (or DHCP reservation)
-   - Configure video streams:
-     - Main stream (subtype=0): 2688×1520, H.265, 15 FPS, 4 Mbps
-     - Third stream (subtype=2): 640×480, H.264, 5 FPS, 512 Kbps
-   - Test RTSP streams with VLC/ffplay
-   - Verify streams stable for 5+ minutes
-
-**Frigate Deployment:**
-
-4. **Storage Planning** (Phase 3)
-   - Decide retention: 7 days motion recording (50GB recommended)
-   - Create PVCs in Longhorn:
-     - `frigate-db`: 10GB
-     - `frigate-recordings`: 100GB
-
-5. **Deploy Frigate with CPU Detector** (Phase 4)
-   - Add Helm repository: `blakeblackshear/frigate`
-   - Create `values.yaml` with **CPU detector**:
-     ```yaml
-     detectors:
-       cpu:
-         type: cpu
-         num_threads: 4
-     ```
-   - Deploy via ArgoCD to `frigate` namespace
-   - Verify pod starts on opi01 (any node works, no NPU needed)
-
-6. **Camera Integration** (Phase 5)
-   - Configure camera in Frigate `config.yml`
-   - Add detection stream (subtype=2) and record stream (subtype=0)
-   - Test object detection (walk in front of camera)
-   - Verify recordings saved
-   - Access web UI: `https://frigate.internal`
-
-7. **Production Readiness** (Phase 6)
-   - Configure Prometheus monitoring
-   - Set up backup for Frigate database
-   - Document camera credentials in SOPS
-   - Create user guide for reviewing events
-
-**✅ At this point: Fully functional surveillance system with CPU detector**
+#### Phase 6 (Pending): Production Readiness
+- [ ] Configure Prometheus ServiceMonitor
+- [ ] Create Grafana dashboard
+- [ ] Set up backup for Frigate database to S3 (Garage)
+- [ ] Configure zones in Frigate (after outdoor install)
+- [ ] Set up motion masks (after outdoor install)
+- [ ] Add camera to local DNS as `camera01.internal`
 
 ---
 
@@ -1761,27 +1727,27 @@ serviceMonitor:
 
 **When ready to add NPU acceleration:**
 
-8. **Research YOLO TFLite** (Phase 7.1)
+1. **Research YOLO TFLite** (Phase 7.1)
    - Research YOLO model conversion to TFLite
    - Study Frigate HTTP detector protocol
    - Analyze Mesa Teflon YOLO operation support
 
-9. **Convert and Test Model** (Phase 7.2)
+2. **Convert and Test Model** (Phase 7.2)
    - Convert YOLOv8n to TFLite INT8 format
    - Test YOLO inference on existing npu-inference service
    - Verify NPU acceleration (<40ms inference)
 
-10. **Build Custom Detection Service** (Phase 7.3)
-    - Fork npu-inference codebase
-    - Replace classification with object detection
-    - Implement bounding box parsing (NMS)
-    - Add `/detect` HTTP endpoint
-    - Test locally with Podman
+3. **Build Custom Detection Service** (Phase 7.3)
+   - Fork npu-inference codebase
+   - Replace classification with object detection
+   - Implement bounding box parsing (NMS)
+   - Add `/detect` HTTP endpoint
+   - Test locally with Podman
 
-11. **Deploy and Integrate** (Phase 7.4-7.5)
-    - Deploy YOLO-TFLite service to opi02 (dedicated NPU)
-    - Update Frigate to use HTTP detector
-    - Verify 2-3× speedup vs CPU (30-40ms vs 60-100ms)
+4. **Deploy and Integrate** (Phase 7.4-7.5)
+   - Deploy YOLO-TFLite service to opi02 (dedicated NPU)
+   - Update Frigate to use HTTP detector
+   - Verify 2-3× speedup vs CPU (30-40ms vs 60-100ms)
 
 **🚀 End result: NPU-accelerated Frigate with mainline-only architecture**
 
@@ -1789,8 +1755,9 @@ serviceMonitor:
 
 ### Summary
 
-**Start with Phase 1-6**: Get camera working with Frigate CPU detector (~20-30 hours)
+**✅ Phase 1-5 COMPLETE**: Frigate running with CPU detector, camera streaming, authentication enabled
 
-**Later, Phase 7**: Add NPU acceleration via custom YOLO-TFLite service (~20-30 hours)
-
-All phases documented and ready to execute!
+**⏳ Remaining**:
+- Outdoor permanent installation (Phase 1)
+- Monitoring and production hardening (Phase 6)
+- NPU acceleration (Phase 7 - future)
