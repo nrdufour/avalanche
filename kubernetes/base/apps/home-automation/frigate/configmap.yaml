@@ -6,6 +6,12 @@ metadata:
   namespace: home-automation
 data:
   config.yml: |
+    auth:
+      enabled: true
+
+    proxy:
+      header_map: {}
+
     mqtt:
       enabled: false
 
