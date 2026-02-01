@@ -20,6 +20,8 @@ spec:
     spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        opi.feature.node.kubernetes.io/5plus: "true"
       containers:
         - name: frigate
           image: ghcr.io/blakeblackshear/frigate:0.16.4
