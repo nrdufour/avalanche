@@ -839,178 +839,114 @@ cameras:
 
 ### Phase 7: NPU Acceleration (Future Enhancement)
 
-**Objective**: Build custom YOLO-TFLite detection service to enable NPU-accelerated object detection for Frigate using mainline kernel stack.
+**Objective**: Enable NPU-accelerated object detection using Frigate's native Mesa Teflon support.
 
-**Status**: 🔮 **PLANNED** - Future work after Frigate is stable with CPU detector
+**Status**: 🔮 **PLANNED** - Wait for Frigate 0.17 stable release
 
-#### 7.1 Research and Planning
+#### Prerequisites (Already Met ✅)
 
-**Tasks:**
-- [ ] Research YOLO model compatibility with TensorFlow Lite
-  - YOLOv5 TFLite conversion
-  - YOLOv8 TFLite conversion
-  - YOLO-NAS TFLite conversion
-  - Evaluate which models work best with Mesa Teflon
+Avalanche infrastructure already has the required components:
 
-- [ ] Study Frigate HTTP detector protocol
-  - Request format (image input)
-  - Response format (bounding boxes, scores, class IDs)
-  - Performance requirements
-  - Error handling
+| Requirement | Status | Current Version |
+|-------------|--------|-----------------|
+| Kernel 6.18+ with `rocket` driver | ✅ | 6.18.7 |
+| Mesa 25.3+ with `libteflon.so` | ✅ | 25.3.4 |
+| `/dev/accel/accel0` device | ✅ | Available on opi01-03 |
+| Orange Pi 5 Plus (RK3588) | ✅ | opi01, opi02, opi03 |
 
-- [ ] Analyze Mesa Teflon YOLO support
-  - Which YOLO operations are supported by Teflon?
-  - Test YOLO inference on existing npu-inference service
-  - Measure baseline performance
-
-#### 7.2 Model Conversion and Testing
+#### 7.1 Upgrade to Frigate 0.17
 
 **Tasks:**
-- [ ] Convert YOLO model to TFLite format
-  - Select YOLO variant (YOLOv8n recommended for speed)
-  - Export to ONNX format
-  - Convert ONNX to TFLite
-  - Quantize to INT8 (required for NPU)
-
-- [ ] Test YOLO TFLite on NPU
-  - Load model in existing npu-inference container
-  - Run test inference on sample images
-  - Verify NPU acceleration (check inference time <40ms)
-  - Parse output tensor to extract bounding boxes
-
-- [ ] Validate detection accuracy
-  - Test with COCO validation set
-  - Compare accuracy vs original YOLO model
-  - Ensure acceptable accuracy after quantization
-
-#### 7.3 Custom Detection Service Development
-
-**Tasks:**
-- [ ] Design HTTP API specification
+- [ ] Wait for Frigate 0.17 stable release (currently in beta)
+- [ ] Update Frigate image tag in deployment.yaml
+  ```yaml
+  image: ghcr.io/blakeblackshear/frigate:0.17.0  # or latest stable
   ```
-  POST /detect
-  Content-Type: multipart/form-data
-
-  Request: image file
-  Response: {
-    "detections": [
-      {
-        "box": [x1, y1, x2, y2],  # Bounding box coordinates
-        "score": 0.95,             # Confidence score
-        "class_id": 0,             # COCO class ID
-        "class_name": "person"     # Human-readable label
-      }
-    ],
-    "inference_time_ms": 28.5
-  }
+- [ ] Add device mounts to deployment
+  ```yaml
+  volumes:
+    - name: dri
+      hostPath:
+        path: /dev/dri
+    - name: accel
+      hostPath:
+        path: /dev/accel
+  volumeMounts:
+    - name: dri
+      mountPath: /dev/dri
+    - name: accel
+      mountPath: /dev/accel
+  ```
+- [ ] Mount Mesa Teflon library from host
+  ```yaml
+  volumes:
+    - name: mesa-libs
+      hostPath:
+        path: /run/opengl-driver/lib
+    - name: nix-store
+      hostPath:
+        path: /nix/store
+  volumeMounts:
+    - name: mesa-libs
+      mountPath: /usr/lib/libteflon.so
+      subPath: libteflon.so
+      readOnly: true
   ```
 
-- [ ] Implement detection service (based on npu-inference)
-  - Fork npu-inference codebase
-  - Replace MobileNetV1 classification with YOLO detection
-  - Implement bounding box parsing (NMS, coordinate conversion)
-  - Add `/detect` endpoint
-  - Keep existing `/health` and `/metrics` endpoints
-
-- [ ] Build container image
-  - Dockerfile with TFLite, Pillow, NumPy
-  - Include YOLO TFLite model
-  - Mesa Teflon from host mount (same as npu-inference)
-
-- [ ] Test locally with Podman
-  ```bash
-  podman run -d \
-    --device=/dev/accel/accel0 \
-    -v /run/opengl-driver/lib:/mesa-libs:ro \
-    -v /nix/store:/nix/store:ro \
-    -p 8080:8080 \
-    yolo-tflite-detector:latest
-  ```
-
-#### 7.4 Kubernetes Deployment
+#### 7.2 Configure Teflon Detector
 
 **Tasks:**
-- [ ] Create K8s manifests
-  - `deployment.yaml` - YOLO detector on opi02
-  - `service.yaml` - ClusterIP service
-  - `servicemonitor.yaml` - Prometheus metrics
-  - `kustomization.yaml`
-
-- [ ] Deploy via ArgoCD
-  - Create ArgoCD Application
-  - Deploy to `ml` namespace
-  - Verify pod starts on opi02 (dedicated NPU node)
-
-- [ ] Test detection endpoint
-  ```bash
-  # From within cluster
-  curl -X POST -F "image=@test.jpg" \
-    http://yolo-detector.ml.svc.cluster.local:8080/detect
-  ```
-
-- [ ] Verify NPU acceleration
-  - Check inference time <40ms
-  - Verify bounding boxes are correct
-  - Test with various images (person, cat, dog, car)
-
-#### 7.5 Frigate Integration
-
-**Tasks:**
-- [ ] Update Frigate ConfigMap
+- [ ] Update Frigate ConfigMap with Teflon detector
   ```yaml
   detectors:
-    yolo_tflite:
-      type: http
-      url: http://yolo-detector.ml.svc.cluster.local:8080/detect
+    npu:
+      type: teflon_tfl
   ```
+- [ ] Remove CPU detector configuration
+- [ ] Deploy updated configuration
+- [ ] Verify Frigate pod starts successfully
 
-- [ ] Restart Frigate pod (or hot-reload config)
-
-- [ ] Verify Frigate uses HTTP detector
-  - Check Frigate logs for HTTP detector calls
-  - Verify objects detected correctly
-  - Check Frigate stats page (inference time should be ~30-40ms)
-
-- [ ] Performance comparison
-  - CPU detector: ~60-100ms
-  - HTTP + NPU detector: ~30-40ms (network overhead + inference)
-  - Expected 2-3× speedup
-
-#### 7.6 Optimization and Tuning
+#### 7.3 Verify NPU Acceleration
 
 **Tasks:**
-- [ ] Optimize inference performance
-  - Test different YOLO model sizes (n, s, m)
-  - Tune NPU core allocation (1 vs 3 cores)
-  - Benchmark throughput (detections per second)
+- [ ] Check Frigate logs for Teflon initialization
+  ```bash
+  kubectl logs -n home-automation deployment/frigate | grep -i teflon
+  ```
+- [ ] Verify NPU device is detected
+  ```bash
+  kubectl exec -n home-automation deployment/frigate -- ls -la /dev/accel/
+  ```
+- [ ] Check Frigate stats page for inference time
+  - Expected: ~25-30ms (vs ~60-100ms with CPU)
+- [ ] Test object detection with camera feed
+- [ ] Verify detections appear correctly in UI
 
-- [ ] Reduce HTTP overhead
-  - Consider gRPC instead of HTTP (lower latency)
-  - Optimize image transfer (compression, format)
-  - Add connection pooling/keep-alive
+#### 7.4 Performance Tuning (Optional)
 
-- [ ] Multi-camera scaling
-  - Test with multiple cameras calling same detector
-  - Evaluate if additional detector instances needed
-  - Consider load balancing across opi02 and opi03
+**Tasks:**
+- [ ] Compare inference times: CPU vs Teflon NPU
+- [ ] Adjust detection FPS if NPU allows higher throughput
+- [ ] Monitor CPU usage reduction
+- [ ] Test with multiple cameras (if adding more)
 
 #### Expected Outcome
-- YOLO-TFLite detection service running on opi02 NPU
-- Frigate using HTTP detector for NPU-accelerated inference
-- Detection performance <40ms (2-3× faster than CPU)
-- All services using mainline Mesa Teflon stack
-- No vendor kernel dependencies
+- Frigate using native `teflon_tfl` detector
+- NPU-accelerated inference ~25-30ms (2-3× faster than CPU)
+- Lower CPU usage on Orange Pi 5 Plus
+- All using mainline kernel stack (no vendor dependencies)
 
 #### Success Criteria
-- [ ] YOLO TFLite model loads and runs on NPU
-- [ ] Inference time <40ms (including HTTP overhead)
-- [ ] Detection accuracy acceptable for surveillance use case
-- [ ] Frigate successfully uses HTTP detector
+- [ ] Frigate 0.17+ running with `teflon_tfl` detector
+- [ ] Inference time <35ms
 - [ ] Objects (person, cat, dog, bird) detected correctly
 - [ ] System stable under continuous operation
-- [ ] Prometheus metrics tracking detector performance
+- [ ] No vendor kernel or RKNN dependencies
 
-**Estimated Timeline**: 15-20 hours development + testing
+#### References
+- [Frigate Discussion #18311: Mesa Teflon mainline kernel support](https://github.com/blakeblackshear/frigate/discussions/18311)
+- [Frigate PR #18310: Add Mesa Teflon as a TFLite detector](https://github.com/blakeblackshear/frigate/pull/18310)
+- [Frigate Object Detectors Documentation](https://docs.frigate.video/configuration/object_detectors/)
 
 ## Integration with Existing NPU Infrastructure
 
@@ -1018,98 +954,62 @@ cameras:
 
 This surveillance camera deployment builds on the existing NPU infrastructure documented in `rknn-npu-integration-plan.md`. Key integration points:
 
-**Shared NPU Hardware:**
-- Frigate will use the same RK3588 NPU cores as the npu-inference service
-- Both use `/dev/accel/accel0` device
-- Both require Mesa 25.3+ with rocket driver
+**Shared NPU Stack (Unified Architecture):**
 
-**Different NPU Stacks:**
+With Frigate 0.17's native Mesa Teflon support, both services now use the **same mainline NPU stack**:
+
+| Component | Requirement | Status |
+|-----------|-------------|--------|
+| Kernel | 6.18+ with `rocket` driver | ✅ 6.18.7 |
+| Mesa | 25.3+ with `libteflon.so` | ✅ 25.3.4 |
+| Device | `/dev/accel/accel0` | ✅ Available |
+| Inference | TensorFlow Lite via Teflon | ✅ Supported |
+
+**Service Model Formats:**
 
 | Service | NPU Stack | Model Format | Inference Framework |
 |---------|-----------|--------------|---------------------|
-| **npu-inference** | Mesa Teflon (mainline) | TFLite (`.tflite`) | TensorFlow Lite |
-| **Frigate** | RKNN (vendor) | RKNN (`.rknn`) | Rockchip RKNN Runtime |
+| **npu-inference** | Mesa Teflon | TFLite (`.tflite`) | TensorFlow Lite |
+| **Frigate 0.17+** | Mesa Teflon | TFLite (`.tflite`) | TensorFlow Lite via `teflon_tfl` |
 
-⚠️ **Important Incompatibility**:
-- The npu-inference service uses **Mesa Teflon** (mainline TensorFlow Lite delegate)
-- Frigate uses **RKNN Runtime** (Rockchip vendor library)
-- These are **mutually exclusive** on the same NPU device
-
-**Resolution Strategy:**
-
-⚠️ **CRITICAL**: Frigate's RKNN detector is **NOT compatible** with mainline kernel. RKNN requires vendor kernel which breaks Avalanche's mainline-only architecture.
+✅ **Unified Stack**: Both services now use the same Mesa Teflon stack. No vendor kernel or RKNN dependencies required.
 
 **Deployment Approach:**
 
-**Phase 1: CPU Detector (Initial Deployment)** ✅
+**Phase 1: CPU Detector (Current - Frigate 0.16.4)** ✅
 ```yaml
 # Frigate deployment with CPU detector
 detectors:
   cpu:
     type: cpu
     num_threads: 4
-
-# Can run on any node (no NPU requirement)
-nodeSelector:
-  kubernetes.io/hostname: opi01  # Or opi02, opi03
 ```
 
-**Benefits:**
-- Works immediately on mainline kernel
-- Validates Frigate deployment
-- No NPU conflicts
-- Sufficient performance for single camera
-
-**Phase 2: Custom YOLO-TFLite Service (Future NPU Acceleration)** 🎯
-
-Build custom object detection service using mainline NPU stack:
-
+**Phase 2: Teflon NPU Detector (Future - Frigate 0.17+)** 🎯
 ```yaml
-# Custom YOLO-TFLite detection service
-# Similar to existing npu-inference service
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: yolo-detector
-  namespace: ml
-spec:
-  template:
-    spec:
-      nodeSelector:
-        kubernetes.io/hostname: opi02  # Dedicated NPU node
-      containers:
-      - name: detector
-        image: forge.internal/nemo/yolo-tflite-detector:latest
-        # Mount /dev/accel/accel0, Mesa libs, etc.
-```
-
-```yaml
-# Frigate uses HTTP detector to call custom service
+# Frigate deployment with Mesa Teflon NPU detector
 detectors:
-  yolo_tflite:
-    type: http
-    url: http://yolo-detector.ml.svc.cluster.local:8080/detect
+  npu:
+    type: teflon_tfl
 ```
 
-**Node Allocation Strategy:**
-- **opi01**: Frigate (CPU detector initially, then HTTP detector)
-- **opi02**: YOLO-TFLite detection service (NPU acceleration)
-- **opi03**: Existing npu-inference service (image classification)
+**Benefits of Unified Stack:**
+- Both services use mainline kernel ✅
+- Both use Mesa Teflon for NPU acceleration ✅
+- No vendor kernel dependencies ✅
+- Simpler architecture (no custom HTTP detector needed) ✅
 
-**Benefits:**
-- All services use mainline Mesa Teflon stack ✅
-- No vendor kernel required ✅
-- Frigate gets NPU acceleration via HTTP ✅
-- Each NPU node dedicated to one service ✅
-- Maintains architectural consistency ✅
+**Node Allocation:**
+- **opi01-03**: Any can run Frigate with Teflon detector
+- **opi03**: Existing npu-inference service (image classification)
+- NPU can be shared between services (time-sliced)
 
 **Implementation Timeline:**
-1. Deploy Frigate with CPU detector (validate functionality)
-2. Research YOLO TFLite conversion and Mesa Teflon compatibility
-3. Build custom YOLO-TFLite detection service (based on npu-inference)
-4. Test object detection performance on RK3588 NPU
-5. Switch Frigate to HTTP detector
-6. Benchmark performance improvement vs CPU
+1. ✅ Deploy Frigate 0.16.4 with CPU detector (completed 2026-02-01)
+2. ⏳ Wait for Frigate 0.17 stable release
+3. Upgrade to Frigate 0.17 with `teflon_tfl` detector
+4. Mount NPU devices and Mesa libraries
+5. Benchmark performance improvement vs CPU (~2-3× expected)
 
 ## Storage Planning
 
@@ -1387,11 +1287,11 @@ kubectl exec -n frigate deployment/frigate -- ls -la /dev/accel/accel0
 
 ### Phase 7: NPU Acceleration (Future Enhancement)
 
-- [ ] YOLO TFLite model running on NPU
-- [ ] Custom detection service deployed to opi02
-- [ ] Frigate HTTP detector configured
-- [ ] NPU-accelerated inference <40ms (2-3× faster than CPU)
-- [ ] Detection accuracy acceptable for surveillance
+- [ ] Frigate 0.17+ stable released
+- [ ] Upgraded to Frigate 0.17 with `teflon_tfl` detector
+- [ ] NPU devices mounted (`/dev/accel/`, `/dev/dri/`)
+- [ ] Mesa Teflon library accessible in container
+- [ ] NPU-accelerated inference ~25-30ms (2-3× faster than CPU)
 - [ ] All services using mainline Mesa Teflon stack
 - [ ] No vendor kernel dependencies
 
@@ -1725,31 +1625,35 @@ serviceMonitor:
 
 ### Future Enhancement (Phase 7 - NPU Acceleration)
 
-**When ready to add NPU acceleration:**
+**Prerequisites already met:**
+- ✅ Kernel 6.18.7 with `rocket` driver
+- ✅ Mesa 25.3.4 with `libteflon.so`
+- ✅ `/dev/accel/accel0` available on opi01-03
 
-1. **Research YOLO TFLite** (Phase 7.1)
-   - Research YOLO model conversion to TFLite
-   - Study Frigate HTTP detector protocol
-   - Analyze Mesa Teflon YOLO operation support
+**When Frigate 0.17 is stable:**
 
-2. **Convert and Test Model** (Phase 7.2)
-   - Convert YOLOv8n to TFLite INT8 format
-   - Test YOLO inference on existing npu-inference service
-   - Verify NPU acceleration (<40ms inference)
+1. **Upgrade Frigate**
+   - Update image tag to `0.17.x`
+   - Add device mounts (`/dev/dri/`, `/dev/accel/`)
+   - Mount Mesa Teflon library from host
 
-3. **Build Custom Detection Service** (Phase 7.3)
-   - Fork npu-inference codebase
-   - Replace classification with object detection
-   - Implement bounding box parsing (NMS)
-   - Add `/detect` HTTP endpoint
-   - Test locally with Podman
+2. **Configure Teflon Detector**
+   ```yaml
+   detectors:
+     npu:
+       type: teflon_tfl
+   ```
 
-4. **Deploy and Integrate** (Phase 7.4-7.5)
-   - Deploy YOLO-TFLite service to opi02 (dedicated NPU)
-   - Update Frigate to use HTTP detector
-   - Verify 2-3× speedup vs CPU (30-40ms vs 60-100ms)
+3. **Verify Performance**
+   - Check inference time ~25-30ms (vs 60-100ms CPU)
+   - Monitor CPU usage reduction
+   - Test object detection accuracy
 
-**🚀 End result: NPU-accelerated Frigate with mainline-only architecture**
+**🚀 End result: Native NPU-accelerated Frigate with mainline-only architecture**
+
+**References:**
+- [Frigate Discussion #18311](https://github.com/blakeblackshear/frigate/discussions/18311)
+- [Frigate PR #18310](https://github.com/blakeblackshear/frigate/pull/18310)
 
 ---
 
