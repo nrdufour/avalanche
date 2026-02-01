@@ -12,3 +12,4 @@ resources:
   - mqtt-app.yaml
   - esphome-app.yaml
   - home-assistant-app.yaml
+  - frigate-app.yaml

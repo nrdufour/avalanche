@@ -1,0 +1,27 @@
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: frigate-secret
+  namespace: home-automation
+spec:
+  refreshInterval: "10m"
+  target:
+    name: frigate-secret
+    deletionPolicy: Delete
+    template:
+      type: Opaque
+      data:
+        # URL-encoded password for RTSP URLs
+        FRIGATE_RTSP_PASSWORD: |-
+          {{ .FRIGATE_RTSP_PASSWORD }}
+  data:
+    - secretKey: FRIGATE_RTSP_PASSWORD
+      sourceRef:
+        storeRef:
+          name: bitwarden-fields
+          kind: ClusterSecretStore
+      remoteRef:
+        # Item called "Home Automation"
+        key: ec4485d9-4570-4475-aeb8-4053bd864e4b
+        property: FRIGATE_RTSP_PASSWORD
