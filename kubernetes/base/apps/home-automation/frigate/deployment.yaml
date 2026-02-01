@@ -58,7 +58,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /api/version
-              port: 8971
+              port: 5000
             initialDelaySeconds: 30
             periodSeconds: 30
             timeoutSeconds: 10
@@ -66,7 +66,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /api/version
-              port: 8971
+              port: 5000
             initialDelaySeconds: 15
             periodSeconds: 10
             timeoutSeconds: 5
