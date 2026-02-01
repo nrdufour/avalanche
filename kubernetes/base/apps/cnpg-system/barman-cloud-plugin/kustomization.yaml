@@ -3,8 +3,8 @@ kind: Kustomization
 
 # The plugin must be installed in the same namespace as the CNPG operator
 # (typically "cnpg-system")
-# Ref: https://cloudnative-pg.io/plugin-barman-cloud/docs/0.10.0/installation/
+# Ref: https://cloudnative-pg.io/plugin-barman-cloud/docs/0.11.0/installation/
 namespace: cnpg-system
 
 resources:
-  - https://github.com/cloudnative-pg/plugin-barman-cloud/releases/download/v0.10.0/manifest.yaml
+  - https://github.com/cloudnative-pg/plugin-barman-cloud/releases/download/v0.11.0/manifest.yaml
