@@ -126,6 +126,13 @@
       matchPackageNames: ['python'],
       allowedVersions: '<3.13',
     },
+    {
+      description: 'Disable major updates for CNPG clusters (requires backup/restore migration)',
+      matchDatasources: ['docker'],
+      matchPackageNames: ['ghcr.io/cloudnative-pg/postgresql'],
+      matchUpdateTypes: ['major'],
+      enabled: false,
+    },
     // Pin digests for security-critical infrastructure images
     {
       description: 'Pin digests for security-critical images',
