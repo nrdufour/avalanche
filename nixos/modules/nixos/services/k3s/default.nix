@@ -125,6 +125,82 @@ in
       BindPaths = "/run/current-system/sw/bin:/bin";
     };
 
+    # ==========================================================================
+    # WORKAROUND: Flannel subnet.env not created on k3s server nodes after reboot
+    # ==========================================================================
+    #
+    # Date discovered: 2026-02-02
+    # Nixpkgs revision: 41e216c0ca66c83b12ab7a98cc326b5db01db646
+    # k3s version: 1.34.3+k3s1
+    #
+    # Problem:
+    #   After a reboot, k3s server nodes (especially cluster-init nodes) may fail
+    #   to initialize the flannel networking backend. The embedded flannel never
+    #   writes /run/flannel/subnet.env, causing all pod sandbox creation to fail
+    #   with: "plugin type=\"flannel\" failed (add): loadFlannelSubnetEnv failed:
+    #   open /run/flannel/subnet.env: no such file or directory"
+    #
+    # Root cause:
+    #   On k3s server nodes with embedded etcd (clusterInit=true), the startup
+    #   sequence includes an etcd reconciliation phase ("Starting temporary etcd
+    #   to reconcile with datastore"). During this special startup path, flannel
+    #   initialization appears to be silently skipped - the expected log messages
+    #   "Starting flannel with backend vxlan" and "Running flannel backend" never
+    #   appear. The kubelet receives its Pod CIDR assignment, but flannel never
+    #   writes the subnet.env file that the CNI plugin needs.
+    #
+    # Impact:
+    #   - No pods can start on the affected node (including kured)
+    #   - If kured cordoned the node for reboot, it cannot uncordon it
+    #   - The kured lock remains held, blocking reboots on other nodes
+    #
+    # Workaround:
+    #   This service creates a minimal /run/flannel/subnet.env before k3s starts.
+    #   The values are derived from the node's expected Pod CIDR based on its
+    #   position in the cluster. The CNI plugin can then configure pod networking
+    #   even if flannel's backend initialization is skipped.
+    #
+    # Related issues:
+    #   - https://github.com/k3s-io/k3s/issues/8179
+    #   - https://github.com/k3s-io/k3s/issues/11619
+    #   - https://github.com/k3s-io/k3s/issues/2599
+    #
+    # TODO: Remove this workaround once the upstream k3s bug is fixed.
+    # ==========================================================================
+    systemd.services.k3s-flannel-workaround = mkIf (cfg.role == "server") {
+      description = "Ensure flannel subnet.env exists for k3s";
+      before = [ "k3s.service" ];
+      wantedBy = [ "multi-user.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+      };
+      script = ''
+        mkdir -p /run/flannel
+        if [ ! -f /run/flannel/subnet.env ]; then
+          echo "Creating /run/flannel/subnet.env (k3s flannel workaround)"
+          # Use node-specific subnet based on hostname
+          # These match the Pod CIDRs assigned by the cluster:
+          #   opi01: 10.42.0.0/24, opi02: 10.42.1.0/24, opi03: 10.42.2.0/24
+          case "$(hostname)" in
+            opi01) SUBNET="10.42.0.1/24" ;;
+            opi02) SUBNET="10.42.1.1/24" ;;
+            opi03) SUBNET="10.42.2.1/24" ;;
+            *)     SUBNET="10.42.255.1/24" ;; # Fallback, should not happen
+          esac
+          cat > /run/flannel/subnet.env <<EOF
+FLANNEL_NETWORK=10.42.0.0/16
+FLANNEL_SUBNET=$SUBNET
+FLANNEL_MTU=1450
+FLANNEL_IPMASQ=true
+EOF
+          echo "Created /run/flannel/subnet.env with FLANNEL_SUBNET=$SUBNET"
+        else
+          echo "/run/flannel/subnet.env already exists, skipping"
+        fi
+      '';
+    };
+
     # Adding a service to prune the images used by containerd
     systemd.services.ctr-prune = {
       serviceConfig = {
