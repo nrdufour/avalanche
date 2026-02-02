@@ -1,5 +1,6 @@
 { lib
 , buildGoModule
+, fetchgit
 , templ
 }:
 
@@ -7,9 +8,12 @@ buildGoModule rec {
   pname = "sentinel";
   version = "0.2.2";
 
-  # Source from local src/sentinel directory
-  # This path is relative to the flake root
-  src = ../../../src/sentinel;
+  # Source from forge.internal git repository
+  src = fetchgit {
+    url = "ssh://git@forge.internal/nemo/sentinel.git";
+    rev = "fd2e5bb9adfad75a567d60a3874eaa9d88e4739b";
+    hash = "sha256-05rpfg5wgpjqvp7lj82ywz2dcxc5168zgqwgihsn6kbq904a7fjl";
+  };
 
   vendorHash = null;
 
@@ -46,7 +50,7 @@ buildGoModule rec {
       - Network interface bandwidth monitoring
       - LLDP neighbor discovery
     '';
-    homepage = "https://forge.internal/nemo/avalanche";
+    homepage = "https://forge.internal/nemo/sentinel";
     license = licenses.mit;
     maintainers = [ ];
     mainProgram = "sentinel";
