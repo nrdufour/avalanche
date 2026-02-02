@@ -32,6 +32,12 @@
 
     # LLM Agents
     llm-agents.url = "github:numtide/llm-agents.nix";
+
+    # Sentinel gateway dashboard
+    sentinel = {
+      url = "git+https://forge.internal/nemo/sentinel.git";
+      flake = false;  # Not a flake, just source
+    };
   };
 
   outputs = { self, nixpkgs, nixpkgs-unstable, sops-nix, ... }@inputs:

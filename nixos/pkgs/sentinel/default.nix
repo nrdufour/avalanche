@@ -1,19 +1,15 @@
 { lib
 , buildGoModule
-, fetchgit
 , templ
+, sentinel-src
 }:
 
 buildGoModule rec {
   pname = "sentinel";
   version = "0.2.2";
 
-  # Source from forge.internal git repository
-  src = fetchgit {
-    url = "ssh://git@forge.internal/nemo/sentinel.git";
-    rev = "fd2e5bb9adfad75a567d60a3874eaa9d88e4739b";
-    hash = "sha256-05rpfg5wgpjqvp7lj82ywz2dcxc5168zgqwgihsn6kbq904a7fjl";
-  };
+  # Source from flake input (updated via `nix flake update sentinel`)
+  src = sentinel-src;
 
   vendorHash = null;
 

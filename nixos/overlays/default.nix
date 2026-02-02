@@ -20,6 +20,8 @@
 
   # Sentinel gateway management tool
   sentinel = final: prev: {
-    sentinel = final.callPackage ../pkgs/sentinel { };
+    sentinel = final.callPackage ../pkgs/sentinel {
+      sentinel-src = inputs.sentinel;
+    };
   };
 }

@@ -190,7 +190,24 @@
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-unstable": "nixpkgs-unstable",
         "nur": "nur",
+        "sentinel": "sentinel",
         "sops-nix": "sops-nix"
+      }
+    },
+    "sentinel": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1770043419,
+        "narHash": "sha256-r+K2uigEUqE24z3hvNfEFzR7nFXmZBZGO8ircbQG4vk=",
+        "ref": "refs/heads/main",
+        "rev": "b7aee22195eda2c9f70063815cc109f5a1ceff55",
+        "revCount": 3,
+        "type": "git",
+        "url": "https://forge.internal/nemo/sentinel.git"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://forge.internal/nemo/sentinel.git"
       }
     },
     "sops-nix": {
