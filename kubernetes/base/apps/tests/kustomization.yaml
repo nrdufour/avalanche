@@ -5,4 +5,3 @@ kind: Kustomization
 resources:
   - ctest-app.yaml
   - cmp-test-app.yaml
-  - volsync-v2-test-app.yaml

@@ -13,14 +13,15 @@ spec:
         app: ctest
     spec:
       containers:
-      - name: ctest
-        image: nginx:latest
-        ports:
-        - containerPort: 80
-        volumeMounts:
-        - name: data
-          mountPath: /usr/share/nginx/html
+        - name: ctest
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/nginx/html
       volumes:
-      - name: data
-        persistentVolumeClaim:
-          claimName: ctest-app
+        - name: data
+          persistentVolumeClaim:
+            # PVC name matches APP variable from ArgoCD Application
+            claimName: ctest
