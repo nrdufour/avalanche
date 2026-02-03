@@ -5,6 +5,26 @@ resources:
   - config.yaml
   - deployment.yaml
   - service.yaml
-  - pvc.yaml
-  - volsync-ca-configmap.yaml
-  - ./volsync/local
+  # Note: PVC is managed by volsync-v2 component
+components:
+  - ../../../components/volsync-v2
+patches:
+  # Inject Ptinem Root CA for Garage S3
+  - target:
+      kind: ConfigMap
+      name: .*-volsync-ca
+    patch: |
+      - op: replace
+        path: /data/ca.crt
+        value: |
+          -----BEGIN CERTIFICATE-----
+          MIIBmDCCAT6gAwIBAgIRANSVoUiTXBGW9DkagKtQjWswCgYIKoZIzj0EAwIwKjEP
+          MA0GA1UEChMGUHRpbmVtMRcwFQYDVQQDEw5QdGluZW0gUm9vdCBDQTAeFw0yNDAy
+          MDkxMjUzMDBaFw0zNDAyMDYxMjUzMDBaMCoxDzANBgNVBAoTBlB0aW5lbTEXMBUG
+          A1UEAxMOUHRpbmVtIFJvb3QgQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAS2
+          kzW+UJV8eYmLOMDANrgnfprU5F2Epw7kmug6BlgU4g/Tm76FOMGRnfMdxf1B9J/P
+          f0acYOYfYdWjs5wfnAlao0UwQzAOBgNVHQ8BAf8EBAMCAQYwEgYDVR0TAQH/BAgw
+          BgEB/wIBATAdBgNVHQ4EFgQUxsuM0fqHAbzj3aiCX44My6D6zg4wCgYIKoZIzj0E
+          AwIDSAAwRQIgVM0UxJXuG4Vr/sKxlYv68QJezFpeOx/dtyCsqMJGrn4CIQD0BvL/
+          7IGSXySSzaNnz+u9WmgdsM+ZM7z6bd5h4ZqBJg==
+          -----END CERTIFICATE-----
