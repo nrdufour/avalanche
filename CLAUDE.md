@@ -519,9 +519,16 @@ This caused a major incident (Feb 2026) where 25+ apps showed ComparisonError an
 
 Reusable Kustomize component for backup/restore at `kubernetes/base/components/volsync-v2/`.
 
-**Required env vars:**
+**What it provides:**
+- PVC with dataSourceRef for restore from backup
+- ReplicationSource (backup to S3)
+- ReplicationDestination (restore from S3)
+- ExternalSecret (S3 credentials from Bitwarden)
+- ConfigMap with Ptinem Root CA (for Garage S3 TLS)
+
+**Required env vars (in ArgoCD Application):**
 - `APP` - Application name (used in resource names and S3 path)
-- `VOLSYNC_CAPACITY` - PVC size
+- `VOLSYNC_CAPACITY` - PVC size (e.g., "2Gi")
 - `VOLSYNC_BITWARDEN_KEY` - Bitwarden item UUID for S3 credentials
 
 **Optional env vars:**
@@ -531,17 +538,50 @@ Reusable Kustomize component for backup/restore at `kubernetes/base/components/v
 - `VOLSYNC_SCHEDULE` (default: "0 * * * *")
 - `VOLSYNC_UID` / `VOLSYNC_GID` (default: 1000)
 
-**For existing apps with data** (migration), patch out the dataSourceRef to prevent restore:
+**Minimal app kustomization.yaml:**
 ```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml
+  - service.yaml
+  # PVC is managed by volsync-v2 component
+components:
+  - ../../../components/volsync-v2
 patches:
+  # For existing apps with data - prevent restore on sync
   - target:
       kind: PersistentVolumeClaim
+      name: .*
     patch: |
       - op: remove
         path: /spec/dataSourceRef
 ```
 
-**Longhorn compatibility:** `cleanupTempPVC: false` is required. Longhorn deletes the underlying volume when the temp PVC is removed, orphaning snapshots.
+**ArgoCD Application config:**
+```yaml
+spec:
+  source:
+    path: kubernetes/base/apps/<category>/<app>
+    plugin:
+      name: kustomize-envsubst
+      env:
+        - name: APP
+          value: myapp
+        - name: VOLSYNC_CAPACITY
+          value: "2Gi"
+        - name: VOLSYNC_BITWARDEN_KEY
+          value: "b45f65b2-6326-42b8-b159-0e630fd223db"
+        # ... other optional vars
+```
+
+**CA Certificate:** The component includes the Ptinem Root CA for Garage S3. No per-app CA patches needed.
+
+**For existing apps with data** (migration), the dataSourceRef patch prevents the component's PVC from triggering a restore. The existing PVC in the cluster is preserved - ArgoCD won't recreate it.
+
+**Longhorn compatibility:** `cleanupTempPVC: false` is set in the component. Longhorn deletes the underlying volume when temp PVC is removed, orphaning snapshots.
+
+**Apps using volsync-v2:** esphome, mqtt, archivebox, kanboard
 
 ### Multi-Source Applications with CMP
 
