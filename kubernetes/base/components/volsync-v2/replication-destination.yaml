@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/volsync.backube/replicationdestination_v1alpha1.json
+---
+# Bootstrap ReplicationDestination for restoring from backup.
+#
+# KEY BEHAVIOR (ArgoCD CreateOnly):
+# - First deploy: Created, triggers restore from backup
+# - Subsequent deploys: Skipped (already exists)
+# - Manual delete: ArgoCD recreates, triggers new restore
+#
+# This prevents orphaned bootstrap PVCs and allows on-demand re-restore.
+#
+# Variables (passed via ArgoCD Application plugin.env):
+#   ARGOCD_ENV_APP - Application name (REQUIRED)
+#   ARGOCD_ENV_VOLSYNC_CAPACITY - Restore capacity (REQUIRED, must match PVC)
+#   ARGOCD_ENV_VOLSYNC_CACHE_CAPACITY - Cache size (optional, default: "2Gi")
+#   ARGOCD_ENV_VOLSYNC_STORAGECLASS - Storage class (optional, default: "longhorn")
+#   ARGOCD_ENV_VOLSYNC_ACCESSMODE - Access mode (optional, default: "ReadWriteOnce")
+#   ARGOCD_ENV_VOLSYNC_UID - Mover user ID (optional, default: "1000")
+#   ARGOCD_ENV_VOLSYNC_GID - Mover group ID (optional, default: "1000")
+#
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationDestination
+metadata:
+  name: "${ARGOCD_ENV_APP}-dst"
+  annotations:
+    # ArgoCD: Only create if it doesn't exist, never update
+    argocd.argoproj.io/sync-options: CreateOnly=true
+spec:
+  trigger:
+    manual: restore-once
+  restic:
+    customCA:
+      configMapName: "${ARGOCD_ENV_APP}-volsync-ca"
+      key: ca.crt
+
+    copyMethod: Snapshot
+    repository: "${ARGOCD_ENV_APP}-volsync-secret"
+
+    storageClassName: "${ARGOCD_ENV_VOLSYNC_STORAGECLASS}"
+    volumeSnapshotClassName: longhorn-snapshot-vsc
+
+    capacity: "${ARGOCD_ENV_VOLSYNC_CAPACITY}"
+    cacheCapacity: "${ARGOCD_ENV_VOLSYNC_CACHE_CAPACITY}"
+
+    accessModes:
+      - "${ARGOCD_ENV_VOLSYNC_ACCESSMODE}"
+
+    moverSecurityContext:
+      runAsUser: ${ARGOCD_ENV_VOLSYNC_UID}
+      runAsGroup: ${ARGOCD_ENV_VOLSYNC_GID}
+      fsGroup: ${ARGOCD_ENV_VOLSYNC_GID}
+
+    # CRITICAL: Clean up intermediate PVCs after restore
+    enableFileDeletion: true
+    cleanupCachePVC: true
+    cleanupTempPVC: true

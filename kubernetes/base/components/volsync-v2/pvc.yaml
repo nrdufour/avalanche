@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/v1/persistentvolumeclaim.json
+---
+# PVC that clones from the ReplicationDestination snapshot.
+# On first deploy: waits for ReplicationDestination to restore, then clones.
+# On subsequent deploys: PVC already exists, no action needed.
+#
+# Variables (passed via ArgoCD Application plugin.env):
+#   ARGOCD_ENV_APP - Application name (REQUIRED)
+#   ARGOCD_ENV_VOLSYNC_CAPACITY - Storage size (REQUIRED, e.g., "5Gi")
+#   ARGOCD_ENV_VOLSYNC_STORAGECLASS - Storage class (optional, default: longhorn)
+#   ARGOCD_ENV_VOLSYNC_ACCESSMODE - Access mode (optional, default: ReadWriteOnce)
+#
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: "${ARGOCD_ENV_APP}"
+spec:
+  storageClassName: "${ARGOCD_ENV_VOLSYNC_STORAGECLASS}"
+  accessModes:
+    - "${ARGOCD_ENV_VOLSYNC_ACCESSMODE}"
+  # dataSourceRef creates the PVC from the ReplicationDestination's snapshot
+  # This only triggers on initial PVC creation
+  dataSourceRef:
+    kind: ReplicationDestination
+    apiGroup: volsync.backube
+    name: "${ARGOCD_ENV_APP}-dst"
+  resources:
+    requests:
+      storage: "${ARGOCD_ENV_VOLSYNC_CAPACITY}"

@@ -1,0 +1,46 @@
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+---
+# VolSync Component v2
+#
+# A reusable Kustomize component for VolSync backup/restore with ArgoCD.
+# Uses the kustomize-envsubst CMP plugin for variable substitution.
+#
+# REQUIRED: The ArgoCD Application must use the kustomize-envsubst plugin:
+#
+#   spec:
+#     source:
+#       plugin:
+#         name: kustomize-envsubst
+#         env:
+#           # Required
+#           - name: APP
+#             value: myapp
+#           - name: VOLSYNC_CAPACITY
+#             value: 5Gi
+#           - name: VOLSYNC_BITWARDEN_KEY
+#             value: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+#           # Optional (defaults shown)
+#           - name: VOLSYNC_STORAGECLASS
+#             value: longhorn
+#           - name: VOLSYNC_ACCESSMODE
+#             value: ReadWriteOnce
+#           - name: VOLSYNC_CACHE_CAPACITY
+#             value: 2Gi
+#           - name: VOLSYNC_SCHEDULE
+#             value: "0 * * * *"
+#           - name: VOLSYNC_UID
+#             value: "1000"
+#           - name: VOLSYNC_GID
+#             value: "1000"
+#
+# See README.md for full documentation.
+#
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - pvc.yaml
+  - replication-source.yaml
+  - replication-destination.yaml
+  - external-secret.yaml
+  - ca-configmap.yaml

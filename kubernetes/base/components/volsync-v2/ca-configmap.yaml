@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/v1/configmap.json
+---
+# CA ConfigMap for internal S3 (Garage) TLS verification.
+# This must be overridden in the app's kustomization with the actual CA.
+#
+# Variables (passed via ArgoCD Application plugin.env):
+#   ARGOCD_ENV_APP - Application name (REQUIRED)
+#
+# Override in app kustomization.yaml:
+#   patches:
+#     - target:
+#         kind: ConfigMap
+#         name: .*-volsync-ca
+#       patch: |
+#         - op: replace
+#           path: /data/ca.crt
+#           value: |
+#             -----BEGIN CERTIFICATE-----
+#             <your CA certificate here>
+#             -----END CERTIFICATE-----
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "${ARGOCD_ENV_APP}-volsync-ca"
+data:
+  ca.crt: |
+    # PLACEHOLDER: Override this in your app's kustomization
+    # with the actual CA certificate for your S3 endpoint.

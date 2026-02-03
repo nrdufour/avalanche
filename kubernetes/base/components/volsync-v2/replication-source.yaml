@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/volsync.backube/replicationsource_v1alpha1.json
+---
+# ReplicationSource for scheduled backups to S3 (Garage).
+# Runs on schedule, retains snapshots per retention policy.
+#
+# Variables (passed via ArgoCD Application plugin.env):
+#   ARGOCD_ENV_APP - Application name (REQUIRED)
+#   ARGOCD_ENV_VOLSYNC_SCHEDULE - Cron schedule (optional, default: "0 * * * *")
+#   ARGOCD_ENV_VOLSYNC_CACHE_CAPACITY - Cache size (optional, default: "2Gi")
+#   ARGOCD_ENV_VOLSYNC_STORAGECLASS - Storage class (optional, default: "longhorn")
+#   ARGOCD_ENV_VOLSYNC_ACCESSMODE - Access mode (optional, default: "ReadWriteOnce")
+#   ARGOCD_ENV_VOLSYNC_UID - Mover user ID (optional, default: "1000")
+#   ARGOCD_ENV_VOLSYNC_GID - Mover group ID (optional, default: "1000")
+#
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationSource
+metadata:
+  name: "${ARGOCD_ENV_APP}"
+spec:
+  sourcePVC: "${ARGOCD_ENV_APP}"
+
+  trigger:
+    schedule: "${ARGOCD_ENV_VOLSYNC_SCHEDULE}"
+
+  restic:
+    customCA:
+      configMapName: "${ARGOCD_ENV_APP}-volsync-ca"
+      key: ca.crt
+
+    copyMethod: Snapshot
+    repository: "${ARGOCD_ENV_APP}-volsync-secret"
+
+    storageClassName: "${ARGOCD_ENV_VOLSYNC_STORAGECLASS}"
+    volumeSnapshotClassName: longhorn-snapshot-vsc
+
+    accessModes:
+      - "${ARGOCD_ENV_VOLSYNC_ACCESSMODE}"
+
+    cacheCapacity: "${ARGOCD_ENV_VOLSYNC_CACHE_CAPACITY}"
+
+    moverSecurityContext:
+      runAsUser: ${ARGOCD_ENV_VOLSYNC_UID}
+      runAsGroup: ${ARGOCD_ENV_VOLSYNC_GID}
+      fsGroup: ${ARGOCD_ENV_VOLSYNC_GID}
+
+    pruneIntervalDays: 14
+    retain:
+      hourly: 24
+      daily: 7
