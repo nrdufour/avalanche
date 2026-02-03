@@ -471,6 +471,79 @@ sudo kanidm group add-members <groupname> <username> --name idm_admin
   - Plans: `docs/plans/`
   - Troubleshooting: `docs/troubleshooting/`
 
+## ArgoCD Notes
+
+### Config Management Plugin (CMP) - kustomize-envsubst
+
+A custom CMP plugin enables Flux-like variable substitution in Kustomize manifests. Variables are passed via ArgoCD Application `plugin.env` and substituted using `envsubst`.
+
+**Usage in Application:**
+```yaml
+spec:
+  source:
+    plugin:
+      name: kustomize-envsubst
+      env:
+        - name: APP
+          value: myapp
+        - name: VOLSYNC_CAPACITY
+          value: 5Gi
+```
+
+Variables become `ARGOCD_ENV_<name>` (e.g., `${ARGOCD_ENV_APP}`) in templates.
+
+**CRITICAL: Hard Refresh Required**
+When modifying an ArgoCD Application to add or change CMP plugin configuration, ArgoCD caches the old manifests. You MUST run a hard refresh to regenerate manifests with the new plugin:
+```bash
+argocd app get <app-name> --hard-refresh
+```
+Without this, the app will continue using cached manifests and variables won't be substituted (resulting in empty resource names like `-volsync-ca` instead of `myapp-volsync-ca`).
+
+### VolSync Component (volsync-v2)
+
+Reusable Kustomize component for backup/restore at `kubernetes/base/components/volsync-v2/`.
+
+**Required env vars:**
+- `APP` - Application name (used in resource names and S3 path)
+- `VOLSYNC_CAPACITY` - PVC size
+- `VOLSYNC_BITWARDEN_KEY` - Bitwarden item UUID for S3 credentials
+
+**Optional env vars:**
+- `VOLSYNC_STORAGECLASS` (default: longhorn)
+- `VOLSYNC_ACCESSMODE` (default: ReadWriteOnce)
+- `VOLSYNC_CACHE_CAPACITY` (default: 2Gi)
+- `VOLSYNC_SCHEDULE` (default: "0 * * * *")
+- `VOLSYNC_UID` / `VOLSYNC_GID` (default: 1000)
+
+**For existing apps with data** (migration), patch out the dataSourceRef to prevent restore:
+```yaml
+patches:
+  - target:
+      kind: PersistentVolumeClaim
+    patch: |
+      - op: remove
+        path: /spec/dataSourceRef
+```
+
+**Longhorn compatibility:** `cleanupTempPVC: false` is required. Longhorn deletes the underlying volume when the temp PVC is removed, orphaning snapshots.
+
+### Multi-Source Applications with CMP
+
+Multi-source ArgoCD Applications (using `sources:` array) work with CMP plugins. Each source can have its own plugin configuration. Example with helm + kustomize-envsubst:
+```yaml
+sources:
+  - repoURL: oci://ghcr.io/bjw-s/helm/app-template
+    helm:
+      valuesObject: { ... }
+  - repoURL: https://forge.internal/nemo/avalanche.git
+    path: kubernetes/base/apps/...
+    plugin:
+      name: kustomize-envsubst
+      env:
+        - name: APP
+          value: myapp
+```
+
 ## Critical Notes
 
 - **Do NOT** commit unencrypted secrets
