@@ -10,9 +10,18 @@ resources:
   - https://raw.githubusercontent.com/argoproj/argo-cd/v3.2.0/manifests/ha/install.yaml
   # Temporary ingress -- til we switch to gateway
   - ingress.yaml
+
+patches:
+  # Add CMP sidecar for kustomize + envsubst
+  - path: cmp/repo-server-patch.yaml
+
 configMapGenerator:
   - name: argocd-cm
     behavior: merge
     literals:
       # How often ArgoCD checks Git for changes (default: 3 minutes)
       - timeout.reconciliation=1h
+  # CMP plugin configuration
+  - name: argocd-cmp-kustomize-envsubst
+    files:
+      - plugin.yaml=cmp/plugin.yaml

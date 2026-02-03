@@ -1,0 +1,31 @@
+# Config Management Plugin: kustomize with envsubst
+# Enables Flux-like variable substitution in Kustomize manifests
+#
+# Usage in Application:
+#   spec:
+#     source:
+#       plugin:
+#         name: kustomize-envsubst
+#         env:
+#           - name: APP
+#             value: myapp
+#           - name: VOLSYNC_CAPACITY
+#             value: 5Gi
+#
+# Variables are available as ${ARGOCD_ENV_APP}, ${ARGOCD_ENV_VOLSYNC_CAPACITY}, etc.
+#
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: kustomize-envsubst
+spec:
+  # Optionally auto-discover repos with a marker file
+  discover:
+    find:
+      glob: "**/kustomization.yaml"
+  generate:
+    command: [sh, -c]
+    args:
+      - |
+        # Build with kustomize, then substitute environment variables
+        kustomize build --enable-helm . | envsubst

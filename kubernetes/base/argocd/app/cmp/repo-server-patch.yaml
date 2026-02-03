@@ -1,0 +1,44 @@
+# Patch to add CMP sidecar to argocd-repo-server
+# This enables kustomize + envsubst variable substitution
+#
+# The CMP image is built automatically by .forgejo/workflows/build-argocd-cmp.yaml
+# Image tag should match the ArgoCD version in kustomization.yaml
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-repo-server
+spec:
+  template:
+    spec:
+      containers:
+        # CMP sidecar for kustomize-envsubst
+        - name: cmp-kustomize-envsubst
+          # renovate: datasource=docker depName=quay.io/argoproj/argocd
+          image: forge.internal/nemo/argocd-cmp-envsubst:v3.2.0
+          command: [/var/run/argocd/argocd-cmp-server]
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+          volumeMounts:
+            # Plugin configuration
+            - name: cmp-plugin-config
+              mountPath: /home/argocd/cmp-server/config/plugin.yaml
+              subPath: plugin.yaml
+            # Shared with repo-server for argocd-cmp-server binary
+            - name: var-files
+              mountPath: /var/run/argocd
+            # Plugin working directory
+            - name: plugins
+              mountPath: /home/argocd/cmp-server/plugins
+            # Separate tmp for security (required since ArgoCD 2.4)
+            - name: cmp-tmp
+              mountPath: /tmp
+      volumes:
+        # ConfigMap with plugin.yaml
+        - name: cmp-plugin-config
+          configMap:
+            name: argocd-cmp-kustomize-envsubst
+        # Tmp volume for CMP sidecar
+        - name: cmp-tmp
+          emptyDir: {}
