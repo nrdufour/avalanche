@@ -19,6 +19,13 @@ spec:
   destination:
     namespace: kyverno
     name: 'in-cluster'
+  ignoreDifferences:
+    # Kyverno 3.7.0 CRDs have empty labels/annotations in chart but not in cluster
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      jsonPointers:
+        - /metadata/labels
+        - /metadata/annotations
   syncPolicy:
     automated:
       prune: true
