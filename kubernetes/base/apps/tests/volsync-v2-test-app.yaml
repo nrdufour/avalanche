@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: volsync-v2-test
+  namespace: argocd
+spec:
+  project: default
+  source:
+    path: kubernetes/base/apps/tests/volsync-v2-test
+    repoURL: 'https://forge.internal/nemo/avalanche.git'
+    targetRevision: HEAD
+    plugin:
+      name: kustomize-envsubst
+      env:
+        # Required variables
+        - name: APP
+          value: vstest
+        - name: VOLSYNC_CAPACITY
+          value: 1Gi
+        - name: VOLSYNC_BITWARDEN_KEY
+          value: 00000000-0000-0000-0000-000000000000
+        # Optional variables (using defaults)
+        - name: VOLSYNC_STORAGECLASS
+          value: longhorn
+        - name: VOLSYNC_ACCESSMODE
+          value: ReadWriteOnce
+        - name: VOLSYNC_CACHE_CAPACITY
+          value: 512Mi
+        - name: VOLSYNC_SCHEDULE
+          value: "0 * * * *"
+        - name: VOLSYNC_UID
+          value: "1000"
+        - name: VOLSYNC_GID
+          value: "1000"
+  destination:
+    namespace: tests
+    name: 'in-cluster'
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

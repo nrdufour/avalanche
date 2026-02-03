@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+components:
+  - ../../../components/volsync-v2
+
+# Override the CA certificate placeholder with our internal CA
+patches:
+  - target:
+      kind: ConfigMap
+      name: .*-volsync-ca
+    patch: |
+      - op: replace
+        path: /data/ca.crt
+        value: |
+          -----BEGIN CERTIFICATE-----
+          MIIBkTCB+wIJAKHBfpegPjMCMA0GCSqGSIb3DQEBCwUAMBExDzANBgNVBAMMBnRl
+          c3RjYTAeFw0yNDAyMDMwMDAwMDBaFw0yNTAyMDMwMDAwMDBaMBExDzANBgNVBAMM
+          BnRlc3RjYTBcMA0GCSqGSIb3DQEBAQUAA0sAMEgCQQC7o96YqXDL8i3sBxScNmRi
+          kScT+CC5TMRFwPGPIPk8TgKfKNYE+OuXYerFFFFhTvgQl+g3P0R15JOSqAeNKLs3
+          AgMBAAGjUzBRMB0GA1UdDgQWBBQp5LAqZBl5JLCkGVv11KGmZgHN6zAfBgNVHSME
+          GDAWgBQp5LAqZBl5JLCkGVv11KGmZgHN6zAPBgNVHRMBAf8EBTADAQH/MA0GCSqG
+          SIb3DQEBCwUAA0EAYxWPM2VgBbH6/HVGPyfeTuCFhVLXb1lxOTz8SYewqvgEi/S7
+          0EvGnpWN7bxKmGKFgqLqTqUmxj8V8DLNP0V9HQ==
+          -----END CERTIFICATE-----
