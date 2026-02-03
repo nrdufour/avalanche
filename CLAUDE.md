@@ -6,14 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Avalanche is a unified infrastructure-as-code monorepo managing 17 NixOS hosts (ARM SBCs, x86 servers, and workstations) plus a Kubernetes cluster using GitOps. This consolidates configurations from previously separate repositories (snowy, snowpea, home-ops).
 
-**Recent Major Developments** (as of January 2026):
-- ✅ Sentinel gateway dashboard for routy network management (moved to `forge.internal/nemo/sentinel`)
-- ✅ NPU (Neural Processing Unit) integration on Orange Pi 5 Plus nodes (mainline kernel + Mesa Teflon)
-- ✅ Network architecture refactored: Tailscale for remote access, Gluetun for VPN egress
-- ✅ Documentation reorganized into structured categories (architecture, guides, plans, troubleshooting)
-- 🚧 Surveillance camera system planned (Frigate NVR with PoE cameras)
-- 🚧 Forgejo Actions runner upgrades in progress
-
 ## Architecture
 
 ### Three-Layer Structure
@@ -59,264 +51,72 @@ Avalanche is a unified infrastructure-as-code monorepo managing 17 NixOS hosts (
 
 ### Development Environment
 ```bash
-# Activate direnv (sets KUBECONFIG, SOPS_AGE_KEY_FILE)
-direnv allow
-
-# List all available commands
-just
-
-# List commands in a specific module
-just nix      # Shows nix module commands
-just k8s      # Shows k8s module commands
-
-# Check flake validity
-just nix check
-
-# Lint Nix files
-just lint
-
-# Format Nix files
-just format
-
-# Install fish completions (enables tab completion for modules)
-just install-fish-completions
+direnv allow                    # Activate direnv (sets KUBECONFIG, SOPS_AGE_KEY_FILE)
+just                            # List all available commands
+just nix                        # Shows nix module commands
+just k8s                        # Shows k8s module commands
+just nix check                  # Check flake validity
+just lint                       # Lint Nix files
+just format                     # Format Nix files
 ```
 
 ### NixOS Management
 ```bash
-# List all NixOS hosts
-just nix list-hosts
-
-# Deploy to remote host
-just nix deploy <hostname>
-
-# Deploy locally (current machine only)
-just nix switch
-
-# Deploy to all hosts (with confirmation)
-just nix deploy-all
-
-# Build without deploying
-nix build .#nixosConfigurations.<hostname>.config.system.build.toplevel
-
-# Update flake inputs
-just nix update
-
-# Enable/disable auto-upgrades
-just nix enable-autoupgrade
-just nix disable-autoupgrade
-```
-
-### SD Card Images (for ARM hosts)
-```bash
-# Build SD card image
-just sd build <hostname>
-
-# Build and flash
-just sd flash <hostname>
+just nix list-hosts             # List all NixOS hosts
+just nix deploy <hostname>      # Deploy to remote host
+just nix switch                 # Deploy locally (current machine only)
+just nix deploy-all             # Deploy to all hosts (with confirmation)
+just nix update                 # Update flake inputs
+just sd build <hostname>        # Build SD card image (ARM hosts)
+just sd flash <hostname>        # Build and flash SD card
 ```
 
 ### Secrets Management (SOPS + Age)
 ```bash
-# Update SOPS keys for all secrets
-just sops update
-
-# Decrypt a secret file
-sops secrets/<hostname>/secrets.sops.yaml
+just sops update                # Update SOPS keys for all secrets
+sops secrets/<hostname>/secrets.sops.yaml  # Decrypt a secret file
 ```
 
-**SOPS Configuration**: `.sops.yaml` defines encryption rules by path regex:
-- Each host has a dedicated age key
-- Admin keys (*admin-ndufour-2022, *admin-ndufour-2023) can decrypt all secrets
-- Secrets are organized by host/service in `secrets/` directory
+**SOPS Configuration**: `.sops.yaml` defines encryption rules by path regex. Each host has a dedicated age key. Admin keys can decrypt all secrets.
 
 ### Kubernetes Management
 ```bash
-# Get kubeconfig from cluster (kube-vip VIP: 10.1.0.5)
-just k8s get-kubeconfig
-
-# Bootstrap Flux on cluster
-just k8s bootstrap
-
-# Force ExternalSecrets refresh
-just k8s force-es-refresh
-
-# Check ExternalSecrets status
-just k8s check-es-status
-
-# Check sync status
-argocd app list
+just k8s get-kubeconfig         # Get kubeconfig from cluster (kube-vip VIP: 10.1.0.5)
+just k8s bootstrap              # Bootstrap Flux on cluster
+just k8s force-es-refresh       # Force ExternalSecrets refresh
+just k8s check-es-status        # Check ExternalSecrets status
+argocd app list                 # Check sync status
 ```
 
 ### Forgejo CLI (fj)
-The `fj` command provides programmatic access to the Forgejo instance at `forge.internal`.
 
-**Authentication**: Already configured for `nemo@forge.internal` (uses SSH key auth)
+The `fj` command provides programmatic access to `forge.internal`. Authentication is pre-configured for `nemo@forge.internal`.
 
-#### Issue Management
 ```bash
-# Search for issues in current repo
-fj issue search                           # List all open issues
-fj issue search --state closed            # List closed issues
-fj issue search "keyword"                 # Search by keyword
-fj issue search --labels "bug,urgent"     # Filter by labels
-fj issue search --assignee nemo           # Filter by assignee
-
-# View issue details
-fj issue view 38                          # View issue #38
-fj issue view 38 comment 2                # View specific comment
-fj issue view 38 comments                 # List all comments
-
-# Create and modify issues
-fj issue create "Issue title"             # Opens editor for body
-fj issue create "Issue title" --body "Description"
-fj issue comment 38 "Comment text"        # Add comment
-fj issue edit 38 --body "New description"
-fj issue close 38
-
-# Open in browser
-fj issue browse 38
+# Common commands
+fj issue search                 # List open issues
+fj issue create "Title" --body "Description"
+fj pr search                    # List open PRs
+fj pr create "Title"            # Create PR
+fj pr merge 42                  # Merge PR
+fj actions tasks                # List recent CI runs
 ```
 
-#### Pull Request Management
-```bash
-# Search and view PRs
-fj pr search                              # List open PRs
-fj pr view 42                             # View PR details
-fj pr status 42                           # Check CI status and mergability
-fj pr checkout 42                         # Checkout PR in new branch
-
-# Create and manage PRs
-fj pr create "PR title"                   # Opens editor
-fj pr create "PR title" --body "Description"
-fj pr comment 42 "Comment"
-fj pr edit 42
-fj pr merge 42                            # Merge PR
-fj pr close 42                            # Close without merging
-
-# Open in browser
-fj pr browse 42
-```
-
-#### Actions/CI Management
-```bash
-# View CI/CD status
-fj actions tasks                          # List recent workflow runs
-fj actions tasks -p 2                     # Page 2 (20 tasks per page)
-
-# Manage workflow variables and secrets
-fj actions variables                      # List variables
-fj actions secrets                        # Manage secrets
-fj actions dispatch <workflow>            # Manually trigger workflow
-```
-
-#### Repository Operations
-```bash
-# View repo info
-fj repo view                              # Current repo info
-fj repo readme                            # View README
-fj repo browse                            # Open in browser
-
-# Repository management
-fj repo create <name>
-fj repo fork <owner>/<repo>
-fj repo clone <owner>/<repo>
-fj repo star <owner>/<repo>
-fj repo delete <name>
-```
-
-#### Release Management
-```bash
-# List and view releases
-fj release list
-fj release view v1.0.0
-fj release browse v1.0.0
-
-# Create and manage releases
-fj release create v1.0.0
-fj release edit v1.0.0
-fj release delete v1.0.0
-fj release asset                          # Manage release assets
-```
-
-#### General Commands
-```bash
-# Check authentication
-fj whoami                                 # Show current user
-fj auth list                              # List authenticated instances
-
-# User and org management
-fj user <username>                        # View user info
-fj org <orgname>                          # View organization info
-
-# Generate shell completions
-fj completion bash > /etc/bash_completion.d/fj
-fj completion fish > ~/.config/fish/completions/fj.fish
-```
-
-#### Important Notes
-- **Default context**: Commands use current git repo's remote by default
-- **Specify repo**: Use `-r owner/repo` or `-R remote-name` to operate on different repos
-- **Output style**: Use `--style minimal` for script-friendly output (no colors/special chars)
-- **Web fallback**: Most commands have a `--web` flag to open browser instead
-- **Host selection**: Use `-H forge.internal` for global commands (usually auto-detected from git remote)
-
-#### Common Workflows
-```bash
-# Check project status
-fj issue search --state open              # Open issues
-fj actions tasks | head -5                # Recent CI runs
-
-# Create issue from command line
-fj issue create "Fix NPU inference timeout" \
-  --body "The NPU service times out after 30s on large models"
-
-# Review PR
-fj pr view 42                             # Read changes
-fj pr status 42                           # Check CI
-fj pr checkout 42                         # Test locally
-fj pr comment 42 "LGTM!"                  # Approve
-fj pr merge 42                            # Merge
-
-# Monitor CI
-fj actions tasks                          # Check build status
-fj actions dispatch build-all             # Trigger manual build
-```
+Use `fj <subcommand> --help` for full options. Commands auto-detect repo from git remote.
 
 ### Sentinel (Gateway Dashboard)
 
-Web-based gateway management dashboard for routy. Provides unified visibility into network services, DHCP, firewall, and connections.
+Web-based gateway management dashboard for routy (network services, DHCP, firewall, connections).
 
-**Repository**: `forge.internal/nemo/sentinel` (separate repo)
-**Access**: `https://sentinel.internal` (via Tailscale)
-**Stack**: Go + chi + htmx + Templ + Tailwind CSS
-
-The sentinel source code has been moved to its own repository for easier management. The NixOS package at `nixos/pkgs/sentinel/default.nix` fetches from the external repo.
-
-#### Features
-- **Dashboard**: Service health, interface status, system resources
-- **Services**: Monitor/restart Kea DHCP, Knot DNS, Kresd, AdGuard Home, Nginx, Tailscale, Omada
-- **DHCP Leases**: View active leases across networks (lan0, lab0, lab1)
-- **Firewall Logs**: Real-time streaming via SSE, filtering by IP/port/protocol
-- **Connections**: Active NAT connections via conntrack, top talkers
-- **Network**: Interface stats, LLDP neighbor discovery
-- **Tailscale**: Connected peer status
-
-#### Security Requirements
-Runs as `sentinel` user with:
-- `CAP_NET_ADMIN` - conntrack, network diagnostics
-- `CAP_NET_RAW` - ping, traceroute
-- Group `systemd-journal` - log access
-- Group `kea` - DHCP lease file access
+- **Repository**: `forge.internal/nemo/sentinel` (separate repo)
+- **Access**: `https://sentinel.internal` (via Tailscale)
+- **NixOS package**: `nixos/pkgs/sentinel/default.nix` fetches from external repo
 
 ## Infrastructure Details
 
 ### NixOS Hosts (17 total)
-- **Workstation**: calypso (ASUS ROG Strix, from snowy)
-- **Infrastructure**:
-  - mysecrets (step-ca, Vaultwarden, Kanidm)
-  - eagle (Forgejo, CI/CD)
-  - possum (Garage S3, backups)
+- **Workstation**: calypso (ASUS ROG Strix)
+- **Infrastructure**: mysecrets (step-ca, Vaultwarden, Kanidm), eagle (Forgejo, CI/CD), possum (Garage S3, backups)
 - **x86 Servers**: beacon, routy (main gateway), cardinal, sparrow01
 - **K3s Controllers**: opi01-03 (Orange Pi 5 Plus, aarch64, **NPU-enabled**)
 - **K3s Workers**: raccoon00-05 (Raspberry Pi 4, aarch64)
@@ -324,107 +124,27 @@ Runs as `sentinel` user with:
 ### Key Technologies
 - **Deployment**: nixos-rebuild over SSH to `<hostname>.internal` (Tailscale)
 - **Secrets**: SOPS with Age encryption (keys in `~/.config/sops/age/keys.txt`)
-- **Network**:
-  - Tailscale mesh VPN (remote access to home network)
-  - Gluetun VPN proxy (egress for containerized workloads - qbittorrent, IRC bot)
-  - kube-vip for K8s HA (VIP: 10.1.0.5)
+- **Network**: Tailscale mesh VPN (remote access), Gluetun VPN proxy (egress for K8s workloads), kube-vip for K8s HA (VIP: 10.1.0.5)
 - **Identity**: Kanidm at `https://auth.internal` (users: `username@auth.internal`)
 - **GitOps**: ArgoCD only
-- **Nixpkgs Mirror**: Local mirror at `forge.internal/Mirrors/nixpkgs` (synced every 8h, fallback for GitHub outages)
+- **Nixpkgs Mirror**: `forge.internal/Mirrors/nixpkgs` (fallback for GitHub outages)
 - **Storage**: Longhorn (K8s), Garage S3 (object storage)
 - **AI/ML**: Orange Pi 5 Plus NPU (mainline kernel + Mesa Teflon TensorFlow Lite)
 
-### Kubernetes Applications
-- **AI/ML**:
-  - Ollama (LLM inference)
-  - NPU Inference Service (hardware-accelerated TensorFlow Lite on Orange Pi 5 Plus)
-- **Identity**: Vaultwarden (password manager)
-- **Observability**: Prometheus stack, Grafana, InfluxDB2
-- **Self-hosted**: Miniflux, SearXNG, Wallabag, Mealie, Wiki.js, Homepage
-- **Home Automation**: RTL433, RTLAMR2MQTT, NUT UPS daemon
-- **Media**: qbittorrent (with Gluetun VPN sidecar), Arr stack (planned)
-- **IRC**: Marmithon IRC bot (with Gluetun VPN proxy for DDOS protection)
-- **Infrastructure**: CloudNative-PG, cert-manager, External DNS, Nginx Ingress, Kyverno, Longhorn
-
 ## Documentation
 
-**Primary Index**: `docs/README.md` - Categorized index of all documentation
-
-### Documentation Structure
-- `docs/architecture/` - System design and integration plans
-  - `network/` - Tailscale mesh VPN, Gluetun VPN egress, network architecture
-  - `npu/` - NPU integration, inference testing, model management
-  - `surveillance/` - Camera setup with Frigate NVR (planned)
-- `docs/guides/` - How-to guides and procedures
-  - `identity/` - Kanidm user management
-  - `upgrades/` - NixOS version upgrades
-  - GitHub outage mitigation (nixpkgs mirror usage)
-  - Nix distributed builds (multi-arch build coordination, binary caching)
-- `docs/plans/` - Future work and upgrade plans
+See `docs/README.md` for the full documentation index. Key areas:
+- `docs/architecture/` - System design (network, NPU, surveillance)
+- `docs/guides/` - How-to guides (identity, upgrades, GitHub outage mitigation)
 - `docs/troubleshooting/` - Known issues and workarounds
-- `docs/migration/` - Historical monorepo consolidation docs
-- `docs/archive/` - Deprecated documentation
-
-### Key Documentation Files
-- **Network Architecture**: `docs/architecture/network/tailscale-architecture.md` (remote access)
-- **VPN Egress**: `docs/architecture/network/vpn-egress-architecture.md` (Gluetun-based)
-- **NPU Integration**: `docs/architecture/npu/rknn-npu-integration-plan.md` (mainline kernel + Mesa)
-- **Kanidm**: `docs/guides/identity/kanidm-user-management.md` (identity provider)
-- **GitHub Outage Mitigation**: `docs/guides/github-outage-mitigation.md` (nixpkgs mirror fallback)
-- **Network Migration**: `docs/architecture/network/network-architecture-migration.md` (exit nodes → proxy pattern)
 
 ## Identity Management (Kanidm)
 
-**Location**: mysecrets host at `https://auth.internal`
-**Documentation**: `docs/guides/identity/kanidm-user-management.md`
+- **Location**: mysecrets host at `https://auth.internal`
+- **Admin accounts**: `admin` (basic), `idm_admin` (full identity management)
+- **Documentation**: `docs/guides/identity/kanidm-user-management.md`
 
-### Key Details
-- **Domain**: `auth.internal` (user identities: `username@auth.internal`)
-- **Origin**: `https://auth.internal` (accessed via Tailscale/internal network)
-- **Admin accounts**:
-  - `admin` - Basic administrative functions
-  - `idm_admin` - Full identity management (create users, manage groups, OAuth2)
-- **Database**: SQLite at `/srv/kanidm/kanidm.db` (bind mounted from `/var/lib/kanidm`)
-- **Certificates**: Self-signed for backend (localhost), step-ca ACME for nginx frontend
-- **Backups**: Daily at 22:00 UTC to `/srv/backups/kanidm` (keeps 7 versions)
-
-### Administration
-**All administration is CLI-based** (no web admin UI):
-```bash
-ssh mysecrets.internal
-
-# Setup client config (first time only)
-sudo tee /etc/kanidm/config <<EOF
-uri = "https://auth.internal"
-verify_ca = true
-verify_hostnames = true
-EOF
-
-# Login as idm_admin
-sudo kanidm login --name idm_admin
-
-# Create user
-sudo kanidm person create <username> "Display Name" --name idm_admin
-
-# Set password (generates reset token URL)
-sudo kanidm person credential create-reset-token <username> --name idm_admin
-
-# Manage groups
-sudo kanidm group add-members <groupname> <username> --name idm_admin
-```
-
-### Important Notes
-- **Password-only auth**: By default requires passkeys. Set to password-only with:
-  ```bash
-  sudo kanidm group account-policy credential-type-minimum idm_all_persons any --name idm_admin
-  ```
-- **Recover admin accounts**:
-  ```bash
-  sudo kanidmd recover-account admin        # Basic admin
-  sudo kanidmd recover-account idm_admin    # Identity admin
-  ```
-- **Domain warning**: Changing `domain` breaks all credentials (WebAuthn, OAuth tokens, etc.)
-- **DNS requirement**: `domain` must exactly match DNS hostname for cookie security
+All administration is CLI-based via `kanidm` command on mysecrets.internal.
 
 ## Important Patterns
 
@@ -497,46 +217,22 @@ When modifying an ArgoCD Application to add or change CMP plugin configuration, 
 ```bash
 argocd app get <app-name> --hard-refresh
 ```
-Without this, the app will continue using cached manifests and variables won't be substituted (resulting in empty resource names like `-volsync-ca` instead of `myapp-volsync-ca`).
 
 **CRITICAL: Never Use Auto-Discovery with envsubst**
-Do NOT add `discover` settings to the CMP plugin configuration:
-```yaml
-# DANGEROUS - DO NOT USE
-spec:
-  discover:
-    find:
-      glob: "**/kustomization.yaml"  # This breaks everything!
-```
-Auto-discovery causes ALL apps with kustomization.yaml to be processed through `envsubst`, which strips ALL `$variable` references from manifests:
-- `$values/path/file.yaml` → `/path/file.yaml` (breaks multi-source helm valueFiles)
-- `$SENTINEL_PORT` → empty string (corrupts shell scripts in ConfigMaps)
-- `${MASTER_GROUP}` → empty string (corrupts Redis HA, etc.)
-
-This caused a major incident (Feb 2026) where 25+ apps showed ComparisonError and Redis HA was in CrashLoopBackOff. The plugin must ONLY be used when explicitly specified in an Application's `plugin.name` field.
+Do NOT add `discover` settings to the CMP plugin configuration. Auto-discovery causes ALL apps with kustomization.yaml to be processed through `envsubst`, which strips ALL `$variable` references from manifests (breaks multi-source helm valueFiles, shell scripts in ConfigMaps, Redis HA, etc.). This caused a major incident (Feb 2026). The plugin must ONLY be used when explicitly specified in an Application's `plugin.name` field.
 
 ### VolSync Component (volsync-v2)
 
 Reusable Kustomize component for backup/restore at `kubernetes/base/components/volsync-v2/`.
 
-**What it provides:**
-- PVC with dataSourceRef for restore from backup
-- ReplicationSource (backup to S3)
-- ReplicationDestination (restore from S3)
-- ExternalSecret (S3 credentials from Bitwarden)
-- ConfigMap with Ptinem Root CA (for Garage S3 TLS)
+**What it provides:** PVC with dataSourceRef, ReplicationSource/Destination (S3 backup/restore), ExternalSecret (S3 credentials), ConfigMap with Ptinem Root CA.
 
 **Required env vars (in ArgoCD Application):**
 - `APP` - Application name (used in resource names and S3 path)
 - `VOLSYNC_CAPACITY` - PVC size (e.g., "2Gi")
 - `VOLSYNC_BITWARDEN_KEY` - Bitwarden item UUID for S3 credentials
 
-**Optional env vars:**
-- `VOLSYNC_STORAGECLASS` (default: longhorn)
-- `VOLSYNC_ACCESSMODE` (default: ReadWriteOnce)
-- `VOLSYNC_CACHE_CAPACITY` (default: 2Gi)
-- `VOLSYNC_SCHEDULE` (default: "0 * * * *")
-- `VOLSYNC_UID` / `VOLSYNC_GID` (default: 1000)
+**Optional env vars:** `VOLSYNC_STORAGECLASS` (default: longhorn), `VOLSYNC_ACCESSMODE` (default: ReadWriteOnce), `VOLSYNC_CACHE_CAPACITY` (default: 2Gi), `VOLSYNC_SCHEDULE` (default: "0 * * * *"), `VOLSYNC_UID`/`VOLSYNC_GID` (default: 1000)
 
 **Minimal app kustomization.yaml:**
 ```yaml
@@ -545,7 +241,6 @@ kind: Kustomization
 resources:
   - deployment.yaml
   - service.yaml
-  # PVC is managed by volsync-v2 component
 components:
   - ../../../components/volsync-v2
 patches:
@@ -558,47 +253,15 @@ patches:
         path: /spec/dataSourceRef
 ```
 
-**ArgoCD Application config:**
-```yaml
-spec:
-  source:
-    path: kubernetes/base/apps/<category>/<app>
-    plugin:
-      name: kustomize-envsubst
-      env:
-        - name: APP
-          value: myapp
-        - name: VOLSYNC_CAPACITY
-          value: "2Gi"
-        - name: VOLSYNC_BITWARDEN_KEY
-          value: "b45f65b2-6326-42b8-b159-0e630fd223db"
-        # ... other optional vars
-```
-
-**CA Certificate:** The component includes the Ptinem Root CA for Garage S3. No per-app CA patches needed.
-
-**For existing apps with data** (migration), the dataSourceRef patch prevents the component's PVC from triggering a restore. The existing PVC in the cluster is preserved - ArgoCD won't recreate it.
-
-**Longhorn compatibility:** `cleanupTempPVC: false` is set in the component. Longhorn deletes the underlying volume when temp PVC is removed, orphaning snapshots.
-
-**Apps using volsync-v2:** esphome, mqtt, archivebox, kanboard
+**Notes:**
+- CA Certificate is included in component; no per-app patches needed
+- For existing apps with data, the dataSourceRef patch prevents restore on sync
+- `cleanupTempPVC: false` is set for Longhorn compatibility
+- **Apps using volsync-v2:** esphome, mqtt, archivebox, kanboard
 
 ### Multi-Source Applications with CMP
 
-Multi-source ArgoCD Applications (using `sources:` array) work with CMP plugins. Each source can have its own plugin configuration. Example with helm + kustomize-envsubst:
-```yaml
-sources:
-  - repoURL: oci://ghcr.io/bjw-s/helm/app-template
-    helm:
-      valuesObject: { ... }
-  - repoURL: https://forge.internal/nemo/avalanche.git
-    path: kubernetes/base/apps/...
-    plugin:
-      name: kustomize-envsubst
-      env:
-        - name: APP
-          value: myapp
-```
+Multi-source ArgoCD Applications (using `sources:` array) work with CMP plugins. Each source can have its own plugin configuration.
 
 ## Critical Notes
 
@@ -611,52 +274,24 @@ sources:
 ### Network Architecture Notes
 
 #### Android 16 & DSCP Marking Fix (routy)
-**Note**: routy applies a global DSCP clearing rule (`nixos/hosts/routy/android16-fix.nix`) that resets all DSCP markings to cs0 on the FORWARD chain. This was implemented to resolve Android 16 strict packet validation that rejects non-cs0 DSCP markings (affecting fly.dev, CDNs, and other services on port 443). DSCP is still actively used in modern networks for QoS prioritization (VoIP, video conferencing, media streaming), but this setup does not rely on DSCP-based QoS, so the trade-off is acceptable. If you later implement QoS policies that depend on DSCP, this rule should be reconsidered.
+routy applies a global DSCP clearing rule (`nixos/hosts/routy/android16-fix.nix`) that resets all DSCP markings to cs0 on the FORWARD chain. This resolves Android 16 strict packet validation issues. If you later implement QoS policies that depend on DSCP, this rule should be reconsidered.
 
 #### Tailscale vs Gluetun Separation
-**Important**: The network architecture separates concerns:
 - **Tailscale**: Remote access to home network (mesh VPN, subnet routing via routy)
-  - Use for: Accessing services from phone/laptop while traveling
-  - Hosts in tailnet: routy (subnet router), calypso (workstation), mysecrets (infrastructure)
-- **Gluetun**: VPN egress for containerized workloads (VPN proxy pattern)
-  - Use for: Masking egress IP, region selection, DDOS protection
-  - Deployments: qbittorrent (sidecar), marmithon IRC bot (shared proxy - planned)
-  - **Do NOT use Tailscale exit nodes for K8s pods** - use Gluetun instead
+- **Gluetun**: VPN egress for containerized workloads (qbittorrent sidecar, marmithon IRC bot)
+- **Do NOT use Tailscale exit nodes for K8s pods** - use Gluetun instead
 
-See `docs/architecture/network/network-architecture-migration.md` for migration details.
+See `docs/architecture/network/network-architecture-migration.md` for details.
 
 ### NPU (Neural Processing Unit) Integration
 
-#### Hardware
-- **Nodes**: opi01-03 (Orange Pi 5 Plus with RK3588 SoC)
-- **NPU**: 6 TOPS, 3 cores (all detected and working)
-- **Driver**: Mainline Linux 6.18+ `rocket` driver (upstream)
-- **Userspace**: Mesa 25.3+ Teflon TensorFlow Lite delegate
-
-#### Software Stack Choice
-**IMPORTANT**: Two incompatible NPU stacks exist for RK3588:
-1. **Vendor stack** (Rockchip RKNN) - requires vendor kernel, out-of-tree driver
-2. **Mainline stack** (Mesa Teflon) - uses mainline kernel, TensorFlow Lite
-
-**Avalanche uses mainline stack** to avoid vendor lock-in and maintain upstream compatibility.
-
-#### NPU Service
-- **Deployment**: `kubernetes/base/apps/ml/npu-inference/`
-- **Models**: Standard TensorFlow Lite `.tflite` format (NOT `.rknn`)
-- **API**: HTTP inference service on port 8080
-- **Monitoring**: Grafana dashboard for inference metrics
-- **Node affinity**: Runs only on Orange Pi 5 Plus nodes (opi01-03)
+- **Nodes**: opi01-03 (Orange Pi 5 Plus with RK3588 SoC, 6 TOPS NPU)
+- **Stack**: Mainline Linux 6.18+ `rocket` driver + Mesa 25.3+ Teflon TensorFlow Lite (NOT vendor RKNN stack)
+- **Service**: `kubernetes/base/apps/ml/npu-inference/` - HTTP inference on port 8080
+- **Models**: Standard `.tflite` format (NOT `.rknn`)
 
 See `docs/architecture/npu/rknn-npu-integration-plan.md` for details.
 
 ### Surveillance System (Planned)
 
-**Status**: 🚧 Design phase complete, implementation pending
-
-**Plan**: Frigate NVR with PoE cameras
-- **NVR**: Frigate on possum host (x86 server with USB Coral TPU)
-- **Cameras**: Reolink RLC-810A (4K PoE, H.265)
-- **Network**: Dedicated PoE switch or injectors
-- **Storage**: ZFS dataset on possum
-
-See `docs/architecture/surveillance/camera-setup-plan.md` for comprehensive setup plan.
+Design phase complete. Plan: Frigate NVR on possum with USB Coral TPU, Reolink PoE cameras. See `docs/architecture/surveillance/camera-setup-plan.md`.
