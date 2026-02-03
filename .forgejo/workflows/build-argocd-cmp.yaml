@@ -1,0 +1,60 @@
+name: Build ArgoCD CMP Image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - kubernetes/base/argocd/app/cmp/Dockerfile
+      - kubernetes/base/argocd/app/cmp/plugin.yaml
+      - .forgejo/workflows/build-argocd-cmp.yaml
+  workflow_dispatch:
+
+jobs:
+  docker:
+    runs-on: native
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set build tag
+        shell: bash
+        run: |
+          # Extract ArgoCD version from Dockerfile
+          ARGOCD_VERSION=$(grep -oP 'FROM quay.io/argoproj/argocd:\K[^ ]+' kubernetes/base/argocd/app/cmp/Dockerfile)
+          echo "ARGOCD_VERSION=${ARGOCD_VERSION}" >> $GITHUB_ENV
+          echo "BUILD_TAG=${ARGOCD_VERSION}-${GITHUB_SHA:0:7}" >> $GITHUB_ENV
+
+      - name: Login to registry
+        uses: docker/login-action@v3
+        with:
+          registry: forge.internal
+          username: ${{ secrets.GIT_USERNAME }}
+          password: ${{ secrets.GIT_PASSWORD }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: kubernetes/base/argocd/app/cmp
+          file: kubernetes/base/argocd/app/cmp/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            forge.internal/nemo/argocd-cmp-envsubst:latest
+            forge.internal/nemo/argocd-cmp-envsubst:${{ env.ARGOCD_VERSION }}
+            forge.internal/nemo/argocd-cmp-envsubst:${{ env.BUILD_TAG }}
+
+      - name: Verify build
+        run: |
+          echo "Image digest: ${{ steps.build.outputs.digest }}"
+          echo "ArgoCD version: ${{ env.ARGOCD_VERSION }}"
+          echo "Build tag: ${{ env.BUILD_TAG }}"
+          echo "Build completed successfully"
