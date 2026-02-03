@@ -4,12 +4,22 @@
   inputs,
   ...
 }:
+let
+  # Use unstable nixpkgs for latest ollama with CUDA support
+  unstable = import inputs.nixpkgs-unstable {
+    inherit (pkgs.stdenv.hostPlatform) system;
+    config = {
+      allowUnfree = true;
+      cudaSupport = true;
+    };
+  };
+in
 {
   # From https://wiki.nixos.org/wiki/Ollama
-  # In NixOS 25.11, acceleration="cuda" automatically uses ollama-cuda package
-  # Don't override with package= as it will ignore acceleration setting
+  # Using ollama-cuda from unstable for latest features and CUDA support
   services.ollama = {
     enable = true;
+    package = unstable.ollama-cuda;
     acceleration = "cuda";
   };
 
