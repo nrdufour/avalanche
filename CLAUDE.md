@@ -499,6 +499,22 @@ argocd app get <app-name> --hard-refresh
 ```
 Without this, the app will continue using cached manifests and variables won't be substituted (resulting in empty resource names like `-volsync-ca` instead of `myapp-volsync-ca`).
 
+**CRITICAL: Never Use Auto-Discovery with envsubst**
+Do NOT add `discover` settings to the CMP plugin configuration:
+```yaml
+# DANGEROUS - DO NOT USE
+spec:
+  discover:
+    find:
+      glob: "**/kustomization.yaml"  # This breaks everything!
+```
+Auto-discovery causes ALL apps with kustomization.yaml to be processed through `envsubst`, which strips ALL `$variable` references from manifests:
+- `$values/path/file.yaml` → `/path/file.yaml` (breaks multi-source helm valueFiles)
+- `$SENTINEL_PORT` → empty string (corrupts shell scripts in ConfigMaps)
+- `${MASTER_GROUP}` → empty string (corrupts Redis HA, etc.)
+
+This caused a major incident (Feb 2026) where 25+ apps showed ComparisonError and Redis HA was in CrashLoopBackOff. The plugin must ONLY be used when explicitly specified in an Application's `plugin.name` field.
+
 ### VolSync Component (volsync-v2)
 
 Reusable Kustomize component for backup/restore at `kubernetes/base/components/volsync-v2/`.
