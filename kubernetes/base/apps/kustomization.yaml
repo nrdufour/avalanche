@@ -7,7 +7,7 @@ resources:
   - self-hosted
   - home-automation
   - cnpg-system
-  # - tests
+  - tests
   - irc
   - media
   - games
