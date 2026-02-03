@@ -2,9 +2,19 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- config.yaml
-- deployment.yaml
-- ingress.yaml
-- service.yaml
-- volsync-ca-configmap.yaml
-- ./volsync
+  - config.yaml
+  - deployment.yaml
+  - ingress.yaml
+  - service.yaml
+  # Note: PVC is managed by volsync-v2 component
+components:
+  - ../../../components/volsync-v2
+patches:
+  # Remove dataSourceRef from PVC - this is an existing app with data,
+  # we don't want to restore from backup on sync
+  - target:
+      kind: PersistentVolumeClaim
+      name: .*
+    patch: |
+      - op: remove
+        path: /spec/dataSourceRef
