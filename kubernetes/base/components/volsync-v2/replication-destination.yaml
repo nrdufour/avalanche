@@ -50,7 +50,8 @@ spec:
       runAsGroup: ${ARGOCD_ENV_VOLSYNC_GID}
       fsGroup: ${ARGOCD_ENV_VOLSYNC_GID}
 
-    # CRITICAL: Clean up intermediate PVCs after restore
+    # NOTE: cleanupTempPVC must be false for Longhorn
+    # Longhorn deletes the volume when temp PVC is deleted, making snapshots unusable
     enableFileDeletion: true
     cleanupCachePVC: true
-    cleanupTempPVC: true
+    cleanupTempPVC: false
