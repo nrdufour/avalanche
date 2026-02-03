@@ -19,10 +19,10 @@ kind: ConfigManagementPlugin
 metadata:
   name: kustomize-envsubst
 spec:
-  # Optionally auto-discover repos with a marker file
-  discover:
-    find:
-      glob: "**/kustomization.yaml"
+  # NOTE: No auto-discovery! This plugin should only be used when explicitly
+  # specified in the Application's plugin.name field.
+  # Auto-discovery would cause envsubst to strip all $variables from ALL apps,
+  # breaking multi-source apps that use $values references and shell scripts.
   generate:
     command: [sh, -c]
     args:
