@@ -1,0 +1,12 @@
+# Test ConfigMap to verify CMP envsubst substitution
+# Variables should be replaced by ArgoCD CMP plugin
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cmp-test-result
+data:
+  # These should be substituted by envsubst
+  app_name: "${ARGOCD_ENV_APP_NAME}"
+  test_value: "${ARGOCD_ENV_TEST_VALUE}"
+  # This shows the raw syntax for comparison
+  raw_syntax: "$${ARGOCD_ENV_APP_NAME}"
