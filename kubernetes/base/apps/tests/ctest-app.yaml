@@ -18,7 +18,7 @@ spec:
         - name: VOLSYNC_CAPACITY
           value: 1Gi
         - name: VOLSYNC_BITWARDEN_KEY
-          value: "your-bitwarden-item-uuid-here"
+          value: "b45f65b2-6326-42b8-b159-0e630fd223db"
         # Optional variables
         - name: VOLSYNC_STORAGECLASS
           value: longhorn
