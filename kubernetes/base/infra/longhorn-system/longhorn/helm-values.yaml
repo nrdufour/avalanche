@@ -1,4 +1,18 @@
 # See original values here https://github.com/longhorn/longhorn/blob/master/chart/values.yaml
+
+# TODO: Remove this block when upgrading beyond v1.11.0
+# Hotfix for v1.11.0 memory leak (proxy connection leaks in instance-manager)
+# https://longhorn.io/docs/1.11.0/important-notes/
+preUpgradeChecker:
+  upgradeVersionCheck: false  # Re-enable after removing hotfix
+image:
+  longhorn:
+    manager:
+      tag: v1.11.0-hotfix-1
+    instanceManager:
+      tag: v1.11.0-hotfix-1
+# END hotfix block
+
 global:
   # -- Node selector for nodes allowed to run user-deployed components such as Longhorn Manager, Longhorn UI, and Longhorn Driver Deployer.
   nodeSelector: {}
