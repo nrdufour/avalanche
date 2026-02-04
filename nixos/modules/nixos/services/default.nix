@@ -1,5 +1,6 @@
 {
   imports = [
+    ./dns-static-records.nix
     ./monitoring.nix
     ./reboot-required-check.nix
     ./k3s

@@ -32,6 +32,19 @@
           group = "sentinel";
         };
       };
+
+      # nsupdate TSIG key template (different format than Knot's keyfile)
+      templates."nsupdate_tsig_key" = {
+        mode = "0440";
+        owner = "root";
+        group = "root";
+        content = ''
+          key "update" {
+            algorithm hmac-sha256;
+            secret "${config.sops.placeholder.update_tsig_key}";
+          };
+        '';
+      };
     };
   };
 }

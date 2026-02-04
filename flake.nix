@@ -33,6 +33,13 @@
     # LLM Agents
     llm-agents.url = "github:numtide/llm-agents.nix";
 
+    # dns.nix - Type-safe DNS zone definitions
+    # https://github.com/nix-community/dns.nix
+    dns = {
+      url = "github:nix-community/dns.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Sentinel gateway dashboard
     sentinel = {
       url = "git+https://forge.internal/nemo/sentinel.git";
