@@ -1,8 +1,23 @@
 # k3s Flannel subnet.env Not Created After Reboot on Server Nodes
 
+**Status**: RESOLVED (2026-02-04)
+
 ## Summary
 
 After a reboot, k3s server nodes with embedded etcd may fail to initialize the flannel networking backend. The embedded flannel silently fails to write `/run/flannel/subnet.env`, causing all pod sandbox creation to fail.
+
+## Solution
+
+**Root cause**: The `--disable-cloud-controller` flag was set, which disables the embedded Cloud Controller Manager (CCM). Without the CCM, the `node.cloudprovider.kubernetes.io/uninitialized` taint is never cleared from nodes. Flannel waits for this taint to be removed before initializing, causing the indefinite delay.
+
+**Fix**: Remove `--disable-cloud-controller` from the k3s server flags.
+
+The k3s embedded CCM performs three functions:
+1. **Clears the node initialization taint** - This is critical for flannel to start
+2. **Hosts the ServiceLB (Klipper) LoadBalancer controller** - Can be separately disabled with `--disable=servicelb` if not needed
+3. **Sets node address fields** - Based on `--node-ip`, `--node-external-ip`, etc.
+
+The fix was applied in commit removing the flag from `nixos/modules/nixos/services/k3s/default.nix`.
 
 ## Environment
 
@@ -111,7 +126,7 @@ kubectl get pods -A -o wide | grep "10.42.255"
 
 ### Prevention
 
-The systemd workaround that pre-creates `/run/flannel/subnet.env` before k3s starts prevents the initial flannel failure, which in turn prevents the cascade effect on Longhorn and other services.
+Do not use `--disable-cloud-controller` unless you have an external cloud controller manager deployed that will clear the node initialization taint. The embedded CCM is required for flannel to initialize properly on bare-metal/on-premise clusters.
 
 ## Root Cause Analysis
 
@@ -167,14 +182,33 @@ The etcd reconciliation phase takes approximately 15-20 seconds. During this tim
 - Started but fails silently without logging
 - Waiting on a condition that is never satisfied
 
+### Actual Root Cause (Discovered 2026-02-04)
+
+The `--disable-cloud-controller` flag was the culprit. When this flag is set:
+
+1. The embedded Cloud Controller Manager (CCM) is disabled
+2. No component clears the `node.cloudprovider.kubernetes.io/uninitialized` taint from nodes
+3. Flannel waits for this taint to be cleared before it initializes
+4. The taint is never cleared, so flannel never starts
+
+This explains why:
+- **Server nodes were affected**: They have the taint applied at startup
+- **Agent nodes were not affected**: They don't go through the same taint/CCM logic
+- **The kernel timing change exposed it**: Faster kernel boot in 6.18.8 may have changed the race timing, but the underlying issue was always present
+
+See [k3s-io/k3s#11619](https://github.com/k3s-io/k3s/issues/11619) for the upstream confirmation that flannel cannot start until the uninitialized taint is cleared.
+
 ## Steps to Reproduce
 
 1. Set up a k3s HA cluster with 3+ server nodes using embedded etcd
-2. Install kured for coordinated reboots
-3. Trigger a reboot on a server node (via kured or manually)
-4. After the node comes back up, observe that pods fail to schedule with the flannel subnet.env error
+2. **Configure k3s with `--disable-cloud-controller`** (this is the key factor)
+3. Install kured for coordinated reboots
+4. Trigger a reboot on a server node (via kured or manually)
+5. After the node comes back up, observe that pods fail to schedule with the flannel subnet.env error
 
-## Workaround
+## Workaround (Deprecated)
+
+> **Note**: This workaround is no longer needed. The proper fix is to remove `--disable-cloud-controller` from k3s server flags. See the Solution section above.
 
 Create `/run/flannel/subnet.env` manually or via a systemd unit that runs before k3s:
 
@@ -198,13 +232,23 @@ The subnet value can be derived from the node's `.spec.podCIDR` in Kubernetes, o
 
 ## Additional Information
 
-### k3s Server Flags
+### k3s Server Flags (At Time of Issue)
 
 ```
 --disable=local-storage
 --disable=traefik
 --disable=metrics-server
---disable-cloud-controller
+--disable-cloud-controller   # <-- THIS WAS THE PROBLEM
+--embedded-registry
+--etcd-expose-metrics
+```
+
+### k3s Server Flags (After Fix)
+
+```
+--disable=local-storage
+--disable=traefik
+--disable=metrics-server
 --embedded-registry
 --etcd-expose-metrics
 ```
