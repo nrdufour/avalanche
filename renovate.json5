@@ -73,6 +73,17 @@
   ],
   packageRules: [
     {
+      description: 'Group ArgoCD updates (manifests + CMP image)',
+      matchPackageNames: ['argoproj/argo-cd', 'quay.io/argoproj/argocd'],
+      groupName: 'argocd',
+    },
+    {
+      description: 'Require manual review for ArgoCD minor/major updates',
+      matchPackageNames: ['argoproj/argo-cd', 'quay.io/argoproj/argocd'],
+      matchUpdateTypes: ['minor', 'major'],
+      automerge: false,
+    },
+    {
       description: 'Disable ArgoCD manager git-tags detection for OCI Helm charts (handled by regex manager)',
       matchManagers: ['argocd'],
       matchDatasources: ['git-tags'],
