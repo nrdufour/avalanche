@@ -268,8 +268,8 @@ Multi-source ArgoCD Applications (using `sources:` array) work with CMP plugins.
 n8n is deployed in the `ai` namespace using the 8gears Helm chart (`oci://8gears.container-registry.com/library/n8n`).
 
 **Key configuration notes:**
-- **Disable Valkey/Redis**: The chart's dependency condition uses `redis.enabled` (not `valkey.enabled`). Set `redis.enabled: false` for single-instance deployments
-- **Ingress paths**: Use simple strings (`paths: ["/"]`), not objects (`paths: [{path: "/"}]`)
+- **Disable Valkey/Redis**: Set `valkey.enabled: false` for single-instance deployments (v2.x chart; v1.x used `redis.enabled`)
+- **Ingress paths**: Use objects with pathType (`paths: [{path: "/", pathType: "Prefix"}]`)
 - **Persistence**: Use `type: existing` with `existingClaim` for VolSync-managed PVC
 - **Database**: CNPG PostgreSQL cluster (`n8n-16-db`) with credentials from `n8n-16-db-app` secret
 - **Encryption key**: Stored in Bitwarden, pulled via ExternalSecret
