@@ -44,10 +44,18 @@
       description: 'Handle GitHub release URLs in Kustomize resources',
       managerFilePatterns: ['/kustomization\\.yaml$/'],
       matchStrings: [
-        '\\s*-\\s+https://github\\.com/(?<depName>[^/]+/[^/]+)/releases/download/v(?<currentValue>[^/]+)/',
-        '\\s*-\\s+https://raw\\.githubusercontent\\.com/(?<depName>[^/]+/[^/]+)/v(?<currentValue>[^/]+)/',
+        '\\s*-\\s+https://github\\.com/(?<depName>[^/]+/[^/]+)/releases/download/(?<currentValue>v[^/]+)/',
+        '\\s*-\\s+https://raw\\.githubusercontent\\.com/(?<depName>[^/]+/[^/]+)/(?<currentValue>v[^/]+)/',
       ],
       datasourceTemplate: 'github-releases',
+    },
+    {
+      customType: 'regex',
+      description: 'Handle comment-annotated GitHub URLs in Kustomize resources',
+      managerFilePatterns: ['/kustomization\\.yaml$/'],
+      matchStrings: [
+        '#\\s*renovate:\\s*datasource=(?<datasource>[a-z-]+)\\s+depName=(?<depName>[^\\s]+)\\n\\s*-\\s+https://[^/]+/[^/]+/[^/]+/(?<currentValue>v[^/]+)/',
+      ],
     },
     {
       customType: 'regex',
