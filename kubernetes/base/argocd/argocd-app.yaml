@@ -15,6 +15,7 @@ spec:
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true
     # No automated sync - manual control for ArgoCD upgrades
     # But enable selfHeal to revert manual changes
     automated:
