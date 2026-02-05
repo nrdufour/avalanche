@@ -15,7 +15,7 @@ spec:
         # CMP sidecar for kustomize-envsubst
         - name: cmp-kustomize-envsubst
           # renovate: datasource=docker depName=quay.io/argoproj/argocd
-          image: forge.internal/nemo/argocd-cmp-envsubst:v3.2.0
+          image: forge.internal/nemo/argocd-cmp-envsubst:v3.3.0
           command: [/var/run/argocd/argocd-cmp-server]
           securityContext:
             runAsNonRoot: true
