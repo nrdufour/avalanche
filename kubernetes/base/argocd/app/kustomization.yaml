@@ -15,6 +15,16 @@ resources:
 patches:
   # Add CMP sidecar for kustomize + envsubst
   - path: cmp/repo-server-patch.yaml
+  # Delete argocd-secret from upstream - we manage it manually to preserve admin password
+  - target:
+      kind: Secret
+      name: argocd-secret
+    patch: |
+      $patch: delete
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: argocd-secret
 
 configMapGenerator:
   - name: argocd-cm

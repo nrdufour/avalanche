@@ -30,6 +30,22 @@ get-kubeconfig host="opi01.internal":
     echo "Kubeconfig saved to {{kubernetes_dir}}/kubeconfig"
     echo "The server URL has been updated to use the kube-vip VIP: 10.1.0.5"
 
+# Deploy ArgoCD admin secret from SOPS-encrypted file
+deploy-argocd-secret:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Check precondition: SOPS_AGE_KEY_FILE must exist
+    if [ ! -f "$SOPS_AGE_KEY_FILE" ]; then
+        echo "Error: SOPS_AGE_KEY_FILE not found at $SOPS_AGE_KEY_FILE"
+        exit 1
+    fi
+
+    echo "Deploying ArgoCD secret..."
+    kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+    sops --decrypt {{kubernetes_dir}}/bootstrap/argocd-secret.sops.yaml | kubectl apply --server-side -f -
+    echo "ArgoCD secret deployed!"
+
 # Bootstrap Flux on a cluster (default: main)
 bootstrap cluster="main":
     #!/usr/bin/env bash
