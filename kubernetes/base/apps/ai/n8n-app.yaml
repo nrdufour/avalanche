@@ -1,0 +1,102 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: n8n
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: oci://8gears.container-registry.com/library/n8n
+      targetRevision: 1.0.2
+      path: .
+      helm:
+        valuesObject:
+          main:
+            config:
+              db:
+                type: postgresdb
+                postgresdb:
+                  host: n8n-16-db-rw.ai.svc.cluster.local
+                  database: n8n
+              generic:
+                timezone: America/New_York
+            extraEnv:
+              - name: DB_POSTGRESDB_USER
+                valueFrom:
+                  secretKeyRef:
+                    name: n8n-16-db-app
+                    key: username
+              - name: DB_POSTGRESDB_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: n8n-16-db-app
+                    key: password
+              - name: N8N_ENCRYPTION_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: n8n-encryption-key
+                    key: encryption-key
+            persistence:
+              enabled: true
+              existingClaim: n8n
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                memory: 1Gi
+          ingress:
+            enabled: true
+            className: nginx
+            annotations:
+              gethomepage.dev/description: Workflow Automation
+              gethomepage.dev/enabled: "true"
+              gethomepage.dev/group: AI
+              gethomepage.dev/icon: n8n.png
+              gethomepage.dev/name: n8n
+              cert-manager.io/cluster-issuer: ca-server-cluster-issuer
+              cert-manager.io/common-name: n8n.internal
+            hosts:
+              - host: n8n.internal
+                paths:
+                  - path: /
+            tls:
+              - hosts:
+                  - n8n.internal
+                secretName: n8n-ing-cert
+    - repoURL: https://forge.internal/nemo/avalanche.git
+      targetRevision: main
+      path: kubernetes/base/apps/ai/n8n
+      plugin:
+        name: kustomize-envsubst
+        env:
+          - name: APP
+            value: n8n
+          - name: VOLSYNC_CAPACITY
+            value: "1Gi"
+          - name: VOLSYNC_BITWARDEN_KEY
+            value: "b45f65b2-6326-42b8-b159-0e630fd223db"
+          - name: VOLSYNC_STORAGECLASS
+            value: longhorn
+          - name: VOLSYNC_ACCESSMODE
+            value: ReadWriteOnce
+          - name: VOLSYNC_CACHE_CAPACITY
+            value: "1Gi"
+          - name: VOLSYNC_SCHEDULE
+            value: "0 * * * *"
+          - name: VOLSYNC_UID
+            value: "1000"
+          - name: VOLSYNC_GID
+            value: "1000"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ai
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - db
+  - encryption-key-external-secret.yaml
+
+components:
+  - ../../../components/volsync-v2
+
+patches:
+  # Remove dataSourceRef from PVC - this is a new app,
+  # but we don't want to restore from backup on sync after initial setup
+  - target:
+      kind: PersistentVolumeClaim
+      name: .*
+    patch: |
+      - op: remove
+        path: /spec/dataSourceRef
