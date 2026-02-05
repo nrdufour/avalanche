@@ -45,6 +45,7 @@
       managerFilePatterns: ['/kustomization\\.yaml$/'],
       matchStrings: [
         '\\s*-\\s+https://github\\.com/(?<depName>[^/]+/[^/]+)/releases/download/v(?<currentValue>[^/]+)/',
+        '\\s*-\\s+https://raw\\.githubusercontent\\.com/(?<depName>[^/]+/[^/]+)/v(?<currentValue>[^/]+)/',
       ],
       datasourceTemplate: 'github-releases',
     },
