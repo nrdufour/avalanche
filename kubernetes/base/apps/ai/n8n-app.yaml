@@ -14,6 +14,8 @@ spec:
       path: .
       helm:
         valuesObject:
+          redis:
+            enabled: false
           main:
             config:
               db:
@@ -41,6 +43,7 @@ spec:
                     key: encryption-key
             persistence:
               enabled: true
+              type: existing
               existingClaim: n8n
             resources:
               requests:
@@ -62,7 +65,7 @@ spec:
             hosts:
               - host: n8n.internal
                 paths:
-                  - path: /
+                  - /
             tls:
               - hosts:
                   - n8n.internal
