@@ -4,7 +4,7 @@
   ...
 }:
 let 
-  image = "crocodilestick/calibre-web-automated:v4.0.5@sha256:e4d31ce6e5850bf978bbea22641df19adaf66dd55112e9bfe22211895803651f";
+  image = "crocodilestick/calibre-web-automated:v4.0.6@sha256:c31a738b6d5ec6982c050063dd3f063b6943eb1051fc81144789f840d9093a8d";
 in 
  {
 
