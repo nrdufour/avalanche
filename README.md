@@ -75,6 +75,10 @@ avalanche/
 - Tailscale Operator: K8s-native Tailscale integration
 - cert-manager, networking, security, observability components
 
+**Automation & AI:**
+- n8n: Workflow automation (`https://n8n.internal`)
+- Ollama: Local LLM inference
+
 ## Quick Start
 
 ### Available Commands

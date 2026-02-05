@@ -257,11 +257,24 @@ patches:
 - CA Certificate is included in component; no per-app patches needed
 - For existing apps with data, the dataSourceRef patch prevents restore on sync
 - `cleanupTempPVC: false` is set for Longhorn compatibility
-- **Apps using volsync-v2:** esphome, mqtt, archivebox, kanboard
+- **Apps using volsync-v2:** esphome, mqtt, archivebox, kanboard, n8n
 
 ### Multi-Source Applications with CMP
 
 Multi-source ArgoCD Applications (using `sources:` array) work with CMP plugins. Each source can have its own plugin configuration.
+
+### n8n Workflow Automation
+
+n8n is deployed in the `ai` namespace using the 8gears Helm chart (`oci://8gears.container-registry.com/library/n8n`).
+
+**Key configuration notes:**
+- **Disable Valkey/Redis**: The chart's dependency condition uses `redis.enabled` (not `valkey.enabled`). Set `redis.enabled: false` for single-instance deployments
+- **Ingress paths**: Use simple strings (`paths: ["/"]`), not objects (`paths: [{path: "/"}]`)
+- **Persistence**: Use `type: existing` with `existingClaim` for VolSync-managed PVC
+- **Database**: CNPG PostgreSQL cluster (`n8n-16-db`) with credentials from `n8n-16-db-app` secret
+- **Encryption key**: Stored in Bitwarden, pulled via ExternalSecret
+
+**Access**: `https://n8n.internal`
 
 ## Critical Notes
 
