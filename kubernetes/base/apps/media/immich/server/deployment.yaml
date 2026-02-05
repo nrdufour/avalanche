@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: immich-server
-        image: ghcr.io/immich-app/immich-server:v2.5.2
+        image: ghcr.io/immich-app/immich-server:v2.5.3
         env:
           # Database configuration
           - name: DB_HOSTNAME
