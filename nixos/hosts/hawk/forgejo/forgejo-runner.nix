@@ -28,6 +28,14 @@
     autoPrune = {
       enable = true;
     };
+    # Enable containerd image store for multi-platform builds (--platform linux/amd64,linux/arm64)
+    # without needing docker/setup-buildx-action (which has known issues with Forgejo runners).
+    # Note: existing images will need to be re-pulled after this change.
+    daemon.settings = {
+      features = {
+        containerd-snapshotter = true;
+      };
+    };
   };
 
   environment.etc."buildkit/buildkitd.toml".text = ''
