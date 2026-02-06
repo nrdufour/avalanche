@@ -27,7 +27,7 @@ A friend's project that inspired the naming theme - a NixOS flake that started i
   - Profile-based system (hardware + roles)
   - Reusable modules and overlays
 - **Machines:** 15+ hosts
-  - **Standalone servers:** eagle, mysecrets, possum, beacon, routy, cardinal
+  - **Standalone servers:** hawk, mysecrets, possum, beacon, routy, cardinal
   - **K3s controllers:** opi01-03 (Orange Pi 5 Plus)
   - **K3s workers:** raccoon00-05 (Raspberry Pi 4)
 - **Key Services on `mysecrets` (RPi 4, 8GB):**
@@ -188,7 +188,7 @@ avalanche/
 │   ├── hosts/
 │   │   ├── calypso/        # Laptop (from snowy)
 │   │   ├── mysecrets/      # Pi: step-ca, vaultwarden, kanidm ✓
-│   │   ├── eagle/          # Pi: Forgejo
+│   │   ├── hawk/          # Pi: Forgejo
 │   │   ├── possum/         # Pi: Garage S3, backups
 │   │   ├── raccoon00-05/   # K8s workers (RPi 4)
 │   │   ├── opi01-03/       # K8s controllers (Orange Pi 5+)

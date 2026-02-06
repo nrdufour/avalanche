@@ -5,7 +5,7 @@
 Avalanche maintains a local mirror of nixpkgs at `forge.internal/Mirrors/nixpkgs` to mitigate GitHub dependency. This mirror:
 - Syncs from `github:nixos/nixpkgs` every 8 hours
 - Contains all branches (nixos-25.11, nixos-unstable, master, etc.)
-- Hosted on eagle.internal using Forgejo
+- Hosted on hawk.internal using Forgejo
 
 ## When to Use the Mirror
 
@@ -76,12 +76,12 @@ nix flake update
 
 ```bash
 # View last sync time
-ssh eagle.internal sudo -u postgres psql forgejo -t -c \
+ssh hawk.internal sudo -u postgres psql forgejo -t -c \
   "SELECT r.name, m.last_update FROM repository r \
    JOIN mirror m ON r.id = m.repo_id WHERE r.name = 'nixpkgs';"
 
 # Check mirror disk usage
-ssh eagle.internal sudo du -sh /srv/forgejo/repositories/mirrors/nixpkgs.git
+ssh hawk.internal sudo du -sh /srv/forgejo/repositories/mirrors/nixpkgs.git
 ```
 
 ### Manual Sync
@@ -101,4 +101,4 @@ In Forgejo web UI:
 ## Related Documentation
 
 - Network architecture: `docs/architecture/network/tailscale-architecture.md`
-- Forgejo configuration: `nixos/hosts/eagle/forgejo/forgejo.nix`
+- Forgejo configuration: `nixos/hosts/hawk/forgejo/forgejo.nix`

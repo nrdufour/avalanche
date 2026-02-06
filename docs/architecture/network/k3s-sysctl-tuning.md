@@ -107,7 +107,7 @@ These apply to all K3s nodes (controllers and workers) and affect the host netwo
 # Increase socket buffer maximum sizes
 # Default: 208-212 KB (varies by kernel)
 # New: 16 MB
-# Rationale: Same fix as eagle host (nixos/hosts/eagle/default.nix:45-50)
+# Rationale: Same fix as hawk host (nixos/hosts/hawk/default.nix:45-50)
 #            Prevents "broken pipe" errors on heavy transfers
 "net.core.rmem_max" = 16777216;      # Receive buffer max
 "net.core.wmem_max" = 16777216;      # Send buffer max
@@ -126,11 +126,11 @@ These apply to all K3s nodes (controllers and workers) and affect the host netwo
 "net.ipv4.tcp_wmem" = "4096 65536 16777216";
 ```
 
-**Evidence**: eagle host already uses similar buffer tuning (16MB max) to fix Docker buildkit "broken pipe" errors during multi-arch builds (see `nixos/hosts/eagle/default.nix:42-50`).
+**Evidence**: hawk host already uses similar buffer tuning (16MB max) to fix Docker buildkit "broken pipe" errors during multi-arch builds (see `nixos/hosts/hawk/default.nix:42-50`).
 
 **References**:
 - [TCP Tuning for Linux](https://fasterdata.es.net/network-tuning/linux/)
-- eagle host investigation: `docs/plans/forgejo-runner-upgrade-plan.md`
+- hawk host investigation: `docs/plans/forgejo-runner-upgrade-plan.md`
 
 ---
 
@@ -210,7 +210,7 @@ boot.kernel.sysctl = {
   # Connection tracking (prevent table exhaustion)
   "net.netfilter.nf_conntrack_max" = 262144;
 
-  # Network buffers (ARM SBC optimization, proven on eagle host)
+  # Network buffers (ARM SBC optimization, proven on hawk host)
   "net.core.rmem_max" = 16777216;
   "net.core.wmem_max" = 16777216;
   "net.core.rmem_default" = 262144;
@@ -345,7 +345,7 @@ If issues occur after deployment:
 
 7. **Container Networking**: [The Mysterious Container net.core.somaxconn](http://arthurchiao.art/blog/the-mysterious-container-somaxconn/) - Arthur Chiao
 
-8. **Internal Evidence**: `nixos/hosts/eagle/default.nix:42-50` - Socket buffer tuning for Docker buildkit
+8. **Internal Evidence**: `nixos/hosts/hawk/default.nix:42-50` - Socket buffer tuning for Docker buildkit
 
 ---
 

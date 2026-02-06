@@ -50,7 +50,7 @@ avalanche/
 
 **Infrastructure Services:**
 - mysecrets: Raspberry Pi 4 (8GB) - step-ca, Vaultwarden, Authentik
-- eagle: Raspberry Pi - Forgejo
+- hawk: Beelink SER5 - Forgejo
 - possum: Raspberry Pi - Garage S3, backups
 - beacon, routy, cardinal: x86 servers
 

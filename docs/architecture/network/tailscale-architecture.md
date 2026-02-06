@@ -84,7 +84,7 @@ Phone (Tailscale, cellular)
   ↓ (Tailscale mesh to subnet router)
 routy (100.121.204.6, advertising 10.1.0.0/24)
   ↓ (IP forwarding, local network)
-Any service on 10.1.0.0/24 (K8s, eagle, possum, etc.)
+Any service on 10.1.0.0/24 (K8s, hawk, possum, etc.)
 ```
 
 ### Remote Access (Phone → Direct Tailscale Peers)
