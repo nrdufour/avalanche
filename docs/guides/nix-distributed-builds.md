@@ -1,81 +1,64 @@
-# Nix Distributed Builds & Caching
+# Nix Distributed Builds & Binary Caching
 
-## Problem Statement
+## Problem
 
-**Current Pain Points:**
-- Each machine builds independently when deploying
-- Kernel builds take 40 minutes **per machine** (opi01, opi02, opi03)
-- No build caching between identical machines
-- 3 identical opi nodes = 3x wasted compile time (120 min total)
-- Can't develop/test builds on eagle (too slow, ARM-only)
+**Cross-architecture builds are slow or impractical:**
+- Hawk (x86_64, Beelink SER5 Max) can emulate aarch64 via QEMU binfmt, but turbo boost must be disabled to prevent crashes — making emulated builds slow
+- 3 identical opi nodes (aarch64, Orange Pi 5 Plus) each rebuild the same packages independently
+- Kernel builds take ~40 minutes per machine; deploying opi01-03 sequentially wastes 80 minutes on redundant work
 
-**What We Want:**
-- Build once, deploy everywhere (for identical configs)
-- Distribute builds to appropriate architecture (x86 → SER5, ARM → opi nodes)
-- Cache builds for reuse
-- Develop on SER5 MAX (fast x86 box) while building for ARM cluster
+**No build sharing:**
+- Daily GC (`--delete-older-than 7d` in `nixos/profiles/global/nix.nix`) cleans up store paths with no protection for cross-machine builds
+- Official cache.nixos.org doesn't carry custom kernel configs or local packages
 
-## Solution Overview
+## Solution
 
 Two complementary systems:
 
-1. **Distributed Builds**: Build on remote machines (right architecture, more power)
-2. **Binary Cache**: Share build results between machines (build once, reuse)
+1. **Distributed builds** — hawk delegates aarch64 derivations to opi01-03 over SSH; x86_64 builds stay local (native, fast)
+2. **Binary cache (Harmonia)** — hawk serves its `/nix/store` over HTTP; ARM builds are copied back from opi nodes and pinned with GC roots so other machines (and future rebuilds) pull from cache
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│  Scenario 1: Calypso Initiates Deploy                           │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │ calypso (laptop)                                        │    │
-│  │ - Runs: just nix deploy opi01                           │    │
-│  │ - Coordinates build via distributed builds              │    │
-│  │ - Caches result locally                                 │    │
-│  └────────┬────────────────────────────────────────────────┘    │
-│           │                                                      │
-│           ├─→ opi01: Build ARM kernel (40 min, cache result)    │
-│           ├─→ opi02: Use cached kernel from opi01               │
-│           └─→ opi03: Use cached kernel from opi01               │
-└──────────────────────────────────────────────────────────────────┘
+                        ┌────────────────────────┐
+                        │  hawk (x86_64)         │
+                        │  - Harmonia cache :5000 │
+                        │  - GC roots in          │
+                        │    /nix/var/nix/gcroots/ │
+                        │    arm-cache/            │
+                        └──────┬─────────────────┘
+                               │
+              ┌────────────────┼────────────────┐
+              │                │                │
+        ┌─────▼─────┐   ┌─────▼─────┐   ┌─────▼─────┐
+        │  opi01     │   │  opi02     │   │  opi03     │
+        │  aarch64   │   │  aarch64   │   │  aarch64   │
+        │  builder   │   │  builder   │   │  builder   │
+        └───────────┘   └───────────┘   └───────────┘
 
-┌──────────────────────────────────────────────────────────────────┐
-│  Scenario 2: SER5 MAX as Development/Build Machine              │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │ ser5.internal (SER5 MAX)                                │    │
-│  │ - SSH workstation for development                       │    │
-│  │ - Fast x86 builds (native)                              │    │
-│  │ - Coordinates ARM builds (via opi nodes)                │    │
-│  │ - Central build cache                                   │    │
-│  └────────┬────────────────────────────────────────────────┘    │
-│           │                                                      │
-│           ├─→ x86 builds: Native on SER5 (fast!)                │
-│           └─→ ARM builds: Delegated to opi01-03 (native ARM)    │
-│                                                                  │
-│  Workflow:                                                       │
-│  1. SSH to ser5.internal                                        │
-│  2. Develop module/package                                      │
-│  3. nix build (uses distributed builds + cache)                 │
-│  4. just nix deploy (deploys with cached builds)                │
-└──────────────────────────────────────────────────────────────────┘
+Deploy opi03 from hawk:
+  1. hawk delegates aarch64 build → opi03 builds natively
+  2. Build result copied back → hawk stores in /nix/store
+  3. Post-copy script creates GC root → survives daily GC
+  4. hawk deploys to opi03
+
+Deploy opi01/02 from hawk:
+  1. hawk delegates aarch64 build → checks hawk's Harmonia
+  2. Kernel already cached → downloaded in ~1 min
+  3. hawk deploys to opi01/02
+
+Calypso can also use hawk as a substituter and build coordinator.
 ```
 
-## Part 1: Distributed Builds
+## Configuration
 
-### What It Solves
-- Build ARM packages on ARM hardware (opi nodes)
-- Build x86 packages on x86 hardware (SER5 MAX)
-- Avoid slow QEMU emulation
-- Parallelize builds across multiple machines
+### 1. Builder User on opi01-03
 
-### Configuration
-
-#### On Builder Machines (SER5 MAX, opi01-03)
-
-Create a dedicated build user:
+Create a dedicated `nix-builder` user on each opi node:
 
 ```nix
-# nixos/profiles/role-server.nix or per-host config
+# nixos/profiles/role-nix-builder.nix (or inline in opi host configs)
 {
   users.users.nix-builder = {
     isSystemUser = true;
@@ -83,10 +66,8 @@ Create a dedicated build user:
     createHome = true;
     home = "/var/lib/nix-builder";
     openssh.authorizedKeys.keys = [
-      # Public key from calypso
+      "ssh-ed25519 AAAAC3Nza... hawk-nix-builder"
       "ssh-ed25519 AAAAC3Nza... calypso-nix-builder"
-      # Public key from SER5 MAX
-      "ssh-ed25519 AAAAC3Nza... ser5-nix-builder"
     ];
   };
 
@@ -96,33 +77,24 @@ Create a dedicated build user:
 }
 ```
 
-#### On Initiating Machines (calypso, SER5 MAX)
+Generate SSH keys on hawk and calypso:
 
-Configure build machines:
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/id_nix_builder -C "hawk-nix-builder"
+```
+
+### 2. Distributed Builds on hawk (and optionally calypso)
 
 ```nix
-# nixos/hosts/calypso/default.nix
-# nixos/hosts/ser5/default.nix (when SER5 arrives)
+# nixos/hosts/hawk/nix-builder.nix
 {
   nix.buildMachines = [
-    # SER5 MAX - Fast x86_64 builder
-    {
-      hostName = "ser5.internal";
-      systems = [ "x86_64-linux" ];
-      sshUser = "nix-builder";
-      sshKey = "/home/ndufour/.ssh/id_nix_builder";
-      maxJobs = 12;  # 8 cores, allow some parallelism
-      speedFactor = 4;  # 4x faster than opi nodes
-      supportedFeatures = [ "nixos-test" "benchmark" "big-parallel" "kvm" ];
-    }
-
-    # Orange Pi 5 Plus Controllers - ARM builders
     {
       hostName = "opi01.internal";
       systems = [ "aarch64-linux" ];
       sshUser = "nix-builder";
-      sshKey = "/home/ndufour/.ssh/id_nix_builder";
-      maxJobs = 6;  # 8 cores, leave headroom for K3s
+      sshKey = "/etc/nix/builder-key";
+      maxJobs = 6;   # 8 cores, leave headroom for K3s
       speedFactor = 2;
       supportedFeatures = [ "big-parallel" ];
     }
@@ -130,7 +102,7 @@ Configure build machines:
       hostName = "opi02.internal";
       systems = [ "aarch64-linux" ];
       sshUser = "nix-builder";
-      sshKey = "/home/ndufour/.ssh/id_nix_builder";
+      sshKey = "/etc/nix/builder-key";
       maxJobs = 6;
       speedFactor = 2;
       supportedFeatures = [ "big-parallel" ];
@@ -139,7 +111,7 @@ Configure build machines:
       hostName = "opi03.internal";
       systems = [ "aarch64-linux" ];
       sshUser = "nix-builder";
-      sshKey = "/home/ndufour/.ssh/id_nix_builder";
+      sshKey = "/etc/nix/builder-key";
       maxJobs = 6;
       speedFactor = 2;
       supportedFeatures = [ "big-parallel" ];
@@ -148,375 +120,220 @@ Configure build machines:
 
   nix.distributedBuilds = true;
 
-  # Allow builders to use binary cache (faster)
+  # Let builders pull from cache.nixos.org directly
   nix.settings.builders-use-substitutes = true;
 }
 ```
 
-#### SSH Key Setup
+x86_64 builds stay local on hawk (native). Only aarch64 derivations are delegated.
 
-```bash
-# On calypso
-ssh-keygen -t ed25519 -f ~/.ssh/id_nix_builder -C "calypso-nix-builder"
+### 3. Harmonia Binary Cache on hawk
 
-# On SER5 MAX (when it arrives)
-ssh-keygen -t ed25519 -f ~/.ssh/id_nix_builder -C "ser5-nix-builder"
-
-# Add public keys to builder machines' authorized_keys (via NixOS config above)
-```
-
-## Part 2: Binary Cache (Build Sharing)
-
-### What It Solves
-- **Build once, reuse everywhere**
-- opi01 builds kernel → opi02 and opi03 reuse the same build
-- No more rebuilding identical packages
-- 120 minutes (3x 40 min) → 40 minutes (build once)
-
-### Option A: Shared Nix Store (NFS/S3)
-
-**Pros**: Automatic sharing, no server needed
-**Cons**: Requires shared filesystem or object storage
+[Harmonia](https://github.com/nix-community/harmonia) is a high-performance Nix binary cache server (faster than nix-serve).
 
 ```nix
-# Mount shared nix store from NFS server
-fileSystems."/nix" = {
-  device = "possum.internal:/export/nix";
-  fsType = "nfs";
-};
-```
-
-**Not recommended** for Avalanche (adds complexity, single point of failure).
-
-### Option B: Local Binary Cache Server (Recommended)
-
-Run a cache server on **SER5 MAX**:
-
-```nix
-# nixos/hosts/ser5/default.nix
+# nixos/hosts/hawk/harmonia.nix
 {
-  services.nix-serve = {
+  services.harmonia = {
     enable = true;
-    secretKeyFile = "/var/lib/nix-serve/cache-priv-key.pem";
-    port = 5000;
+    signKeyPaths = [ "/var/lib/harmonia/cache-priv-key.pem" ];
+    settings.bind = "[::]:5000";
   };
 
-  # Generate signing key (one-time setup)
-  # nix-store --generate-binary-cache-key cache.avalanche.internal /var/lib/nix-serve/cache-priv-key.pem /var/lib/nix-serve/cache-pub-key.pem
-
-  # Allow local network access
   networking.firewall.allowedTCPPorts = [ 5000 ];
 }
 ```
 
-#### On All Other Machines (calypso, opi01-03, etc.)
-
-Configure to use the local cache:
-
-```nix
-# nixos/profiles/global.nix or per-host
-{
-  nix.settings = {
-    substituters = [
-      "https://cache.nixos.org"  # Official cache (first)
-      "http://ser5.internal:5000"  # Local cache (fallback/upload)
-    ];
-
-    trusted-public-keys = [
-      "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-      # Add SER5 cache public key here after generating
-      "cache.avalanche.internal:YOUR_PUBLIC_KEY_HERE"
-    ];
-
-    # Upload builds to local cache
-    post-build-hook = "/etc/nix/upload-to-cache.sh";
-  };
-}
-```
-
-#### Upload Hook Script
-
-Create upload script on machines that build:
+One-time key generation:
 
 ```bash
-# /etc/nix/upload-to-cache.sh (on calypso, SER5, opi01-03)
+nix-store --generate-binary-cache-key hawk.internal /var/lib/harmonia/cache-priv-key.pem /var/lib/harmonia/cache-pub-key.pem
+```
+
+### 4. GC Root Management
+
+After ARM builds are copied back to hawk, create GC roots so daily GC doesn't collect them.
+
+**Post-copy script** (`/etc/nix/pin-arm-cache.sh`):
+
+```bash
 #!/bin/sh
 set -eu
-set -f # disable globbing
+set -f
 export IFS=' '
 
-echo "Uploading paths" $OUT_PATHS
-exec nix copy --to http://ser5.internal:5000 $OUT_PATHS
+GCROOT_DIR="/nix/var/nix/gcroots/arm-cache"
+mkdir -p "$GCROOT_DIR"
+
+for path in $OUT_PATHS; do
+  name=$(basename "$path")
+  ln -sfn "$path" "$GCROOT_DIR/$name"
+done
 ```
 
 ```nix
-# Make executable in NixOS config
-environment.etc."nix/upload-to-cache.sh" = {
-  text = ''
-    #!/bin/sh
-    set -eu
-    set -f
-    export IFS=' '
-    echo "Uploading paths" $OUT_PATHS
-    exec nix copy --to http://ser5.internal:5000 $OUT_PATHS
-  '';
+# In hawk's config
+environment.etc."nix/pin-arm-cache.sh" = {
+  text = builtins.readFile ./pin-arm-cache.sh;
   mode = "0755";
 };
 ```
 
-### Option C: Simple File-Based Cache (Easiest)
-
-Use a shared directory on possum (Garage S3) or local filesystem:
+**Weekly cleanup timer** — prune GC roots older than 30 days:
 
 ```nix
-# On all machines
-nix.settings.extra-substituters = [ "file:///mnt/nix-cache" ];
+systemd.services.prune-arm-cache-roots = {
+  description = "Prune old ARM cache GC roots";
+  serviceConfig.Type = "oneshot";
+  script = ''
+    find /nix/var/nix/gcroots/arm-cache -type l -mtime +30 -delete
+  '';
+};
 
-# Post-build hook copies to shared location
-nix.settings.post-build-hook = pkgs.writeShellScript "copy-to-cache" ''
-  set -eu
-  set -f
-  export IFS=' '
-  for path in $OUT_PATHS; do
-    nix copy --to file:///mnt/nix-cache $path
-  done
-'';
-```
-
-**Recommended for simplicity**: Use SER5 MAX as NFS server for `/mnt/nix-cache`.
-
-## Usage Examples
-
-### Scenario 1: Deploy from Calypso (Current Workflow, Improved)
-
-```bash
-# On calypso
-cd ~/Documents/code/projects/ops/avalanche
-
-# Deploy opi01 - builds kernel (40 min), uploads to cache
-just nix deploy opi01
-
-# Deploy opi02 - downloads kernel from cache (1 min)
-just nix deploy opi02
-
-# Deploy opi03 - downloads kernel from cache (1 min)
-just nix deploy opi03
-
-# Total time: 42 minutes (vs 120 minutes before!)
-```
-
-**What happens:**
-1. calypso initiates build for opi01
-2. Distributed build system sends ARM build to opi01
-3. opi01 builds kernel (40 min)
-4. Post-build hook uploads to SER5 cache
-5. opi02 deployment finds kernel in cache, downloads instead of rebuilding
-6. opi03 deployment finds kernel in cache, downloads instead of rebuilding
-
-### Scenario 2: Develop on SER5 MAX (New Workflow)
-
-```bash
-# SSH to SER5 MAX
-ssh ser5.internal
-
-# Clone avalanche repo (or use shared mount)
-cd /srv/avalanche
-
-# Develop new module
-vim nixos/modules/nixos/my-feature.nix
-
-# Test build for ARM (uses opi nodes via distributed builds)
-nix build .#nixosConfigurations.opi01.config.system.build.toplevel
-# Kernel builds on opi01, cached on SER5
-
-# Test build for x86
-nix build .#nixosConfigurations.cardinal.config.system.build.toplevel
-# Builds natively on SER5 (fast!)
-
-# Deploy to cluster (uses cached builds)
-just nix deploy opi01  # Uses cache, fast!
-just nix deploy opi02  # Uses cache, fast!
-just nix deploy opi03  # Uses cache, fast!
-```
-
-**Benefits:**
-- Fast x86 builds (native on SER5)
-- ARM builds delegated to opi nodes (no emulation)
-- All builds cached centrally on SER5
-- Can work disconnected from calypso
-
-### Kernel Build Parallelization
-
-With 3 opi nodes, kernel builds can be parallelized:
-
-```nix
-# In nixos/profiles/hw-orange-pi-5-plus.nix or similar
-boot.kernelPackages = pkgs.linuxPackages_latest.override {
-  kernel = pkgs.linuxPackages_latest.kernel.override {
-    enableParallelBuilding = true;
+systemd.timers.prune-arm-cache-roots = {
+  description = "Weekly prune of ARM cache GC roots";
+  wantedBy = [ "timers.target" ];
+  timerConfig = {
+    OnCalendar = "weekly";
+    Persistent = true;
   };
 };
 ```
 
-**Result:**
-- Each opi node uses 6-8 cores for kernel compilation
-- With distributed builds, Nix can split work across multiple opi nodes
-- 40 min → potentially 15-20 min with good parallelization
+The daily GC in `nixos/profiles/global/nix.nix` (`--delete-older-than 7d`) respects these roots — pinned store paths and their dependencies survive collection.
+
+### 5. Substituter Config on All Machines
+
+Add hawk's Harmonia as a substituter in `nixos/profiles/global/nix.nix`:
+
+```nix
+nix.settings = {
+  substituters = [
+    "https://cache.nixos.org"
+    "http://hawk.internal:5000"
+  ];
+
+  trusted-public-keys = [
+    "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+    "hawk.internal:XXXXXXXX"  # contents of /var/lib/harmonia/cache-pub-key.pem
+  ];
+};
+```
+
+## Usage Examples
+
+### Deploy opi03 (first ARM build, populates cache)
+
+```bash
+# On hawk (or calypso with distributed builds configured)
+just nix deploy opi03
+
+# What happens:
+# 1. hawk evaluates opi03's config (x86_64 — local)
+# 2. aarch64 derivations delegated to opi03 via SSH
+# 3. opi03 builds kernel natively (~40 min)
+# 4. Build results copied back to hawk's /nix/store
+# 5. Post-copy hook creates GC roots
+# 6. hawk deploys closure to opi03
+```
+
+### Deploy opi01 and opi02 (cache hits)
+
+```bash
+just nix deploy opi01
+just nix deploy opi02
+
+# What happens:
+# 1. hawk evaluates opi01/02's config
+# 2. aarch64 derivations found in hawk's store (cache hit)
+# 3. No remote build needed — downloaded from Harmonia in ~1 min
+# 4. hawk deploys closure to opi01/02
+
+# Total for all 3: ~44 min (vs ~120 min without caching)
+```
+
+### Build ARM package from hawk for testing
+
+```bash
+ssh hawk.internal
+cd /srv/avalanche
+nix build .#nixosConfigurations.opi03.config.system.build.toplevel
+# Delegates to opi node, result cached on hawk
+```
 
 ## Verification
 
-### Check Distributed Builds Working
+### Check distributed builds are working
 
 ```bash
-# On calypso or SER5
-nix build --print-build-logs .#nixosConfigurations.opi01.config.system.build.toplevel
+# On hawk
+nix build --print-build-logs .#nixosConfigurations.opi03.config.system.build.toplevel
 
-# Look for lines like:
-# building '/nix/store/...-linux-6.6.60.drv' on 'ssh://opi01.internal'
+# Look for:
+# building '/nix/store/...-linux-6.x.drv' on 'ssh://opi03.internal'
 ```
 
-### Check Cache Working
+### Check Harmonia is serving
 
 ```bash
-# On any machine
-nix-store --query --requisites /nix/store/...-linux-6.6.60 | wc -l
-# Shows dependencies
+curl http://hawk.internal:5000/nix-cache-info
+# Should return: StoreDir: /nix/store
 
-# Check if path is in cache
-nix path-info --store http://ser5.internal:5000 /nix/store/...-linux-6.6.60
-# Should succeed if cached
+journalctl -fu harmonia
+# Shows requests from other machines
 ```
 
-### Monitor Cache Activity
+### Check GC roots exist
 
 ```bash
-# On SER5 MAX
-journalctl -fu nix-serve
+ls /nix/var/nix/gcroots/arm-cache/
+# Should show symlinks to aarch64 store paths
+```
 
-# You'll see requests from other machines fetching builds
+### Check a path is cached
+
+```bash
+nix path-info --store http://hawk.internal:5000 /nix/store/...-linux-6.x
+# Should succeed if the path is in hawk's store and signed
 ```
 
 ## Troubleshooting
 
-### Builds Not Using Remote Builders
+### Builds not delegating to opi nodes
 
-**Symptom**: Builds still happen locally
+- **SSH key issue**: Test with `ssh -i /etc/nix/builder-key nix-builder@opi01.internal`
+- **Builder offline**: Nix falls back to local build (QEMU) if no builders respond
+- **Wrong system**: Verify `systems = [ "aarch64-linux" ]` in buildMachines config
+- **Verbose output**: `nix build --verbose` shows builder selection
 
-**Check**:
-```bash
-nix build --print-build-logs --verbose .#nixosConfigurations.opi01.config.system.build.toplevel
-# Look for "building on ssh://..." messages
-```
+### Cache misses (machines rebuilding instead of downloading)
 
-**Common fixes**:
-- SSH key not authorized: Add public key to builder's config
-- Builder offline: Check `ssh nix-builder@opi01.internal`
-- Wrong architecture: Verify `systems = [ "aarch64-linux" ]` matches build
+- **Key mismatch**: Verify `trusted-public-keys` matches hawk's signing key
+- **Harmonia down**: `curl http://hawk.internal:5000/nix-cache-info`
+- **Path not signed**: Harmonia only serves paths signed with its key; paths must exist in hawk's store
+- **Firewall**: Ensure port 5000 is open on hawk
 
-### Cache Not Being Used
+### GC collecting cached paths
 
-**Symptom**: Machines rebuild instead of downloading
+- **Missing GC root**: Check `/nix/var/nix/gcroots/arm-cache/` for the expected symlink
+- **Root pruned too early**: Adjust the 30-day threshold in the cleanup timer
+- **Dangling symlink**: The target store path was manually deleted; re-build and re-pin
 
-**Check**:
-```bash
-# On machine that should use cache
-nix-store --query --deriver /nix/store/...-linux-6.6.60
-# Should show it was fetched from cache, not built locally
-```
+## Security Notes
 
-**Common fixes**:
-- Public key mismatch: Verify cache public key in `trusted-public-keys`
-- Cache server down: Check `curl http://ser5.internal:5000/nix-cache-info`
-- Post-build hook not running: Check `/etc/nix/upload-to-cache.sh` exists and is executable
-
-### SSH Authentication Issues
-
-```bash
-# Test SSH manually
-ssh -i ~/.ssh/id_nix_builder nix-builder@opi01.internal
-
-# Debug verbose
-ssh -v -i ~/.ssh/id_nix_builder nix-builder@opi01.internal
-```
-
-## Performance Expectations
-
-### Current State (No Distributed Builds, No Cache)
-```
-Deploy opi01: 40 min (build kernel on opi01)
-Deploy opi02: 40 min (build kernel on opi02)
-Deploy opi03: 40 min (build kernel on opi03)
-────────────────────────────────────────────
-Total:        120 min
-```
-
-### With Distributed Builds + Cache
-```
-Deploy opi01: 40 min (build kernel on opi01, upload to cache)
-Deploy opi02:  2 min (download from cache)
-Deploy opi03:  2 min (download from cache)
-────────────────────────────────────────────
-Total:         44 min (63% time savings!)
-```
-
-### With SER5 as Development Box
-```
-Develop on SER5:  Fast (native x86, local dev environment)
-Build ARM:        40 min (delegated to opi01, cached)
-Build x86:         2 min (native on SER5, fast!)
-Deploy cluster:    6 min (3x 2min downloads from cache)
-────────────────────────────────────────────
-Total workflow:   ~48 min (vs 120+ min before)
-```
-
-## Security Considerations
-
-**Trust Model:**
-- Remote builders are **trusted** (can execute arbitrary code)
-- Only add builders you control
-- Binary cache is **unsigned by default** (use signing keys for production)
-
-**Network:**
-- All communication over Tailscale (encrypted mesh)
-- SSH provides additional layer
-- nix-serve uses HTTP (no TLS) - fine on trusted network
-
-**Hardening:**
-- Use dedicated SSH keys for builds (separate from user keys)
-- Limit nix-builder user permissions (no sudo, restricted shell)
-- Consider signing cache with `nix-store --generate-binary-cache-key`
-
-## Next Steps
-
-1. **When SER5 MAX arrives (2026-01-02):**
-   - Install NixOS
-   - Configure as build coordinator (distributed builds + cache server)
-   - Migrate Forgejo from eagle → SER5 MAX
-
-2. **On calypso:**
-   - Add distributed build configuration
-   - Generate SSH key for remote builds
-   - Test kernel build with caching
-
-3. **On opi01-03:**
-   - Add nix-builder user
-   - Configure to use SER5 cache
-   - Test cache uploads
-
-4. **Migrate Development Workflow:**
-   - SSH to SER5 for development
-   - Use SER5 as primary build coordinator
-   - Keep calypso for portable deployments
+- All communication over Tailscale (encrypted mesh) — HTTP for Harmonia is fine on trusted network
+- `nix-builder` user is a restricted system user (no sudo, no login shell)
+- Dedicated SSH keys for builds (separate from user keys)
+- Harmonia signing key ensures clients only trust paths signed by hawk
 
 ## Related Documentation
 
-- [GitHub Outage Mitigation](github-outage-mitigation.md) - Local nixpkgs mirror
-- CLAUDE.md - Infrastructure overview
-- NixOS Manual: [Distributed Builds](https://nixos.org/manual/nix/stable/advanced-topics/distributed-builds.html)
-- NixOS Manual: [Binary Cache](https://nixos.org/manual/nix/stable/package-management/binary-cache.html)
+- [GitHub Outage Mitigation](github-outage-mitigation.md) — local nixpkgs mirror on Forgejo
+- [NixOS Manual: Distributed Builds](https://nixos.org/manual/nix/stable/advanced-topics/distributed-builds.html)
+- [Harmonia](https://github.com/nix-community/harmonia) — Nix binary cache server
 
 ---
 
 **Created**: 2025-12-30
-**Last Updated**: 2025-12-30
-**Status**: 🚧 Ready for implementation when SER5 MAX arrives (2026-01-02)
+**Last Updated**: 2026-02-06
+**Status**: Ready for implementation
