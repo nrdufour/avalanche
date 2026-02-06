@@ -37,7 +37,7 @@
       #!/usr/bin/env bash
 
       cd /srv/forgejo/dump
-      find . -type f -ctime +30 -exec rm {} \;
+      find . -type f -mtime +30 -exec rm {} \;
       /run/current-system/sw/bin/rclone --config ${config.sops.templates."rclone.conf".path} sync . garage:forgejo-dump-backup -v
     '';
     serviceConfig = {
