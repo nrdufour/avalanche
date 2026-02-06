@@ -15,6 +15,9 @@
   boot.extraModulePackages = [ config.boot.kernelPackages.r8125 ];
   boot.blacklistedKernelModules = [ "r8169" ];
 
+  # Register QEMU binfmt for ARM64 emulation (needed for multi-platform Docker builds)
+  boot.binfmt.emulatedSystems = [ "aarch64-linux" ];
+
   # Disable CPU turbo boost to prevent crashes during QEMU ARM64 emulation.
   # The Beelink SER5 Max has a known power delivery issue where rapid core
   # state transitions (common in QEMU workloads) cause instant reboots.
