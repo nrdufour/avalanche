@@ -20,6 +20,13 @@
         "/home/ndufour/.cargo"
         "/home/ndufour/.minikube"
         "/home/ndufour/.vagrant.d"
+        "/home/ndufour/.lmstudio"
+        "/home/ndufour/.local/share/nomic.ai"
+        "/home/ndufour/.arduino15"
+        "/home/ndufour/go/pkg"
+        "/home/ndufour/.npm"
+        "/home/ndufour/.bun"
+        "/home/ndufour/.rustup"
       ];
       
       initialize = true;
