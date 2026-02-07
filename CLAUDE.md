@@ -284,6 +284,12 @@ n8n is deployed in the `ai` namespace using the 8gears Helm chart (`oci://8gears
 - **Remember** hosts are accessed via `<hostname>.internal` (Tailscale DNS)
 - Kubernetes kubeconfig uses kube-vip VIP (10.1.0.5), not individual controller IPs
 
+### Longhorn Instance-Manager Upgrades
+
+After a Longhorn instance-manager hotfix/upgrade, old IMs persist because running engine/replica processes stay pinned to them. The `concurrent-automatic-engine-upgrade` setting does NOT help — it only applies to engine image changes, not IM changes. Rolling restarts also don't work because volumes stay attached through the rollover.
+
+**The correct approach is node drain/uncordon:** drain each affected node one at a time (uncordon the previous before draining the next). This forces all volumes to detach and reattach on the new IMs. Avoid `--force --grace-period=0` pod deletes on instance-managers — it kills the API object but can orphan replica processes and leave volumes degraded.
+
 ### Network Architecture Notes
 
 #### Android 16 & DSCP Marking Fix (routy)
