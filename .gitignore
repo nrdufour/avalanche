@@ -33,8 +33,9 @@ secrets/**/*.yml
 *.qcow2
 *.iso
 
-# PRD runner logs
+# PRD runner
 logs/prd/
+.worktrees/
 
 # Kubernetes
 kubernetes/kubeconfig

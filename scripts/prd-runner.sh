@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# PRD Runner — executes a single PRD file autonomously
+# PRD Runner — executes a single PRD file autonomously using git worktrees
 # Usage: prd-runner.sh <prd-file>
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 LOG_DIR="${ROOT_DIR}/logs/prd"
-mkdir -p "$LOG_DIR"
+WORKTREE_DIR="${ROOT_DIR}/.worktrees"
+mkdir -p "$LOG_DIR" "$WORKTREE_DIR"
 
-prd_file="$1"
+prd_file="$(realpath "$1")"
 if [[ ! -f "$prd_file" ]]; then
   echo "ERROR: PRD file not found: $prd_file"
   exit 1
@@ -24,6 +25,7 @@ prd_title="$(frontmatter '.title')"
 prd_branch="$(frontmatter '.branch')"
 prd_status="$(frontmatter '.status')"
 log_file="${LOG_DIR}/${prd_id}-$(date +%Y%m%d-%H%M%S).log"
+work_dir="${WORKTREE_DIR}/${prd_branch##*/}"
 
 log() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$log_file"; }
 
@@ -55,58 +57,61 @@ if [[ "$dep_count" -gt 0 ]]; then
   done
 fi
 
-# Set status to running
+# Status helper — updates the PRD file in the main working tree
 set_status() {
-  local new_status="$1"
-  sed -i "s/^status: .*/status: ${new_status}/" "$prd_file"
+  sed -i "s/^status: .*/status: ${1}/" "$prd_file"
 }
+
 set_status "running"
 
 cleanup() {
-  cd "$ROOT_DIR"
-  git checkout main 2>/dev/null || true
+  # Remove worktree and branch on failure
+  if [[ -d "$work_dir" ]]; then
+    git -C "$ROOT_DIR" worktree remove --force "$work_dir" 2>/dev/null || true
+  fi
+  git -C "$ROOT_DIR" branch -D "$prd_branch" 2>/dev/null || true
 }
-trap cleanup EXIT
 
-# Create branch
-log "Creating branch ${prd_branch} from main"
-cd "$ROOT_DIR"
-git checkout main
-git pull --ff-only || true
-git checkout -b "$prd_branch"
+# Create worktree with a new branch from main
+log "Creating worktree at ${work_dir}"
+git -C "$ROOT_DIR" worktree add -b "$prd_branch" "$work_dir" main
 
-# Invoke Claude Code
+# Invoke Claude Code in the worktree
 log "Invoking Claude Code..."
 SAFETY_PROMPT="You are executing an autonomous PRD task. Rules:
 - Do NOT modify files in secrets/, .sops.yaml, .envrc, or age keys
 - Do NOT run kubectl, argocd, ssh, or sops commands
 - Do NOT delete files unless the PRD explicitly requires it
 - Do NOT modify files outside the scope defined in the PRD
-- Work from the repository root: ${ROOT_DIR}
+- Work from the repository root: ${work_dir}
 - Make all changes needed to satisfy the requirements below."
 
 prd_content="$(cat "$prd_file")"
 
-claude --print \
+if ! claude --print \
   --model sonnet \
   --allowedTools "Edit,Write,Read,Glob,Grep,Bash(git *),Bash(just lint),Bash(just format),Bash(kustomize *),Bash(nix build *),Bash(nix flake check),Bash(ls *),Bash(mkdir *)" \
   --append-system-prompt "$SAFETY_PROMPT" \
   "$prd_content" \
-  >> "$log_file" 2>&1
-
-# Post-run safety check — abort if forbidden files were modified
-log "Running safety checks..."
-forbidden_pattern='(^secrets/|\.sops\.yaml$|\.envrc$|age\.key)'
-if git diff --name-only main | grep -qE "$forbidden_pattern"; then
-  log "SAFETY VIOLATION: Forbidden files were modified:"
-  git diff --name-only main | grep -E "$forbidden_pattern" | tee -a "$log_file"
-  git checkout main
-  git branch -D "$prd_branch" 2>/dev/null || true
+  >> "$log_file" 2>&1; then
+  log "Claude Code failed"
+  cleanup
   set_status "failed"
   exit 1
 fi
 
-# Run verification commands
+# Post-run safety check — abort if forbidden files were modified
+log "Running safety checks..."
+forbidden_pattern='(^secrets/|\.sops\.yaml$|\.envrc$|age\.key)'
+if git -C "$work_dir" diff --name-only main | grep -qE "$forbidden_pattern"; then
+  log "SAFETY VIOLATION: Forbidden files were modified:"
+  git -C "$work_dir" diff --name-only main | grep -E "$forbidden_pattern" | tee -a "$log_file"
+  cleanup
+  set_status "failed"
+  exit 1
+fi
+
+# Run verification commands (in the worktree)
 log "Running verification commands..."
 verify_count="$(frontmatter '.verify | length')"
 verify_failed=0
@@ -115,7 +120,7 @@ for i in $(seq 0 $((verify_count - 1))); do
   verify_cmd="$(frontmatter ".verify[$i].cmd")"
   verify_desc="$(frontmatter ".verify[$i].desc")"
   log "  Verify: ${verify_desc}"
-  if eval "$verify_cmd" >> "$log_file" 2>&1; then
+  if (cd "$work_dir" && eval "$verify_cmd") >> "$log_file" 2>&1; then
     log "    PASS"
   else
     log "    FAIL"
@@ -125,30 +130,30 @@ done
 
 if [[ "$verify_failed" -eq 1 ]]; then
   log "Verification failed — not creating PR"
-  git checkout main
-  git branch -D "$prd_branch" 2>/dev/null || true
+  cleanup
   set_status "failed"
   exit 1
 fi
 
-# Lint and format
+# Lint and format (in the worktree)
 log "Running lint and format..."
-just lint >> "$log_file" 2>&1 || true
-just format >> "$log_file" 2>&1 || true
+(cd "$work_dir" && just lint) >> "$log_file" 2>&1 || true
+(cd "$work_dir" && just format) >> "$log_file" 2>&1 || true
 
 # Commit and push
 log "Committing and pushing..."
-git add -A
-git commit -m "feat(prd-${prd_id}): ${prd_title}" || {
+git -C "$work_dir" add -A
+git -C "$work_dir" commit -m "feat(prd-${prd_id}): ${prd_title}" || {
   log "Nothing to commit"
+  cleanup
   set_status "failed"
   exit 1
 }
-git push -u origin "$prd_branch"
+git -C "$work_dir" push -u origin "$prd_branch"
 
 # Create PR
 log "Creating PR..."
-pr_url="$(fj pr create --title "feat(prd-${prd_id}): ${prd_title}" --body "$(cat <<EOF
+pr_url="$(cd "$work_dir" && fj pr create --title "feat(prd-${prd_id}): ${prd_title}" --body "$(cat <<EOF
 ## PRD ${prd_id}: ${prd_title}
 
 Autonomous execution of \`docs/prd/${prd_id}-*.md\`.
@@ -160,6 +165,9 @@ See log: \`logs/prd/${prd_id}-*.log\`
 EOF
 )" 2>&1)"
 log "PR created: ${pr_url}"
+
+# Clean up worktree (keep the remote branch)
+git -C "$ROOT_DIR" worktree remove "$work_dir"
 
 set_status "passed"
 log "PRD ${prd_id} completed successfully"
