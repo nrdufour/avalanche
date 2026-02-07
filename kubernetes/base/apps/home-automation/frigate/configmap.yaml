@@ -31,7 +31,7 @@ data:
     record:
       enabled: true
       retain:
-        days: 7
+        days: 4
         mode: motion
 
     objects:
@@ -79,7 +79,7 @@ data:
         record:
           enabled: true
           retain:
-            days: 7
+            days: 4
             mode: motion
         objects:
           track:
