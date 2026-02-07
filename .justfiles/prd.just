@@ -1,6 +1,6 @@
 # PRD (Product Requirement Document) runner recipes
 
-root_dir := justfile_directory() / ".."
+root_dir := justfile_directory()
 prd_dir := root_dir / "docs" / "prd"
 runner := root_dir / "scripts" / "prd-runner.sh"
 
