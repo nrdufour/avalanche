@@ -5,14 +5,18 @@ branch: "prd/001-gateway-api-crds"
 status: pending
 depends_on: []
 verify:
-  - cmd: "test -f kubernetes/base/infra/network/gateway-api/standard-install.yaml"
-    desc: "Upstream standard-install.yaml exists"
   - cmd: "test -f kubernetes/base/infra/network/gateway-api/kustomization.yaml"
     desc: "Kustomization file exists"
   - cmd: "test -f kubernetes/base/infra/network/gateway-api-app.yaml"
     desc: "ArgoCD Application manifest exists"
   - cmd: "grep -q ServerSideApply kubernetes/base/infra/network/gateway-api-app.yaml"
     desc: "ServerSideApply is configured"
+  - cmd: "kustomize build kubernetes/base/infra/network/gateway-api | grep -q 'kind: CustomResourceDefinition'"
+    desc: "Kustomize build produces CRDs"
+  - cmd: "kustomize build kubernetes/base/infra/network/gateway-api | grep -q 'gateways.gateway.networking.k8s.io'"
+    desc: "Gateway CRD is present in build output"
+  - cmd: "kustomize build kubernetes/base/infra/network/gateway-api | grep -q 'httproutes.gateway.networking.k8s.io'"
+    desc: "HTTPRoute CRD is present in build output"
 ---
 
 # Install Gateway API CRDs
