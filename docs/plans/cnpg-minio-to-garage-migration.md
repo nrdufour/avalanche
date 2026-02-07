@@ -1,6 +1,6 @@
 # CloudNative-PG Backup Migration: Minio to Garage
 
-**Status**: In Progress — 2/7 clusters migrated
+**Status**: In Progress — 3/7 clusters migrated
 **Created**: 2026-01-11
 **Updated**: 2026-02-07
 **Migration Strategy**: Per-cluster, starting with low-activity clusters
@@ -26,7 +26,7 @@ Migrate all CloudNative-PG (CNPG) cluster backups from Minio S3 (`s3.internal`) 
 
 ## Quick Start (Resume Migration)
 
-**Current State**: mealie-16-db and wallabag-16-db migrated (2026-02-07). Next cluster: miniflux-16-db.
+**Current State**: mealie, wallabag, miniflux migrated (2026-02-07). Next cluster: wikijs-16-db.
 
 **To resume**:
 1. Open this file
@@ -41,6 +41,7 @@ Migrate all CloudNative-PG (CNPG) cluster backups from Minio S3 (`s3.internal`) 
 - Credentials tested (HTTP 200 OK to `s3.garage.internal`)
 - mealie-16-db fully migrated and verified (2026-02-07)
 - wallabag-16-db fully migrated and verified (2026-02-07)
+- miniflux-16-db fully migrated and verified (2026-02-07)
 
 **What's Left Per Cluster**:
 1. Phase 0: Pre-sync bulk data (optional, can run days before)
@@ -57,7 +58,7 @@ Listed in recommended migration order (low activity → high activity):
 |---|--------------|-----------|---------|-------------|-----------------|---------------|---------------|--------|
 | 1 | ~~**mealie-16-db**~~ | self-hosted | 5Gi | mealie-16-v5 | mealie-16-v4 | `true` (keep) | No | **Migrated 2026-02-07** |
 | 2 | ~~**wallabag-16-db**~~ | self-hosted | 5Gi | wallabag-16-v5 | wallabag-16-v4 | absent | No | **Migrated 2026-02-07** |
-| 3 | miniflux-16-db | self-hosted | 5Gi | miniflux-16-v5 | miniflux-16-v4 | absent | No | Pending |
+| 3 | ~~**miniflux-16-db**~~ | self-hosted | 5Gi | miniflux-16-v5 | miniflux-16-v4 | absent | No | **Migrated 2026-02-07** |
 | 4 | wikijs-16-db | self-hosted | 5Gi | wikijs-16-v5 | wikijs-16-v4 | absent | No | Pending |
 | 5 | n8n-16-db | ai | 5Gi | n8n-16-v1 | N/A | absent | No | Pending |
 | 6 | **hass-16-db** | home-automation | 10Gi | hass-16-v4 | hass-16-v3 | `true` (keep) | **Yes** | Pending |
@@ -385,7 +386,36 @@ kubectl apply -f kubernetes/base/apps/${NAMESPACE}/${APP}/db/objectstore-backup.
 kubectl apply -f kubernetes/base/apps/${NAMESPACE}/${APP}/db/objectstore-external.yaml
 ```
 
-#### 2.4 Restart Application Service (hass and immich ONLY)
+#### 2.4 Rolling Restart (REQUIRED)
+
+> **CRITICAL**: ObjectStore changes do NOT trigger a pod restart. WAL archiving will continue to the old endpoint until pods are restarted. See [Lesson 9](#9-objectstore-changes-require-a-rolling-restart).
+
+After committing and pushing (so ArgoCD applies the new ObjectStores), restart the cluster:
+
+```bash
+kubectl cnpg restart ${CLUSTER_NAME} -n ${NAMESPACE}
+```
+
+Then verify WALs go to Garage (force a WAL switch and check logs):
+
+```bash
+PRIMARY_POD=$(kubectl get pods -n ${NAMESPACE} \
+  -l cnpg.io/cluster=${CLUSTER_NAME},role=primary \
+  -o jsonpath='{.items[0].metadata.name}')
+
+kubectl exec -n ${NAMESPACE} ${PRIMARY_POD} -c postgres -- \
+  psql -U postgres -c "SELECT pg_switch_wal();"
+
+sleep 10
+
+kubectl logs -n ${NAMESPACE} -l cnpg.io/cluster=${CLUSTER_NAME} \
+  --all-containers --since=30s | grep "barman-cloud-wal-archive"
+# Must show: --endpoint-url https://s3.garage.internal
+```
+
+Wait for the cluster to return to healthy state (3/3 ready, ~60 seconds).
+
+#### 2.5 Restart Application Service (hass and immich ONLY)
 
 **For hass-16-db**:
 ```bash
@@ -699,6 +729,22 @@ Discovered during wallabag migration: the first backup attempt after switching O
 
 If WAL archiving was interrupted (even briefly), any existing backups taken during the disruption may be non-recoverable. Always trigger a new backup after confirming WAL archiving is stable (`ContinuousArchiving: True`), and verify recovery from that fresh backup — not from older ones.
 
+### 9. ObjectStore changes require a rolling restart
+
+**Discovered during miniflux migration (2026-02-07).** Changing the ObjectStore endpoint/credentials does NOT trigger a pod restart. The WAL archiver reads its config at pod startup — so after updating ObjectStores, the running pods continue archiving WALs to the **old** endpoint (Minio). Backups work correctly (the plugin reads the ObjectStore at runtime), but WAL archiving does not.
+
+**Fix**: After committing and pushing ObjectStore changes, run:
+```bash
+kubectl cnpg restart ${CLUSTER_NAME} -n ${NAMESPACE}
+```
+Then verify WALs go to Garage:
+```bash
+kubectl logs -n ${NAMESPACE} -l cnpg.io/cluster=${CLUSTER_NAME} --all-containers --since=60s | grep "barman-cloud-wal-archive"
+# Must show: --endpoint-url https://s3.garage.internal
+```
+
+**Why mealie/wallabag didn't hit this**: mealie had `isWALArchiver` removed (triggering restart), wallabag had WAL config restored (triggering restart). Clusters with ObjectStore-only changes (miniflux, wikijs, n8n) will all need an explicit restart.
+
 ## Cluster-Specific Notes
 
 ### mealie-16-db — Migrated 2026-02-07
@@ -731,16 +777,20 @@ If WAL archiving was interrupted (even briefly), any existing backups taken duri
 - **Incident**: Initial attempt removed `wal:` sections per original plan, which caused recovery to fail with "could not locate required checkpoint record". WAL config was restored, a fresh backup taken, and recovery succeeded on second attempt. See Lessons 6 and 8.
 - Phase 4 cleanup (remove Minio ExternalSecret): due 2026-02-14
 
-### miniflux-16-db
+### miniflux-16-db — Migrated 2026-02-07
 
 - **Namespace**: self-hosted
 - **Server Name**: miniflux-16-v5
 - **External Server**: miniflux-16-v4
-- **Has isWALArchiver**: absent (no change needed)
-- **Stop service**: No
-- **Files to modify**:
-  - `objectstore-backup.yaml` — switch to Garage (keep `wal:` section)
-  - `objectstore-external.yaml` — switch to Garage (keep `wal:` section)
+- **Commit**: `6e44f60`
+
+**Migration results**:
+- rclone sync: 2571 objects / 1.349 GiB (miniflux-16-v5), 224 objects / 156.040 MiB (miniflux-16-v4) — exact match
+- Pre-migration backup: completed
+- **Incident**: First recovery test failed with "invalid checkpoint record" — WAL archiver was still writing to Minio (`s3.internal`) because ObjectStore changes alone don't trigger a pod restart. Required `kubectl cnpg restart` to pick up the new endpoint. See Lesson 9.
+- Post-migration backup (after restart): completed, WALs confirmed going to Garage
+- Recovery test: cluster reached healthy state, data verified (2709 entries, 23 feeds — exact match)
+- Phase 4 cleanup (remove Minio ExternalSecret): due 2026-02-14
 
 ### wikijs-16-db
 
