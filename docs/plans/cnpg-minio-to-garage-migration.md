@@ -1,13 +1,13 @@
 # CloudNative-PG Backup Migration: Minio to Garage
 
-**Status**: In Progress — 1/7 clusters migrated
+**Status**: In Progress — 2/7 clusters migrated
 **Created**: 2026-01-11
 **Updated**: 2026-02-07
 **Migration Strategy**: Per-cluster, starting with low-activity clusters
 
 ## Executive Summary
 
-Migrate all CloudNative-PG (CNPG) cluster backups from Minio S3 (`s3.internal`) to Garage S3 (`s3.garage.internal`). WAL archiving is permanently disabled — only daily scheduled backups are used.
+Migrate all CloudNative-PG (CNPG) cluster backups from Minio S3 (`s3.internal`) to Garage S3 (`s3.garage.internal`). WAL archiving is kept enabled — it is **required** for backup recovery (see [Lesson 6](#6-wal-archiving-cannot-be-disabled)).
 
 **Critical Constraint**: This is production database backup data. Data loss is unacceptable.
 
@@ -26,7 +26,7 @@ Migrate all CloudNative-PG (CNPG) cluster backups from Minio S3 (`s3.internal`) 
 
 ## Quick Start (Resume Migration)
 
-**Current State**: mealie-16-db migrated (2026-02-07). Next cluster: wallabag-16-db.
+**Current State**: mealie-16-db and wallabag-16-db migrated (2026-02-07). Next cluster: miniflux-16-db.
 
 **To resume**:
 1. Open this file
@@ -40,11 +40,12 @@ Migrate all CloudNative-PG (CNPG) cluster backups from Minio S3 (`s3.internal`) 
 - Kustomizations updated to include Garage secrets
 - Credentials tested (HTTP 200 OK to `s3.garage.internal`)
 - mealie-16-db fully migrated and verified (2026-02-07)
+- wallabag-16-db fully migrated and verified (2026-02-07)
 
 **What's Left Per Cluster**:
 1. Phase 0: Pre-sync bulk data (optional, can run days before)
 2. Phase 1: Pre-migration prep (verify health, record row counts — see lessons learned for backup step)
-3. Phase 2: Migration execution (sync, switch ObjectStores, remove WAL config)
+3. Phase 2: Migration execution (sync, switch ObjectStores)
 4. Phase 3: Validation (**mandatory restore test with data verification**)
 5. Phase 4: Cleanup (7 days later, remove Minio resources)
 
@@ -54,13 +55,13 @@ Listed in recommended migration order (low activity → high activity):
 
 | # | Cluster Name | Namespace | Storage | Server Name | External Server | isWALArchiver | Stop Service? | Status |
 |---|--------------|-----------|---------|-------------|-----------------|---------------|---------------|--------|
-| 1 | ~~**mealie-16-db**~~ | self-hosted | 5Gi | mealie-16-v5 | mealie-16-v4 | `true` → remove | No | **Migrated 2026-02-07** |
-| 2 | wallabag-16-db | self-hosted | 5Gi | wallabag-16-v5 | wallabag-16-v4 | absent | No | Pending |
+| 1 | ~~**mealie-16-db**~~ | self-hosted | 5Gi | mealie-16-v5 | mealie-16-v4 | `true` (keep) | No | **Migrated 2026-02-07** |
+| 2 | ~~**wallabag-16-db**~~ | self-hosted | 5Gi | wallabag-16-v5 | wallabag-16-v4 | absent | No | **Migrated 2026-02-07** |
 | 3 | miniflux-16-db | self-hosted | 5Gi | miniflux-16-v5 | miniflux-16-v4 | absent | No | Pending |
 | 4 | wikijs-16-db | self-hosted | 5Gi | wikijs-16-v5 | wikijs-16-v4 | absent | No | Pending |
 | 5 | n8n-16-db | ai | 5Gi | n8n-16-v1 | N/A | absent | No | Pending |
-| 6 | **hass-16-db** | home-automation | 10Gi | hass-16-v4 | hass-16-v3 | `true` → remove | **Yes** | Pending |
-| 7 | **immich-16-db** | media | 10Gi | immich-16-db | immich-16-db | `false` → remove | **Yes** | Pending |
+| 6 | **hass-16-db** | home-automation | 10Gi | hass-16-v4 | hass-16-v3 | `true` (keep) | **Yes** | Pending |
+| 7 | **immich-16-db** | media | 10Gi | immich-16-db | immich-16-db | `false` (keep) | **Yes** | Pending |
 
 **Notes**:
 - All clusters have 3 instances with `podAntiAffinityType: required`
@@ -74,11 +75,11 @@ Each cluster migration modifies files in `kubernetes/base/apps/<namespace>/<app>
 
 | File | Change |
 |------|--------|
-| `objectstore-backup.yaml` | Switch endpoint + credentials from Minio to Garage; remove `wal:` section |
+| `objectstore-backup.yaml` | Switch endpoint + credentials from Minio to Garage (keep `wal:` section) |
 | `objectstore-external.yaml` (if exists) | Same as above |
-| `pg-cluster-16.yaml` (mealie + hass only) | Remove `isWALArchiver: true` |
-| `pg-cluster-16.yaml` (immich only) | Remove `isWALArchiver: false` line |
 | `cnpg-minio-external-secret.yaml` | Delete (Phase 4, 7 days later) |
+
+> **NOTE**: Do NOT modify `pg-cluster-16.yaml` or remove `isWALArchiver` / `wal:` sections. WAL archiving is required for backup recovery. See [Lesson 6](#6-wal-archiving-cannot-be-disabled).
 
 ## Preparation Work Completed
 
@@ -330,7 +331,7 @@ rclone size garage:cloudnative-pg/${SERVER_NAME}
 
 #### 2.3 Update ObjectStore Resources
 
-Edit both ObjectStore files to point to Garage and remove WAL configuration.
+Edit both ObjectStore files to point to Garage. **Keep the `wal:` section intact** — WAL archiving is required for recovery.
 
 **`objectstore-backup.yaml`** — make these changes:
 
@@ -340,7 +341,8 @@ Edit both ObjectStore files to point to Garage and remove WAL configuration.
 | `endpointCA.name` | `cnpg-minio-access-<app>` | `cnpg-garage-access-<app>` |
 | `s3Credentials.accessKeyId.name` | `cnpg-minio-access-<app>` | `cnpg-garage-access-<app>` |
 | `s3Credentials.secretAccessKey.name` | `cnpg-minio-access-<app>` | `cnpg-garage-access-<app>` |
-| `wal:` section | present | **remove entirely** |
+
+> **WARNING**: Do NOT remove the `wal:` section. See [Lesson 6](#6-wal-archiving-cannot-be-disabled).
 
 **`objectstore-external.yaml`** (if exists) — same changes as above.
 
@@ -368,6 +370,9 @@ spec:
         key: aws-secret-access-key
     data:
       compression: bzip2
+    wal:
+      compression: bzip2
+      maxParallel: 8
   retentionPolicy: "30d"
 ```
 
@@ -380,60 +385,7 @@ kubectl apply -f kubernetes/base/apps/${NAMESPACE}/${APP}/db/objectstore-backup.
 kubectl apply -f kubernetes/base/apps/${NAMESPACE}/${APP}/db/objectstore-external.yaml
 ```
 
-#### 2.4 Remove WAL Archiver from Cluster Manifest
-
-**For mealie and hass** (the only two with `isWALArchiver: true`):
-
-Edit `pg-cluster-16.yaml` and remove the `isWALArchiver: true` line:
-
-```yaml
-# BEFORE
-plugins:
-  - name: barman-cloud.cloudnative-pg.io
-    isWALArchiver: true          # ← DELETE this line
-    parameters:
-      barmanObjectName: mealie-backup-store
-      serverName: mealie-16-v5
-
-# AFTER
-plugins:
-  - name: barman-cloud.cloudnative-pg.io
-    parameters:
-      barmanObjectName: mealie-backup-store
-      serverName: mealie-16-v5
-```
-
-**For immich** (has `isWALArchiver: false` explicitly):
-
-Remove the `isWALArchiver: false` line from both the main plugin and externalClusters plugin sections. Also remove the `enabled: true` lines for consistency (it defaults to true):
-
-```yaml
-# BEFORE
-plugins:
-  - name: barman-cloud.cloudnative-pg.io
-    enabled: true
-    isWALArchiver: false
-    parameters:
-      barmanObjectName: immich-backup-store
-      serverName: immich-16-db
-
-# AFTER
-plugins:
-  - name: barman-cloud.cloudnative-pg.io
-    parameters:
-      barmanObjectName: immich-backup-store
-      serverName: immich-16-db
-```
-
-**For wallabag, miniflux, wikijs, n8n**: No change needed (isWALArchiver already absent).
-
-Apply:
-
-```bash
-kubectl apply -f kubernetes/base/apps/${NAMESPACE}/${APP}/db/pg-cluster-16.yaml
-```
-
-#### 2.5 Restart Application Service (hass and immich ONLY)
+#### 2.4 Restart Application Service (hass and immich ONLY)
 
 **For hass-16-db**:
 ```bash
@@ -630,7 +582,7 @@ git commit -m "feat(cnpg): migrate ${CLUSTER_NAME} backups to Garage S3
 
 - Update ObjectStore resources to point to s3.garage.internal
 - Switch credentials from cnpg-minio-access to cnpg-garage-access
-- Remove WAL archiving configuration (daily backups only)
+- WAL archiving kept enabled (required for recovery)
 - Restore test passed: data verified against live cluster
 
 Ref: #31, docs/plans/cnpg-minio-to-garage-migration.md"
@@ -731,6 +683,22 @@ The `rclone sync` command deletes files at the destination that don't exist at t
 
 For mealie (~116 MiB), the full sync took 8 seconds. For clusters this small, there's no need for a separate pre-sync phase days ahead — just do it all in Phase 2. Larger clusters (hass, immich) should still pre-sync.
 
+### 6. WAL archiving CANNOT be disabled
+
+**Discovered during wallabag migration (2026-02-07).** Removing the `wal:` section from ObjectStore specs causes backups to become **non-recoverable**. Even though backups complete successfully, recovery fails with `could not locate required checkpoint record` because the WAL segments needed to replay from the base backup's checkpoint are missing.
+
+The Barman Cloud Plugin requires archived WAL segments alongside base backups to perform recovery — this is fundamental to how PostgreSQL point-in-time recovery works. There is no "daily backup only" mode.
+
+**Impact**: The original plan instructed removing `wal:` sections and `isWALArchiver`. This was reverted for mealie (which had `isWALArchiver: true` temporarily removed, then restored) and wallabag (which never had it but had `wal:` sections removed then restored). All subsequent clusters must **keep WAL archiving intact**.
+
+### 7. RBAC propagation delay after ObjectStore credential changes
+
+Discovered during wallabag migration: the first backup attempt after switching ObjectStore credentials may fail with a "forbidden" RBAC error (e.g., `secrets cnpg-garage-access-wallabag is forbidden`). This is a timing issue — the CNPG operator needs a few seconds to update the Role binding for the new secret name. Retry after ~10 seconds resolves it.
+
+### 8. Take a fresh backup after any WAL archiving disruption
+
+If WAL archiving was interrupted (even briefly), any existing backups taken during the disruption may be non-recoverable. Always trigger a new backup after confirming WAL archiving is stable (`ContinuousArchiving: True`), and verify recovery from that fresh backup — not from older ones.
+
 ## Cluster-Specific Notes
 
 ### mealie-16-db — Migrated 2026-02-07
@@ -748,16 +716,20 @@ For mealie (~116 MiB), the full sync took 8 seconds. For clusters this small, th
 - Rolling restart after `isWALArchiver` removal: ~60 seconds, 2/3 ready briefly, then 3/3 healthy
 - Phase 4 cleanup (remove Minio ExternalSecret): due 2026-02-14
 
-### wallabag-16-db
+### wallabag-16-db — Migrated 2026-02-07
 
 - **Namespace**: self-hosted
 - **Server Name**: wallabag-16-v5
 - **External Server**: wallabag-16-v4
-- **Has isWALArchiver**: absent (no change needed)
-- **Stop service**: No
-- **Files to modify**:
-  - `objectstore-backup.yaml` — switch to Garage, remove `wal:` section
-  - `objectstore-external.yaml` — switch to Garage, remove `wal:` section
+- **Commit**: `44a1a78` (final fix with WAL restored)
+
+**Migration results**:
+- rclone sync: 243 objects / 267.713 MiB (wallabag-16-v5), 36 objects / 31.887 MiB (wallabag-16-v4) — exact match
+- Pre-migration backup: completed in 10 seconds
+- Post-migration backup to Garage: completed (after RBAC retry — see Lesson 7)
+- Recovery test: cluster reached healthy state, data verified (572 wallabag_entry, 2 wallabag_user — exact match)
+- **Incident**: Initial attempt removed `wal:` sections per original plan, which caused recovery to fail with "could not locate required checkpoint record". WAL config was restored, a fresh backup taken, and recovery succeeded on second attempt. See Lessons 6 and 8.
+- Phase 4 cleanup (remove Minio ExternalSecret): due 2026-02-14
 
 ### miniflux-16-db
 
@@ -767,8 +739,8 @@ For mealie (~116 MiB), the full sync took 8 seconds. For clusters this small, th
 - **Has isWALArchiver**: absent (no change needed)
 - **Stop service**: No
 - **Files to modify**:
-  - `objectstore-backup.yaml` — switch to Garage, remove `wal:` section
-  - `objectstore-external.yaml` — switch to Garage, remove `wal:` section
+  - `objectstore-backup.yaml` — switch to Garage (keep `wal:` section)
+  - `objectstore-external.yaml` — switch to Garage (keep `wal:` section)
 
 ### wikijs-16-db
 
@@ -778,8 +750,8 @@ For mealie (~116 MiB), the full sync took 8 seconds. For clusters this small, th
 - **Has isWALArchiver**: absent (no change needed)
 - **Stop service**: No
 - **Files to modify**:
-  - `objectstore-backup.yaml` — switch to Garage, remove `wal:` section
-  - `objectstore-external.yaml` — switch to Garage, remove `wal:` section
+  - `objectstore-backup.yaml` — switch to Garage (keep `wal:` section)
+  - `objectstore-external.yaml` — switch to Garage (keep `wal:` section)
 
 ### n8n-16-db
 
@@ -790,42 +762,40 @@ For mealie (~116 MiB), the full sync took 8 seconds. For clusters this small, th
 - **Stop service**: No
 - **Special**: No `objectstore-external.yaml` changes needed (file exists but no externalClusters in cluster manifest). Has `objectstore-external.yaml` — update it anyway so credentials/endpoint are consistent.
 - **Files to modify**:
-  - `objectstore-backup.yaml` — switch to Garage, remove `wal:` section
-  - `objectstore-external.yaml` — switch to Garage, remove `wal:` section
+  - `objectstore-backup.yaml` — switch to Garage (keep `wal:` section)
+  - `objectstore-external.yaml` — switch to Garage (keep `wal:` section)
 
 ### hass-16-db
 
 - **Namespace**: home-automation
 - **Server Name**: hass-16-v4
 - **External Server**: hass-16-v3
-- **Has isWALArchiver**: Yes → remove it
+- **Has isWALArchiver**: Yes (keep — required for recovery)
 - **Stop service**: **Yes** — scale `homeassistant` deployment to 0 before migration
 - **Activity**: High (continuous sensor data ingestion)
 - **Storage**: 10Gi (larger than others)
 - **Special**: Must stop Home Assistant before pre-migration backup to freeze database state. Restart after ObjectStore switch.
 - **Files to modify**:
-  - `objectstore-backup.yaml` — switch to Garage, remove `wal:` section
-  - `objectstore-external.yaml` — switch to Garage, remove `wal:` section
-  - `pg-cluster-16.yaml` — remove `isWALArchiver: true`
+  - `objectstore-backup.yaml` — switch to Garage (keep `wal:` section)
+  - `objectstore-external.yaml` — switch to Garage (keep `wal:` section)
 
 ### immich-16-db
 
 - **Namespace**: media
 - **Server Name**: immich-16-db
 - **External Server**: immich-16-db (same name — used in externalClusters for recovery)
-- **Has isWALArchiver**: `false` (explicit) → remove the line
+- **Has isWALArchiver**: `false` (explicit) — keep as-is
 - **Stop service**: **Yes** — scale `immich-server` and `immich-machine-learning` deployments to 0
 - **Activity**: High (photo uploads, ML processing)
 - **Storage**: 10Gi
 - **Image**: `ghcr.io/tensorchord/cloudnative-vectorchord:16-0.4.3` (NOT standard PostgreSQL)
 - **Special**:
   - Recovery test MUST use the VectorChord image and include `shared_preload_libraries: ["vchord.so"]`
-  - WAL archiving was already disabled due to VectorChord compatibility issues
+  - WAL archiving is currently disabled (`isWALArchiver: false`) — may need investigation if recovery fails
   - Migrate last (highest data volume, most complex)
 - **Files to modify**:
-  - `objectstore-backup.yaml` — switch to Garage, remove `wal:` section
-  - `objectstore-external.yaml` — switch to Garage, remove `wal:` section
-  - `pg-cluster-16.yaml` — remove `isWALArchiver: false` and `enabled: true` lines (both in plugins and externalClusters)
+  - `objectstore-backup.yaml` — switch to Garage (keep `wal:` section)
+  - `objectstore-external.yaml` — switch to Garage (keep `wal:` section)
 
 ## Rollback Procedure
 
@@ -877,8 +847,7 @@ Migration is considered successful ONLY when ALL criteria are met:
 - [ ] rclone sync completed with 0 errors
 - [ ] Minio and Garage sizes match exactly for all server names
 - [ ] ObjectStore resources updated to `s3.garage.internal`
-- [ ] `isWALArchiver` removed from cluster manifest (where applicable)
-- [ ] `wal:` configuration removed from all ObjectStore specs
+- [ ] `wal:` section preserved in all ObjectStore specs
 - [ ] Post-migration backup completed successfully to Garage
 - [ ] **Recovery test cluster boots and reaches healthy state**
 - [ ] **Data verification: row counts match between live and recovery cluster**
