@@ -72,6 +72,16 @@ cleanup() {
   git -C "$ROOT_DIR" branch -D "$prd_branch" 2>/dev/null || true
 }
 
+# Clean up stale worktree/branch from previous runs
+if [[ -d "$work_dir" ]]; then
+  log "Removing stale worktree at ${work_dir}"
+  git -C "$ROOT_DIR" worktree remove --force "$work_dir" 2>/dev/null || true
+fi
+if git -C "$ROOT_DIR" show-ref --verify --quiet "refs/heads/$prd_branch"; then
+  log "Removing stale local branch ${prd_branch}"
+  git -C "$ROOT_DIR" branch -D "$prd_branch" 2>/dev/null || true
+fi
+
 # Create worktree with a new branch from main
 log "Creating worktree at ${work_dir}"
 git -C "$ROOT_DIR" worktree add -b "$prd_branch" "$work_dir" main
