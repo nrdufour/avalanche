@@ -1,6 +1,6 @@
 # CloudNative-PG Backup Migration: Minio to Garage
 
-**Status**: In Progress — 4/7 clusters migrated
+**Status**: In Progress — 5/7 clusters migrated
 **Created**: 2026-01-11
 **Updated**: 2026-02-07
 **Migration Strategy**: Per-cluster, starting with low-activity clusters
@@ -26,7 +26,7 @@ Migrate all CloudNative-PG (CNPG) cluster backups from Minio S3 (`s3.internal`) 
 
 ## Quick Start (Resume Migration)
 
-**Current State**: mealie, wallabag, miniflux, wikijs migrated (2026-02-07). Next cluster: n8n-16-db.
+**Current State**: mealie, wallabag, miniflux, wikijs, n8n migrated (2026-02-07). Next cluster: hass-16-db.
 
 **To resume**:
 1. Open this file
@@ -43,6 +43,7 @@ Migrate all CloudNative-PG (CNPG) cluster backups from Minio S3 (`s3.internal`) 
 - wallabag-16-db fully migrated and verified (2026-02-07)
 - miniflux-16-db fully migrated and verified (2026-02-07)
 - wikijs-16-db fully migrated and verified (2026-02-07)
+- n8n-16-db fully migrated and verified (2026-02-07)
 
 **What's Left Per Cluster**:
 1. Phase 0: Pre-sync bulk data (optional, can run days before)
@@ -61,7 +62,7 @@ Listed in recommended migration order (low activity → high activity):
 | 2 | ~~**wallabag-16-db**~~ | self-hosted | 5Gi | wallabag-16-v5 | wallabag-16-v4 | absent | No | **Migrated 2026-02-07** |
 | 3 | ~~**miniflux-16-db**~~ | self-hosted | 5Gi | miniflux-16-v5 | miniflux-16-v4 | absent | No | **Migrated 2026-02-07** |
 | 4 | ~~**wikijs-16-db**~~ | self-hosted | 5Gi | wikijs-16-v5 | wikijs-16-v4 | absent | No | **Migrated 2026-02-07** |
-| 5 | n8n-16-db | ai | 5Gi | n8n-16-v1 | N/A | absent | No | Pending |
+| 5 | ~~**n8n-16-db**~~ | ai | 5Gi | n8n-16-v1 | N/A | absent | No | **Migrated 2026-02-07** |
 | 6 | **hass-16-db** | home-automation | 10Gi | hass-16-v4 | hass-16-v3 | `true` (keep) | **Yes** | Pending |
 | 7 | **immich-16-db** | media | 10Gi | immich-16-db | immich-16-db | `false` (keep) | **Yes** | Pending |
 
@@ -820,17 +821,20 @@ kubectl logs -n ${NAMESPACE} -l cnpg.io/cluster=${CLUSTER_NAME} --all-containers
 - Clean migration — no incidents
 - Phase 4 cleanup (remove Minio ExternalSecret): due 2026-02-14
 
-### n8n-16-db
+### n8n-16-db — Migrated 2026-02-07
 
 - **Namespace**: ai
 - **Server Name**: n8n-16-v1
-- **External Server**: N/A (no externalClusters section)
-- **Has isWALArchiver**: absent (no change needed)
-- **Stop service**: No
-- **Special**: No `objectstore-external.yaml` changes needed (file exists but no externalClusters in cluster manifest). Has `objectstore-external.yaml` — update it anyway so credentials/endpoint are consistent.
-- **Files to modify**:
-  - `objectstore-backup.yaml` — switch to Garage (keep `wal:` section)
-  - `objectstore-external.yaml` — switch to Garage (keep `wal:` section)
+- **External Server**: N/A
+- **Commit**: `57824d7`
+
+**Migration results**:
+- rclone sync: 155 objects / 19.589 MiB (n8n-16-v1) — exact match
+- Rolling restart performed (Lesson 9), WALs confirmed going to Garage
+- Post-migration backup: completed
+- Recovery test: cluster reached healthy state, data verified (0 workflows, 0 credentials — exact match, fresh instance)
+- Clean migration — no incidents
+- Phase 4 cleanup (remove Minio ExternalSecret): due 2026-02-14
 
 ### hass-16-db
 
