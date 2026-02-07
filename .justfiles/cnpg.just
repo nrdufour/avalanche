@@ -99,3 +99,30 @@ backup-all:
         exit 1
     fi
     echo "All backups completed successfully."
+
+# List the latest backup for each CNPG cluster
+list-backups:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    kubectl get backups.postgresql.cnpg.io --all-namespaces -o json | jq -r '
+      def duration:
+        ((.[1] | sub("\\.[0-9]+Z$";"Z") | fromdate) - (.[0] | sub("\\.[0-9]+Z$";"Z") | fromdate)) |
+        if . >= 60 then "\(. / 60 | floor)m\(. % 60)s"
+        else "\(.)s"
+        end;
+      [.items[] | select(.status.phase == "completed")] |
+      group_by(.spec.cluster.name) |
+      map(sort_by(.status.stoppedAt) | last) |
+      sort_by(.spec.cluster.name) |
+      ["CLUSTER", "NAMESPACE", "LAST BACKUP", "DURATION", "BACKUP NAME"],
+      ["-------", "---------", "-----------", "--------", "-----------"],
+      (.[] | [
+        .spec.cluster.name,
+        .metadata.namespace,
+        (.status.stoppedAt | sub("T";" ") | sub("Z";"")),
+        ([.status.startedAt, .status.stoppedAt] | duration),
+        .metadata.name
+      ]) |
+      @tsv
+    ' | column -t -s $'\t'
