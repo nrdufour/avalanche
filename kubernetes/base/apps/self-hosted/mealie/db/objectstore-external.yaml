@@ -19,3 +19,6 @@ spec:
         key: aws-secret-access-key
     data:
       compression: bzip2
+    wal:
+      compression: bzip2
+      maxParallel: 8
