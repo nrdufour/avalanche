@@ -6,16 +6,16 @@ metadata:
 spec:
   configuration:
     destinationPath: s3://cloudnative-pg/
-    endpointURL: https://s3.internal
+    endpointURL: https://s3.garage.internal
     endpointCA:
-      name: cnpg-minio-access-miniflux
+      name: cnpg-garage-access-miniflux
       key: tls.crt
     s3Credentials:
       accessKeyId:
-        name: cnpg-minio-access-miniflux
+        name: cnpg-garage-access-miniflux
         key: aws-access-key-id
       secretAccessKey:
-        name: cnpg-minio-access-miniflux
+        name: cnpg-garage-access-miniflux
         key: aws-secret-access-key
     data:
       compression: bzip2
