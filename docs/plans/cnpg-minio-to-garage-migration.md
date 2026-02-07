@@ -1,6 +1,6 @@
 # CloudNative-PG Backup Migration: Minio to Garage
 
-**Status**: Prerequisites Complete - Ready to Execute
+**Status**: In Progress — 1/7 clusters migrated
 **Created**: 2026-01-11
 **Updated**: 2026-02-07
 **Migration Strategy**: Per-cluster, starting with low-activity clusters
@@ -26,24 +26,24 @@ Migrate all CloudNative-PG (CNPG) cluster backups from Minio S3 (`s3.internal`) 
 
 ## Quick Start (Resume Migration)
 
-**Current State**: All prerequisites complete. Ready to migrate first cluster (mealie-16-db).
+**Current State**: mealie-16-db migrated (2026-02-07). Next cluster: wallabag-16-db.
 
 **To resume**:
 1. Open this file
-2. Jump to [Per-Cluster Migration Procedure](#per-cluster-migration-procedure)
-3. Follow Phase 0 through Phase 4 step-by-step
-4. Each phase has copy-paste commands with expected outputs
+2. Read [Lessons Learned](#lessons-learned) for gotchas discovered during mealie migration
+3. Jump to [Per-Cluster Migration Procedure](#per-cluster-migration-procedure)
+4. Follow Phase 0 through Phase 4 step-by-step
 
 **What's Already Done**:
 - Garage credentials in Bitwarden (UUID: `5879ba4f-f80f-432e-ade2-d3a1281b3060`)
 - ExternalSecrets deployed for all clusters
 - Kustomizations updated to include Garage secrets
 - Credentials tested (HTTP 200 OK to `s3.garage.internal`)
-- Test sync completed (mealie: 5 seconds for 113 MB)
+- mealie-16-db fully migrated and verified (2026-02-07)
 
 **What's Left Per Cluster**:
 1. Phase 0: Pre-sync bulk data (optional, can run days before)
-2. Phase 1: Pre-migration prep (trigger backup, verify health)
+2. Phase 1: Pre-migration prep (verify health, record row counts — see lessons learned for backup step)
 3. Phase 2: Migration execution (sync, switch ObjectStores, remove WAL config)
 4. Phase 3: Validation (**mandatory restore test with data verification**)
 5. Phase 4: Cleanup (7 days later, remove Minio resources)
@@ -52,15 +52,15 @@ Migrate all CloudNative-PG (CNPG) cluster backups from Minio S3 (`s3.internal`) 
 
 Listed in recommended migration order (low activity → high activity):
 
-| # | Cluster Name | Namespace | Storage | Server Name | External Server | isWALArchiver | Stop Service? |
-|---|--------------|-----------|---------|-------------|-----------------|---------------|---------------|
-| 1 | **mealie-16-db** | self-hosted | 5Gi | mealie-16-v5 | mealie-16-v4 | `true` → remove | No |
-| 2 | wallabag-16-db | self-hosted | 5Gi | wallabag-16-v5 | wallabag-16-v4 | absent | No |
-| 3 | miniflux-16-db | self-hosted | 5Gi | miniflux-16-v5 | miniflux-16-v4 | absent | No |
-| 4 | wikijs-16-db | self-hosted | 5Gi | wikijs-16-v5 | wikijs-16-v4 | absent | No |
-| 5 | n8n-16-db | ai | 5Gi | n8n-16-v1 | N/A | absent | No |
-| 6 | **hass-16-db** | home-automation | 10Gi | hass-16-v4 | hass-16-v3 | `true` → remove | **Yes** |
-| 7 | **immich-16-db** | media | 10Gi | immich-16-db | immich-16-db | `false` → remove | **Yes** |
+| # | Cluster Name | Namespace | Storage | Server Name | External Server | isWALArchiver | Stop Service? | Status |
+|---|--------------|-----------|---------|-------------|-----------------|---------------|---------------|--------|
+| 1 | ~~**mealie-16-db**~~ | self-hosted | 5Gi | mealie-16-v5 | mealie-16-v4 | `true` → remove | No | **Migrated 2026-02-07** |
+| 2 | wallabag-16-db | self-hosted | 5Gi | wallabag-16-v5 | wallabag-16-v4 | absent | No | Pending |
+| 3 | miniflux-16-db | self-hosted | 5Gi | miniflux-16-v5 | miniflux-16-v4 | absent | No | Pending |
+| 4 | wikijs-16-db | self-hosted | 5Gi | wikijs-16-v5 | wikijs-16-v4 | absent | No | Pending |
+| 5 | n8n-16-db | ai | 5Gi | n8n-16-v1 | N/A | absent | No | Pending |
+| 6 | **hass-16-db** | home-automation | 10Gi | hass-16-v4 | hass-16-v3 | `true` → remove | **Yes** | Pending |
+| 7 | **immich-16-db** | media | 10Gi | immich-16-db | immich-16-db | `false` → remove | **Yes** | Pending |
 
 **Notes**:
 - All clusters have 3 instances with `podAntiAffinityType: required`
@@ -257,17 +257,28 @@ Save the output. See [Data Verification Queries](#data-verification-queries) for
 
 #### 1.5 Trigger Pre-Migration Backup
 
-```bash
-kubectl cnpg backup ${CLUSTER_NAME} -n ${NAMESPACE} \
-  --backup-name ${CLUSTER_NAME}-pre-migration
+> **IMPORTANT**: `kubectl cnpg backup` defaults to the `barmanObjectStore` method, which fails because the clusters use the **plugin** method (managed by ArgoCD via ScheduledBackup resources). You must create a Backup resource with `method: plugin` explicitly. See the [Lessons Learned](#lessons-learned) section.
 
-kubectl wait --for=condition=completed \
-  backup/${CLUSTER_NAME}-pre-migration \
-  -n ${NAMESPACE} \
-  --timeout=30m
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: postgresql.cnpg.io/v1
+kind: Backup
+metadata:
+  name: ${CLUSTER_NAME}-pre-migration
+  namespace: ${NAMESPACE}
+spec:
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+  cluster:
+    name: ${CLUSTER_NAME}
+EOF
+
+# Watch for completion
+kubectl get backup.postgresql.cnpg.io ${CLUSTER_NAME}-pre-migration -n ${NAMESPACE} -w
 ```
 
-**Expected**: Backup completes within 5-15 minutes.
+**Expected**: Backup completes within 5-15 minutes. **Never skip this step** — always trigger a fresh backup immediately before migration to ensure the latest data is captured.
 
 ### Phase 2: Migration Execution
 
@@ -445,20 +456,32 @@ kubectl get pods -n media -l app.kubernetes.io/instance=immich
 
 #### 3.1 Trigger Test Backup to Garage
 
+> **IMPORTANT**: Must use `method: plugin`, not `kubectl cnpg backup` (see [Lessons Learned](#lessons-learned)).
+
 ```bash
-kubectl cnpg backup ${CLUSTER_NAME} -n ${NAMESPACE} \
-  --backup-name ${CLUSTER_NAME}-post-migration
+cat <<EOF | kubectl apply -f -
+apiVersion: postgresql.cnpg.io/v1
+kind: Backup
+metadata:
+  name: ${CLUSTER_NAME}-post-migration
+  namespace: ${NAMESPACE}
+spec:
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+  cluster:
+    name: ${CLUSTER_NAME}
+EOF
 
-kubectl wait --for=condition=completed \
-  backup/${CLUSTER_NAME}-post-migration \
-  -n ${NAMESPACE} \
-  --timeout=30m
-
-# Verify backup status
-kubectl get backup ${CLUSTER_NAME}-post-migration -n ${NAMESPACE}
+# Watch for completion
+kubectl get backup.postgresql.cnpg.io ${CLUSTER_NAME}-post-migration -n ${NAMESPACE} -w
 ```
 
-**Expected**: Backup completes successfully.
+**Expected**: Backup completes successfully. Clean up the ad-hoc Backup resource afterwards to avoid ArgoCD drift:
+
+```bash
+kubectl delete backup.postgresql.cnpg.io ${CLUSTER_NAME}-post-migration -n ${NAMESPACE}
+```
 
 #### 3.2 Verify Backup Exists in Garage
 
@@ -681,22 +704,49 @@ SELECT 'user', count(*) FROM "user";
 
 > **Verified**: All table names confirmed against live databases on 2026-02-07.
 
+## Lessons Learned
+
+Discovered during the mealie-16-db migration (2026-02-07):
+
+### 1. `kubectl cnpg backup` defaults to the wrong method
+
+`kubectl cnpg backup` creates a Backup with `method: barmanObjectStore`, which fails with `no barmanObjectStore section defined on the target cluster`. All clusters in this repo use `method: plugin` (Barman Cloud Plugin managed by ArgoCD). **Always create Backup resources as YAML with `method: plugin`** instead of using `kubectl cnpg backup`.
+
+### 2. Clean up ad-hoc Backup resources after use
+
+Ad-hoc Backup resources (pre-migration, post-migration) are not managed by ArgoCD and will show as drift. Delete them after confirming they completed:
+```bash
+kubectl delete backup.postgresql.cnpg.io ${CLUSTER_NAME}-post-migration -n ${NAMESPACE}
+```
+
+### 3. Removing `isWALArchiver` triggers a rolling restart
+
+Removing `isWALArchiver: true` from `pg-cluster-16.yaml` causes CNPG to perform a rolling restart of all instances. During the restart, the cluster temporarily shows 2/3 ready instances for about 60 seconds. This is expected and safe — the cluster returns to healthy state automatically.
+
+### 4. `rclone sync` deletes files in Garage that don't exist in Minio
+
+The `rclone sync` command deletes files at the destination that don't exist at the source. During the mealie migration, this removed 146 older files (97 MiB) from Garage that had been there from a previous test sync but had since been purged from Minio by the 30-day retention policy. This is correct behavior — Garage should mirror Minio's current state. Just be aware that Garage file counts may decrease after sync.
+
+### 5. Phase 0 can be folded into Phase 2 for small clusters
+
+For mealie (~116 MiB), the full sync took 8 seconds. For clusters this small, there's no need for a separate pre-sync phase days ahead — just do it all in Phase 2. Larger clusters (hass, immich) should still pre-sync.
+
 ## Cluster-Specific Notes
 
-### mealie-16-db (First Migration — Pathfinder)
+### mealie-16-db — Migrated 2026-02-07
 
 - **Namespace**: self-hosted
 - **Server Name**: mealie-16-v5
 - **External Server**: mealie-16-v4
-- **Has isWALArchiver**: Yes → remove it
-- **Stop service**: No (only changes on user interaction)
-- **Backup Size**: ~113 MB (236 files) — tested 2026-01-11
-- **Phase 0 Duration**: ~5 seconds (tested at 22.5 MB/s)
-- **Special**: Smallest cluster, fastest sync — ideal first migration to validate the process
-- **Files to modify**:
-  - `objectstore-backup.yaml` — switch to Garage, remove `wal:` section
-  - `objectstore-external.yaml` — switch to Garage, remove `wal:` section
-  - `pg-cluster-16.yaml` — remove `isWALArchiver: true`
+- **Commit**: `b63009b`
+
+**Migration results**:
+- rclone sync: 245 objects / 116.459 MiB (mealie-16-v5), 43 objects / 14.833 MiB (mealie-16-v4) — exact match
+- Sync duration: 8 seconds total (both server names)
+- Post-migration backup to Garage: completed in 9 seconds
+- Recovery test: cluster reached healthy state, data verified (6 recipes, 2 users — exact match)
+- Rolling restart after `isWALArchiver` removal: ~60 seconds, 2/3 ready briefly, then 3/3 healthy
+- Phase 4 cleanup (remove Minio ExternalSecret): due 2026-02-14
 
 ### wallabag-16-db
 
