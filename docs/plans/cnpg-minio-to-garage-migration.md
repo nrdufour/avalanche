@@ -1,6 +1,6 @@
 # CloudNative-PG Backup Migration: Minio to Garage
 
-**Status**: In Progress — 6/7 clusters migrated
+**Status**: Complete — 7/7 clusters migrated
 **Created**: 2026-01-11
 **Updated**: 2026-02-07
 **Migration Strategy**: Per-cluster, starting with low-activity clusters
@@ -26,7 +26,7 @@ Migrate all CloudNative-PG (CNPG) cluster backups from Minio S3 (`s3.internal`) 
 
 ## Quick Start (Resume Migration)
 
-**Current State**: mealie, wallabag, miniflux, wikijs, n8n, hass migrated (2026-02-07). Next cluster: immich-16-db.
+**Current State**: All 7 clusters migrated (2026-02-07). Phase 4 cleanup (remove Minio ExternalSecrets) due 2026-02-14.
 
 **To resume**:
 1. Open this file
@@ -65,7 +65,7 @@ Listed in recommended migration order (low activity → high activity):
 | 4 | ~~**wikijs-16-db**~~ | self-hosted | 5Gi | wikijs-16-v5 | wikijs-16-v4 | absent | No | **Migrated 2026-02-07** |
 | 5 | ~~**n8n-16-db**~~ | ai | 5Gi | n8n-16-v1 | N/A | absent | No | **Migrated 2026-02-07** |
 | 6 | ~~**hass-16-db**~~ | home-automation | 10Gi | hass-16-v4 | hass-16-v3 | `true` (keep) | **Yes** | **Migrated 2026-02-07** |
-| 7 | **immich-16-db** | media | 10Gi | immich-16-db | immich-16-db | `false` (keep) | **Yes** | Pending |
+| 7 | ~~**immich-16-db**~~ | media | 10Gi | immich-16-db | immich-16-db | `false` (keep) | **Yes** | **Migrated 2026-02-07** |
 
 **Notes**:
 - All clusters have 3 instances with `podAntiAffinityType: required`
@@ -861,18 +861,18 @@ kubectl logs -n ${NAMESPACE} -l cnpg.io/cluster=${CLUSTER_NAME} --all-containers
 - **Namespace**: media
 - **Server Name**: immich-16-db
 - **External Server**: immich-16-db (same name — used in externalClusters for recovery)
-- **Has isWALArchiver**: `false` (explicit) — keep as-is
-- **Stop service**: **Yes** — scale `immich-server` and `immich-machine-learning` deployments to 0
-- **Activity**: High (photo uploads, ML processing)
+- **Has isWALArchiver**: `false` (explicit) — kept as-is
+- **Image**: `ghcr.io/tensorchord/cloudnative-vectorchord:16-0.4.3` (custom VectorChord)
 - **Storage**: 10Gi
-- **Image**: `ghcr.io/tensorchord/cloudnative-vectorchord:16-0.4.3` (NOT standard PostgreSQL)
-- **Special**:
-  - Recovery test MUST use the VectorChord image and include `shared_preload_libraries: ["vchord.so"]`
-  - WAL archiving is currently disabled (`isWALArchiver: false`) — may need investigation if recovery fails
-  - Migrate last (highest data volume, most complex)
-- **Files to modify**:
-  - `objectstore-backup.yaml` — switch to Garage (keep `wal:` section)
-  - `objectstore-external.yaml` — switch to Garage (keep `wal:` section)
+- **Migrated**: 2026-02-07
+- **Results**:
+  - rclone: 1233 objects / 1.161 GiB — exact match
+  - Application NOT stopped (single user, no uploads during migration)
+  - Rolling restart after ArgoCD sync — WALs confirmed to Garage
+  - Recovery test used VectorChord image with `shared_preload_libraries: ["vchord.so"]`
+  - Recovery verification: 302 assets, 1 user — exact match
+  - Clean migration — no incidents
+  - Phase 4 cleanup (remove Minio ExternalSecret): due 2026-02-14
 
 ## Rollback Procedure
 
