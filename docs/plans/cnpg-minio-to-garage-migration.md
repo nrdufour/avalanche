@@ -1,6 +1,6 @@
 # CloudNative-PG Backup Migration: Minio to Garage
 
-**Status**: In Progress — 3/7 clusters migrated
+**Status**: In Progress — 4/7 clusters migrated
 **Created**: 2026-01-11
 **Updated**: 2026-02-07
 **Migration Strategy**: Per-cluster, starting with low-activity clusters
@@ -26,7 +26,7 @@ Migrate all CloudNative-PG (CNPG) cluster backups from Minio S3 (`s3.internal`) 
 
 ## Quick Start (Resume Migration)
 
-**Current State**: mealie, wallabag, miniflux migrated (2026-02-07). Next cluster: wikijs-16-db.
+**Current State**: mealie, wallabag, miniflux, wikijs migrated (2026-02-07). Next cluster: n8n-16-db.
 
 **To resume**:
 1. Open this file
@@ -42,6 +42,7 @@ Migrate all CloudNative-PG (CNPG) cluster backups from Minio S3 (`s3.internal`) 
 - mealie-16-db fully migrated and verified (2026-02-07)
 - wallabag-16-db fully migrated and verified (2026-02-07)
 - miniflux-16-db fully migrated and verified (2026-02-07)
+- wikijs-16-db fully migrated and verified (2026-02-07)
 
 **What's Left Per Cluster**:
 1. Phase 0: Pre-sync bulk data (optional, can run days before)
@@ -59,7 +60,7 @@ Listed in recommended migration order (low activity → high activity):
 | 1 | ~~**mealie-16-db**~~ | self-hosted | 5Gi | mealie-16-v5 | mealie-16-v4 | `true` (keep) | No | **Migrated 2026-02-07** |
 | 2 | ~~**wallabag-16-db**~~ | self-hosted | 5Gi | wallabag-16-v5 | wallabag-16-v4 | absent | No | **Migrated 2026-02-07** |
 | 3 | ~~**miniflux-16-db**~~ | self-hosted | 5Gi | miniflux-16-v5 | miniflux-16-v4 | absent | No | **Migrated 2026-02-07** |
-| 4 | wikijs-16-db | self-hosted | 5Gi | wikijs-16-v5 | wikijs-16-v4 | absent | No | Pending |
+| 4 | ~~**wikijs-16-db**~~ | self-hosted | 5Gi | wikijs-16-v5 | wikijs-16-v4 | absent | No | **Migrated 2026-02-07** |
 | 5 | n8n-16-db | ai | 5Gi | n8n-16-v1 | N/A | absent | No | Pending |
 | 6 | **hass-16-db** | home-automation | 10Gi | hass-16-v4 | hass-16-v3 | `true` (keep) | **Yes** | Pending |
 | 7 | **immich-16-db** | media | 10Gi | immich-16-db | immich-16-db | `false` (keep) | **Yes** | Pending |
@@ -792,16 +793,20 @@ kubectl logs -n ${NAMESPACE} -l cnpg.io/cluster=${CLUSTER_NAME} --all-containers
 - Recovery test: cluster reached healthy state, data verified (2709 entries, 23 feeds — exact match)
 - Phase 4 cleanup (remove Minio ExternalSecret): due 2026-02-14
 
-### wikijs-16-db
+### wikijs-16-db — Migrated 2026-02-07
 
 - **Namespace**: self-hosted
 - **Server Name**: wikijs-16-v5
 - **External Server**: wikijs-16-v4
-- **Has isWALArchiver**: absent (no change needed)
-- **Stop service**: No
-- **Files to modify**:
-  - `objectstore-backup.yaml` — switch to Garage (keep `wal:` section)
-  - `objectstore-external.yaml` — switch to Garage (keep `wal:` section)
+- **Commit**: `7f7db2c`
+
+**Migration results**:
+- rclone sync: 9010 objects / 155.159 MiB (wikijs-16-v5), 47 objects / 16.795 MiB (wikijs-16-v4) — exact match
+- Rolling restart performed (Lesson 9), WALs confirmed going to Garage
+- Post-migration backup: completed
+- Recovery test: cluster reached healthy state, data verified (41 pages, 2 users — exact match)
+- Clean migration — no incidents
+- Phase 4 cleanup (remove Minio ExternalSecret): due 2026-02-14
 
 ### n8n-16-db
 
