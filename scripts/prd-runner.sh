@@ -88,11 +88,10 @@ SAFETY_PROMPT="You are executing an autonomous PRD task. Rules:
 
 prd_content="$(cat "$prd_file")"
 
-if ! claude --print \
+if ! echo "$prd_content" | claude --print \
   --model sonnet \
   --allowedTools "Edit,Write,Read,Glob,Grep,Bash(git *),Bash(just lint),Bash(just format),Bash(kustomize *),Bash(nix build *),Bash(nix flake check),Bash(ls *),Bash(mkdir *)" \
   --append-system-prompt "$SAFETY_PROMPT" \
-  "$prd_content" \
   >> "$log_file" 2>&1; then
   log "Claude Code failed"
   cleanup
