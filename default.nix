@@ -22,5 +22,8 @@ pkgs.mkShell {
 
     # Forgejo
     forgejo-cli
+
+    # YAML processing (PRD runner)
+    yq-go
   ];
 }
