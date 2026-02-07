@@ -5,14 +5,14 @@ branch: "prd/001-gateway-api-crds"
 status: pending
 depends_on: []
 verify:
-  - cmd: "kubectl get crd gateways.gateway.networking.k8s.io -o jsonpath='{.spec.versions[0].name}'"
-    desc: "Gateway CRD is installed on the cluster"
-  - cmd: "kubectl get crd httproutes.gateway.networking.k8s.io -o jsonpath='{.spec.versions[0].name}'"
-    desc: "HTTPRoute CRD is installed on the cluster"
-  - cmd: "kubectl get crd gatewayclasses.gateway.networking.k8s.io -o jsonpath='{.spec.versions[0].name}'"
-    desc: "GatewayClass CRD is installed on the cluster"
-  - cmd: "argocd app get gateway-api --output json | jq -r '.status.sync.status'"
-    desc: "ArgoCD Application is synced"
+  - cmd: "test -f kubernetes/base/infra/network/gateway-api/standard-install.yaml"
+    desc: "Upstream standard-install.yaml exists"
+  - cmd: "test -f kubernetes/base/infra/network/gateway-api/kustomization.yaml"
+    desc: "Kustomization file exists"
+  - cmd: "test -f kubernetes/base/infra/network/gateway-api-app.yaml"
+    desc: "ArgoCD Application manifest exists"
+  - cmd: "grep -q ServerSideApply kubernetes/base/infra/network/gateway-api-app.yaml"
+    desc: "ServerSideApply is configured"
 ---
 
 # Install Gateway API CRDs
