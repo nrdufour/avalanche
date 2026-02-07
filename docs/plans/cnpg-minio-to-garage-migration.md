@@ -391,7 +391,19 @@ kubectl apply -f kubernetes/base/apps/${NAMESPACE}/${APP}/db/objectstore-externa
 
 > **CRITICAL**: ObjectStore changes do NOT trigger a pod restart. WAL archiving will continue to the old endpoint until pods are restarted. See [Lesson 9](#9-objectstore-changes-require-a-rolling-restart).
 
-After committing and pushing (so ArgoCD applies the new ObjectStores), restart the cluster:
+After committing and pushing, **sync the ArgoCD application first** to ensure the new ObjectStore resources are applied before restarting:
+
+```bash
+# Sync ArgoCD app to apply the new ObjectStores
+argocd app sync <app-name> --grpc-web
+# Or use the ArgoCD UI to trigger a sync/refresh
+
+# Verify the ObjectStores are updated
+kubectl get objectstore -n ${NAMESPACE} -o yaml | grep endpointURL
+# Must show: https://s3.garage.internal
+```
+
+Then restart the cluster:
 
 ```bash
 kubectl cnpg restart ${CLUSTER_NAME} -n ${NAMESPACE}
