@@ -1,4 +1,4 @@
-# Project Avalanche 🏔️
+# Project Avalanche
 
 > "Started with a snowflake, became an avalanche"
 
@@ -8,11 +8,11 @@ Avalanche is a unified infrastructure-as-code monorepo that manages everything f
 
 ## The Evolution
 
-### snowflake → snowy → snowpea → home-ops → **avalanche**
+### snowflake > snowy > snowpea > home-ops > **avalanche**
 
 - **snowflake**: A friend's NixOS flake that started it all
 - **snowy**: Personal laptop configuration (calypso - ASUS ROG Strix)
-- **snowpea**: Fleet of 15+ home ARM-based SBCs running NixOS
+- **snowpea**: Fleet of home ARM-based SBCs running NixOS
 - **home-ops**: GitOps-managed Kubernetes cluster
 - **avalanche**: Unified infrastructure bringing everything together
 
@@ -23,130 +23,76 @@ avalanche/
 ├── nixos/              # All NixOS configurations
 │   ├── hosts/          # Individual machine configs
 │   ├── profiles/       # Reusable profiles (hardware, roles)
+│   ├── personalities/  # Additive feature sets (ham, chat, backups, etc.)
 │   ├── modules/nixos/  # Custom NixOS modules
+│   ├── pkgs/           # Custom package definitions
+│   ├── overlays/       # Nixpkgs overlays
 │   └── lib/            # Helper functions
 ├── kubernetes/         # Kubernetes GitOps manifests
 │   ├── base/           # Application definitions
-│   ├── clusters/       # Cluster-specific configs
-│   └── docs/           # K8s documentation
+│   └── clusters/       # Cluster-specific configs
 ├── cloud/              # Cloud infrastructure
 │   ├── nixos/          # NixOS-based VPS configs
 │   └── terraform/      # Terraform for non-NixOS resources
-├── secrets/            # Encrypted secrets (SOPS)
-│   ├── nixos/
-│   ├── kubernetes/
-│   └── cloud/
-├── src/                # Custom tools (sentinel gateway dashboard)
+├── secrets/            # Encrypted secrets (SOPS + Age)
 └── docs/               # Documentation
+    ├── architecture/   # System design documents
+    ├── guides/         # How-to guides
+    ├── plans/          # Implementation proposals
+    ├── troubleshooting/# Known issues and workarounds
     └── migration/      # Migration process documentation
 ```
 
 ## Infrastructure Overview
 
-### NixOS Hosts (15 total)
+### NixOS Hosts (15 active)
 
-**Workstation (from snowy):**
-- calypso: ASUS ROG Strix G513IM (personal laptop)
+**Workstation:**
+- calypso: ASUS ROG Strix G513IM
 
 **Infrastructure Services:**
-- mysecrets: Raspberry Pi 4 (8GB) - step-ca, Vaultwarden, Authentik
-- hawk: Beelink SER5 - Forgejo
-- possum: Raspberry Pi - Garage S3, backups
-- beacon, routy, cardinal: x86 servers
+- mysecrets: Raspberry Pi 4 - step-ca, Vaultwarden, Kanidm
+- hawk: Beelink SER5 Max - Forgejo, CI/CD
+- possum: Raspberry Pi 4 - Samba, NFS (ZFS storage)
+
+**x86 Servers:**
+- routy: Main gateway (Knot DNS, DHCP, firewall)
+- cardinal: x86 server
 
 **Kubernetes Cluster:**
-- K3s controllers: opi01-03 (Orange Pi 5 Plus)
+- K3s controllers: opi01-03 (Orange Pi 5 Plus, NPU-enabled)
 - K3s workers: raccoon00-05 (Raspberry Pi 4)
+
+**Decommissioned:** eagle (Forgejo migrated to hawk), beacon (nix-serve)
 
 ### Key Services
 
 **Identity & Security:**
-- step-ca: PKI/certificate authority
+- step-ca: PKI/certificate authority (YubiKey HSM)
 - Vaultwarden: Password management
-- Authentik: SSO/identity provider (OIDC)
+- Kanidm: Identity provider (OIDC/OAuth2)
 
 **Network:**
-- Tailscale: Mesh VPN with exit node support
-- knot-dns: DNS server
-- Sentinel: Gateway dashboard for routy (services, DHCP, firewall, connections)
+- Tailscale: Mesh VPN for remote access
+- Gluetun: VPN egress proxy for containerized workloads
+- Knot DNS: Authoritative DNS (routy)
+- Sentinel: Gateway dashboard for routy
 
 **Kubernetes:**
 - ArgoCD: GitOps deployment
-- Tailscale Operator: K8s-native Tailscale integration
-- cert-manager, networking, security, observability components
+- cert-manager, Longhorn, networking, security, observability components
 
 **Automation & AI:**
-- n8n: Workflow automation (`https://n8n.internal`)
-- Ollama: Local LLM inference
-
-## Quick Start
-
-### Available Commands
-
-```bash
-# List all available commands
-just
-
-# Check flake validity
-just nix-check
-
-# List all NixOS hosts
-just nix-list-hosts
-```
-
-### Deploying NixOS Hosts
-
-```bash
-# Deploy to a remote host
-just nix-deploy <hostname>
-
-# Deploy locally (for workstation)
-just nix-switch <hostname>
-
-# Deploy to all hosts (with confirmation)
-just nix-deploy-all
-
-# Build locally without applying
-nix build .#nixosConfigurations.<hostname>.config.system.build.toplevel
-```
-
-### Managing Secrets
-
-```bash
-# Update SOPS keys for all secrets
-just sops-update
-```
-
-### SD Card Images
-
-```bash
-# Build SD card image for a host
-just sd-build <hostname>
-
-# Build and flash SD card image
-just sd-flash <hostname>
-```
-
-### Managing Kubernetes
-
-```bash
-# Get kubeconfig from cluster
-just k8s-get-kubeconfig
-
-# Bootstrap cluster (TODO: update to bootstrap ArgoCD)
-just k8s-bootstrap
-
-# ArgoCD handles automatic deployment
-# Check sync status:
-argocd app list
-```
+- n8n: Workflow automation
+- NPU inference: RK3588 NPU on Orange Pi 5 Plus controllers
 
 ## Technologies
 
 - **NixOS**: Declarative system configuration
 - **SOPS + Age**: Secrets management with encryption
-- **Tailscale**: Mesh VPN
-- **Authentik**: Identity provider (SSO/OIDC)
+- **Tailscale**: Mesh VPN (remote access)
+- **Gluetun**: VPN egress for K8s workloads
+- **Kanidm**: Identity provider (SSO/OIDC)
 - **ArgoCD**: GitOps for Kubernetes
 - **K3s**: Lightweight Kubernetes distribution
 - **Just**: Command runner for deployment automation
@@ -155,32 +101,7 @@ argocd app list
 
 ### Android 16 HTTPS Connectivity
 
-If you experience intermittent HTTPS failures (port 443) on Android 16 devices with services like fly.dev, CDNs, or other providers, this may be due to Android 16's stricter validation of DSCP (Differentiated Services Code Point) packet markings. The router (routy) includes a global DSCP clearing rule that normalizes all packets to cs0, resolving this issue. This is a network-wide mitigation that should be transparent to most users.
-
-## Migration & Deployment Status
-
-**Phase 1: Migration** ✅ **COMPLETE**
-
-This repository consolidates:
-- ✅ Repository structure created
-- ✅ NixOS server configurations (snowpea - 14 hosts)
-- ✅ NixOS workstation config (snowy - calypso)
-- ✅ Unified secrets management (SOPS + Age)
-- ✅ Development environment (.envrc, default.nix)
-- ✅ Justfile deployment automation
-- ✅ Kubernetes manifests (home-ops)
-- ✅ Forgejo workflow for automated updates
-
-**Phase 2: Deployment** ✅ **COMPLETE**
-
-- ✅ All 15 NixOS hosts deployed and operational
-- ✅ AutoUpgrade configured (pulling from avalanche)
-- ✅ ArgoCD applications synced (50+ apps)
-- ✅ All infrastructure running from unified monorepo
-
-See [docs/migration/](docs/migration/) for detailed migration documentation.
-
-**Cloud infrastructure:** Pending future implementation
+If you experience intermittent HTTPS failures (port 443) on Android 16 devices, this may be due to Android 16's stricter validation of DSCP packet markings. The router (routy) includes a global DSCP clearing rule that normalizes all packets to cs0, resolving this issue.
 
 ## Previous Repositories
 
