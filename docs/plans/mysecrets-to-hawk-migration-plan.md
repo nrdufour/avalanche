@@ -1,6 +1,7 @@
 # Identity Infrastructure Migration: mysecrets → hawk
 
 **Created:** 2026-02-01
+**Revised:** 2026-02-08
 **Status:** 📋 Planning
 **Target Date:** TBD
 
@@ -9,30 +10,32 @@
 | Phase | Status | Date | Notes |
 |-------|--------|------|-------|
 | Feasibility analysis | ✅ Complete | 2026-02-01 | All services portable, YubiKey is critical blocker |
-| Plan document | ✅ Complete | 2026-02-01 | This document |
-| YubiKey relocation | ⏳ Pending | - | Physical hardware must be moved |
-| Configuration preparation | ⏳ Pending | - | Copy/adapt NixOS configs |
-| Secrets migration | ⏳ Pending | - | SOPS re-encryption |
-| Data migration | ⏳ Pending | - | /srv contents transfer |
-| Deployment | ⏳ Pending | - | nixos-rebuild on hawk |
-| Validation | ⏳ Pending | - | Service testing |
-| DNS cutover | ⏳ Pending | - | auth.internal → hawk |
-| Decommission mysecrets | ⏳ Pending | - | After 30-day grace period |
+| Plan document | ✅ Complete | 2026-02-08 | Revised: service-by-service with ca.internal |
+| Phase 0: ca.internal CNAME | ⏳ Pending | - | DNS alias + fleet-wide ACME URL update |
+| Phase 1: step-ca migration | ⏳ Pending | - | YubiKey relocation, config, deploy |
+| Phase 2: Kanidm migration | ⏳ Pending | - | Config, data transfer, deploy |
+| Phase 3: Vaultwarden migration | ⏳ Pending | - | PostgreSQL merge, data transfer, deploy |
+| Phase 4: Cleanup | ⏳ Pending | - | Decommission mysecrets, clean up eagle/beacon |
 
 ---
 
 ## Executive Summary
 
-This plan covers migrating the identity infrastructure stack from **mysecrets** (Raspberry Pi 4, aarch64) to **hawk** (Beelink SER5, x86_64).
+This plan covers migrating the identity infrastructure stack from **mysecrets** (Raspberry Pi 4, aarch64) to **hawk** (Beelink SER5, x86_64), one service at a time.
+
+### Motivation
+
+- **Decommission RPi4 hardware**: mysecrets runs on an SD card + USB drive — fragile and slow
+- **Reduce host count**: eagle (already down) and beacon (already down) can be formally retired alongside mysecrets, taking the fleet from 17 to 14 managed hosts
+- **Consolidate infrastructure services**: hawk already runs Forgejo; adding identity services makes it the single infrastructure box
 
 ### Services to Migrate
 
-| Service | Purpose | Data | Complexity |
-|---------|---------|------|------------|
-| step-ca | Certificate Authority | Root/intermediate certs | **HIGH** (YubiKey) |
-| Kanidm | Identity Management | SQLite database (~MB) | Medium |
-| Vaultwarden | Password Manager | PostgreSQL database | Medium |
-| PostgreSQL | Local database | Data directory | Medium |
+| Service | Purpose | Data | Phase |
+|---------|---------|------|-------|
+| step-ca | Certificate Authority | BadgerDB + YubiKey HSM | Phase 1 |
+| Kanidm | Identity Management | SQLite-like database (~MB) | Phase 2 |
+| Vaultwarden | Password Manager | PostgreSQL database | Phase 3 |
 
 ### Critical Constraint: YubiKey Hardware Token
 
@@ -40,58 +43,27 @@ This plan covers migrating the identity infrastructure stack from **mysecrets** 
 
 ---
 
-## Migration Strategy Decision
+## Migration Strategy: Service-by-Service with ca.internal
 
-### Option A: All-at-Once Migration (Recommended)
+### Why service-by-service (not all-at-once)
 
-**Migrate all services in a single maintenance window.**
+The original plan recommended all-at-once migration. After review, service-by-service is better because:
 
-| Aspect | Assessment |
-|--------|------------|
-| Downtime | Single window: 2-4 hours |
-| Complexity | Moderate - all services move together |
-| Rollback | Simple - revert everything to mysecrets |
-| YubiKey | Move once, stays with step-ca on hawk |
+1. **`ca.internal` decouples the dependency chain.** By introducing a DNS alias for step-ca first, the tight coupling between services (step-ca → ACME → everything) becomes a simple CNAME flip. Services no longer need to move together.
+2. **Smaller blast radius per phase.** Each migration is isolated — if Kanidm has issues, Vaultwarden is unaffected.
+3. **PostgreSQL merge gets its own phase.** The trickiest part (merging Vaultwarden's PG database into hawk's existing Forgejo PG instance) is isolated from the other migrations.
+4. **Flexible scheduling.** Each phase can happen days or weeks apart. No need for a single long maintenance window.
 
-**Pros:**
-- Services remain co-located (step-ca issues certs for Kanidm/Vaultwarden)
-- Single maintenance window, less user disruption
-- Simpler rollback (all or nothing)
-- No split-brain DNS/routing complexity
+### Migration Order
 
-**Cons:**
-- Larger blast radius if something fails
-- Longer single downtime window
+| Phase | Service | Prerequisite | Downtime |
+|-------|---------|-------------|----------|
+| 0 | ca.internal CNAME + fleet ACME update | None | Zero (preparatory) |
+| 1 | step-ca | Phase 0, YubiKey available | ~30 min (CA offline) |
+| 2 | Kanidm | Phase 1 complete | ~30 min (auth offline) |
+| 3 | Vaultwarden + PostgreSQL merge | Phase 1 complete | ~1 hour (passwords offline) |
 
-### Option B: Service-by-Service Migration
-
-**Migrate services incrementally over multiple windows.**
-
-| Order | Service | Dependency Constraint |
-|-------|---------|----------------------|
-| 1 | step-ca | Must migrate first (issues ACME certs) |
-| 2 | Kanidm | Needs step-ca for TLS cert renewal |
-| 3 | Vaultwarden + PostgreSQL | Needs step-ca for TLS cert renewal |
-
-**Pros:**
-- Smaller blast radius per migration
-- Easier to debug issues
-- Shorter individual downtimes
-
-**Cons:**
-- Multiple maintenance windows
-- step-ca MUST move first (blocking dependency)
-- Services temporarily split across hosts
-- More complex DNS/routing during transition
-- YubiKey still only moves once (to step-ca's host)
-
-### Recommendation: Option A (All-at-Once)
-
-**Rationale:**
-1. **Tight coupling**: All services depend on step-ca for ACME certificates
-2. **YubiKey singleton**: Hardware token can only be in one place
-3. **Precedent**: Forgejo migration (similar scope) completed successfully in ~75 minutes
-4. **Rollback simplicity**: Keep mysecrets intact until validation complete
+Phases 2 and 3 are independent of each other — they can happen in either order or in parallel.
 
 ---
 
@@ -101,10 +73,10 @@ This plan covers migrating the identity infrastructure stack from **mysecrets** 
 |--------|-------------------|-------------------|
 | Architecture | aarch64-linux (ARM) | x86_64-linux (AMD) |
 | Hardware | Raspberry Pi 4, 4GB RAM | Beelink SER5 Max, 24GB RAM |
-| Storage | SD card + USB drive (/srv) | NVMe + ext4 (/srv mount exists) |
+| Storage | SD card + USB drive (/srv) | NVMe + ext4 (/srv) |
 | State Version | 23.11 | 25.11 |
-| Current Services | step-ca, Kanidm, Vaultwarden | Forgejo, PostgreSQL |
-| Network | Tailscale client | Tailscale client (to configure) |
+| Current Services | step-ca, Kanidm, Vaultwarden | Forgejo, PostgreSQL (forgejo DB) |
+| Network | Tailscale client | Tailscale client |
 
 ### Package Compatibility
 
@@ -116,593 +88,553 @@ All services have x86_64 packages available:
 
 ---
 
-## Pre-Migration Checklist
+## Phase 0: Introduce ca.internal (Zero Downtime)
 
-### Hardware Requirements
+**Goal:** Decouple the ACME CA URL from any specific hostname, so step-ca can move freely in the future.
 
-- [ ] **YubiKey physically available** and relocatable to hawk
-- [ ] **USB port on hawk** accessible for YubiKey
-- [ ] **hawk /srv mount** verified with sufficient space (~5GB needed)
+### Step 0.1: Create ca.internal DNS Record
 
-### Configuration Preparation
+```bash
+ssh routy.internal
 
-- [ ] Create `nixos/hosts/hawk/step-ca/` directory
-- [ ] Create `nixos/hosts/hawk/kanidm/` directory
-- [ ] Create `nixos/hosts/hawk/vaultwarden/` directory
-- [ ] Copy and adapt configurations from mysecrets
-- [ ] Update state version handling (23.11 → 25.11 considerations)
+# Add ca.internal CNAME pointing to mysecrets (current location)
+sudo knotc zone-begin internal
+sudo knotc zone-set internal ca 300 CNAME mysecrets
+sudo knotc zone-commit internal
 
-### Secrets Migration
+# Verify
+dig @localhost ca.internal +short
+# Expected: mysecrets.internal. then its IP
+```
 
-- [ ] Add identity service secrets to `secrets/hawk/secrets.sops.yaml`:
-  - `stepca_intermediate_password`
-  - `stepca_yubikey_pin`
-  - `kanidm_admin_password`
-  - `vaultwarden_db_password`
-  - `vaultwarden_admin_token`
-  - `vaultwarden_smtp_password`
-- [ ] Update `.sops.yaml` creation rules if needed
-- [ ] Run `just sops update` to re-encrypt
+### Step 0.2: Update Fleet-Wide ACME Default
 
-### Build Validation
+This is a **single file change** — the global ACME module applies to all hosts:
 
-- [ ] `nix flake check` passes
-- [ ] `nix build .#nixosConfigurations.hawk.config.system.build.toplevel` succeeds
-- [ ] No architecture-specific errors
+**File:** `nixos/modules/nixos/security/acme.nix`
+
+```nix
+{
+  ## Defaulting to the local step-ca server (via ca.internal alias)
+
+  security.acme = {
+    acceptTerms = true;
+    defaults = {
+      webroot = "/var/lib/acme/acme-challenge";
+      server = "https://ca.internal:8443/acme/acme/directory";
+      email = "nrdufour@gmail.com";
+    };
+  };
+}
+```
+
+### Step 0.3: Update mysecrets Kanidm ACME Override
+
+The Kanidm config on mysecrets has a hardcoded ACME URL that overrides the global default:
+
+**File:** `nixos/hosts/mysecrets/kanidm/default.nix`
+
+Change `mysecrets.internal:8443` → `ca.internal:8443` in the `security.acme.certs` and `extraLegoFlags` sections.
+
+### Step 0.4: Update step-ca dnsNames
+
+**File:** `nixos/hosts/mysecrets/step-ca/default.nix`
+
+Add `ca.internal` to the `dnsNames` array so the step-ca TLS certificate is valid when accessed via the alias:
+
+```json
+"dnsNames": [
+  "ca.internal",
+  "mysecrets.internal",
+  "mysecrets.home.arpa",
+  "192.168.20.99"
+]
+```
+
+### Step 0.5: Deploy and Validate
+
+```bash
+# Commit and push
+git add nixos/modules/nixos/security/acme.nix
+git add nixos/hosts/mysecrets/
+git commit -m "feat: introduce ca.internal alias for step-ca
+
+Decouples ACME CA URL from mysecrets hostname. All hosts now use
+ca.internal:8443 for ACME, which is a CNAME to mysecrets for now.
+This enables moving step-ca to hawk without fleet-wide config changes."
+
+git push
+
+# Deploy mysecrets first (it hosts step-ca with the new dnsNames)
+just nix deploy mysecrets
+
+# Then deploy remaining hosts gradually (safe — ca.internal resolves to mysecrets)
+just nix deploy hawk
+just nix deploy routy
+# ... etc, or let auto-upgrade pick it up
+```
+
+**Validation:** After deploy, verify ACME still works on any host:
+```bash
+ssh hawk.internal
+sudo systemctl restart acme-forge.internal.service  # or whatever cert hawk has
+sudo systemctl status acme-forge.internal.service
+# Should succeed using ca.internal:8443
+```
+
+**This phase can be done immediately and independently of all other phases.**
 
 ---
 
-## Phase 1: Configuration Preparation
+## Phase 1: Migrate step-ca (YubiKey Required)
 
-### Step 1.1: Create Directory Structure
+**Downtime:** ~30 minutes (certificate issuance unavailable — existing certs continue working)
+
+### Pre-Phase Checklist
+
+- [ ] Phase 0 complete and validated
+- [ ] YubiKey physically available
+- [ ] USB port on hawk accessible
+- [ ] hawk `/srv` has space (~1GB for step-ca data)
+
+### Step 1.1: Prepare hawk step-ca Configuration
 
 ```bash
-cd /home/ndufour/Documents/code/projects/avalanche
-
-# Create service directories
 mkdir -p nixos/hosts/hawk/step-ca
-mkdir -p nixos/hosts/hawk/kanidm
-mkdir -p nixos/hosts/hawk/vaultwarden
-```
-
-### Step 1.2: Copy step-ca Configuration
-
-```bash
-# Copy step-ca config
 cp nixos/hosts/mysecrets/step-ca/default.nix nixos/hosts/hawk/step-ca/
 cp -r nixos/hosts/mysecrets/step-ca/resources nixos/hosts/hawk/step-ca/
 ```
 
-**Modifications required:**
-- None expected - configuration is architecture-agnostic
-- YubiKey path remains `yubikey:slot-id=9c`
+**Required modifications to `nixos/hosts/hawk/step-ca/default.nix`:**
 
-### Step 1.3: Copy Kanidm Configuration
-
-```bash
-cp nixos/hosts/mysecrets/kanidm/default.nix nixos/hosts/hawk/kanidm/
+Update `dnsNames` to include hawk:
+```json
+"dnsNames": [
+  "ca.internal",
+  "hawk.internal",
+  "hawk.home.arpa"
+]
 ```
 
-**Modifications required:**
-- Review state version implications (23.11 → 25.11)
-- Kanidm database may need schema migration
-- Test upgrade path: 1.8 → current version
+Note: `mysecrets.internal` and `192.168.20.99` are removed — they belong to the old host.
 
-### Step 1.4: Copy Vaultwarden Configuration
-
-```bash
-cp nixos/hosts/mysecrets/vaultwarden/default.nix nixos/hosts/hawk/vaultwarden/
-cp nixos/hosts/mysecrets/vaultwarden/local-pg.nix nixos/hosts/hawk/vaultwarden/
-cp nixos/hosts/mysecrets/vaultwarden/vaultwarden.nix nixos/hosts/hawk/vaultwarden/
-```
-
-**Modifications required:**
-- PostgreSQL data directory path verification
-- ACME domain configuration (same: vaultwarden.internal)
-
-### Step 1.5: Update hawk/default.nix
-
-Add imports for new services:
-
-```nix
-imports = [
-  ./hardware-configuration.nix
-  ./secrets.nix
-  ./forgejo        # existing
-  ./step-ca        # ADD
-  ./kanidm         # ADD
-  ./vaultwarden    # ADD
-];
-```
-
-### Step 1.6: Migrate Secrets
+### Step 1.2: Add step-ca Secrets to hawk
 
 ```bash
 # Decrypt mysecrets secrets
 sops -d secrets/mysecrets/secrets.sops.yaml > /tmp/mysecrets-plain.yaml
 
-# Edit hawk secrets to add identity service secrets
+# Add to hawk secrets
 sops secrets/hawk/secrets.sops.yaml
-
-# Add:
-# stepca_intermediate_password: <value>
-# stepca_yubikey_pin: <value>
-# kanidm_admin_password: <value>
-# vaultwarden_db_password: <value>
-# vaultwarden_admin_token: <value>
-# vaultwarden_smtp_password: <value>
+# Add: stepca_intermediate_password, stepca_yubikey_pin
 
 # Secure cleanup
 shred -u /tmp/mysecrets-plain.yaml
 ```
 
-### Step 1.7: Build Validation
+### Step 1.3: Update hawk/default.nix
+
+```nix
+imports = [
+  ./hardware-configuration.nix
+  ./secrets.nix
+  ./forgejo
+  ./step-ca        # ADD
+];
+```
+
+### Step 1.4: Build Validation
 
 ```bash
-# Check flake
-nix flake check
-
-# Build hawk (don't deploy yet)
 nix build .#nixosConfigurations.hawk.config.system.build.toplevel
-
-# Verify success
-echo $?  # Should be 0
 ```
 
----
-
-## Phase 2: Data Migration Preparation
-
-### Step 2.1: Backup mysecrets Data
+### Step 1.5: Migration Execution
 
 ```bash
-ssh mysecrets.internal
+# 1. Stop step-ca on mysecrets
+ssh mysecrets.internal "sudo systemctl stop step-ca"
 
-# Trigger fresh backups
-sudo systemctl start kanidm-backup.service
-sudo systemctl start postgresql-backup.service
-
-# Verify backups
-ls -lh /srv/backups/kanidm/
-ls -lh /srv/backups/postgresql/
-
-# Create migration snapshot
-DATE=$(date +%Y%m%d)
-sudo tar -czvf /srv/mysecrets-migration-backup-$DATE.tar.gz \
-  /srv/kanidm \
-  /srv/postgresql \
-  /srv/backups
-```
-
-### Step 2.2: Document Current State
-
-```bash
-ssh mysecrets.internal
-
-# Database record counts (for validation)
-sudo -u postgres psql vaultwarden -c "SELECT COUNT(*) FROM users;"
-# Record: ___ users
-
-# Kanidm state
-sudo kanidm system state --name admin
-# Record any important metrics
-```
-
----
-
-## Phase 3: Migration Execution (Maintenance Window)
-
-**Estimated duration:** 2-4 hours
-**Prerequisites:** Phase 1 and 2 completed
-
-### Step 3.1: Announce Maintenance
-
-Notify users of:
-- Certificate Authority (step-ca) downtime
-- Identity provider (Kanidm) downtime
-- Password manager (Vaultwarden) downtime
-- Expected duration: 2-4 hours
-
-### Step 3.2: Stop mysecrets Services
-
-```bash
-ssh mysecrets.internal
-
-# Stop services in reverse dependency order
-sudo systemctl stop nginx.service
-sudo systemctl stop vaultwarden.service
-sudo systemctl stop kanidm.service
-sudo systemctl stop step-ca.service
-
-# Keep PostgreSQL running for dump
-sudo systemctl status postgresql.service
-
-# Verify stopped
-systemctl status step-ca kanidm vaultwarden nginx
-```
-
-### Step 3.3: Export PostgreSQL Database
-
-```bash
-ssh mysecrets.internal
-
-# Create PostgreSQL dump
-sudo -u postgres pg_dump vaultwarden | gzip > /tmp/vaultwarden-db-migration.sql.gz
-
-# Verify dump
-ls -lh /tmp/vaultwarden-db-migration.sql.gz
-gunzip -c /tmp/vaultwarden-db-migration.sql.gz | head -50
-```
-
-### Step 3.4: Transfer Data to hawk
-
-```bash
-# From workstation (intermediary transfer like Forgejo migration)
-
-# Create staging directory on hawk
-ssh hawk.internal "sudo mkdir -p /srv/kanidm /srv/postgresql /srv/backups"
-
-# Option A: Direct rsync (if SSH works)
-ssh mysecrets.internal "sudo rsync -avz /srv/kanidm/ hawk.internal:/srv/kanidm/"
-ssh mysecrets.internal "sudo rsync -avz /srv/postgresql/ hawk.internal:/srv/postgresql/"
-
-# Option B: Tarball via workstation (if direct SSH is problematic)
-ssh mysecrets.internal "sudo tar -cf - /srv/kanidm /srv/postgresql" | \
+# 2. Transfer step-ca data (BadgerDB)
+ssh mysecrets.internal "sudo tar -cf - /var/lib/step-ca" | \
   ssh hawk.internal "sudo tar -xf - -C /"
+ssh hawk.internal "sudo chown -R step-ca:step-ca /var/lib/step-ca"
 
-# Transfer database dump
-scp mysecrets.internal:/tmp/vaultwarden-db-migration.sql.gz hawk.internal:/tmp/
-```
+# 3. Physically move YubiKey: mysecrets → hawk
 
-### Step 3.5: Relocate YubiKey
+# 4. Verify YubiKey on hawk
+ssh hawk.internal "lsusb | grep -i yubi"
+ssh hawk.internal "ykman info"
 
-**Physical action required:**
-
-1. Unplug YubiKey from mysecrets
-2. Plug YubiKey into hawk USB port
-3. Verify detection on hawk:
-
-```bash
-ssh hawk.internal
-lsusb | grep -i yubi
-# Should show: Yubico YubiKey ...
-
-# Test YubiKey access
-ykman info
-# Should show device info
-```
-
-### Step 3.6: Deploy Configuration to hawk
-
-```bash
-cd /home/ndufour/Documents/code/projects/avalanche
-
-# Commit configuration
-git add nixos/hosts/hawk/
-git add secrets/hawk/
-git commit -m "feat(hawk): add identity infrastructure from mysecrets
-
-Migrate step-ca, Kanidm, and Vaultwarden from mysecrets (aarch64)
-to hawk (x86_64).
-
-Services:
-- step-ca: Certificate Authority with YubiKey HSM
-- Kanidm: Identity Management (OIDC/OAuth2)
-- Vaultwarden: Password Manager
-
-Requires physical YubiKey relocation to hawk."
-
-git push
-
-# Deploy
+# 5. Deploy hawk
 just nix deploy hawk
 
-# Monitor deployment
-ssh hawk.internal "journalctl -f"
+# 6. Verify step-ca running
+ssh hawk.internal "systemctl status step-ca"
+
+# 7. Flip ca.internal DNS
+ssh routy.internal
+sudo knotc zone-begin internal
+sudo knotc zone-unset internal ca CNAME
+sudo knotc zone-set internal ca 300 CNAME hawk
+sudo knotc zone-commit internal
+
+# 8. Validate certificate issuance via ca.internal
+step ca certificate test.internal test.crt test.key \
+  --ca-url https://ca.internal:8443 \
+  --provisioner acme
+rm test.crt test.key
 ```
 
-### Step 3.7: Import PostgreSQL Database
+### Step 1.6: Disable step-ca on mysecrets
+
+Remove or comment out `./step-ca` import from `nixos/hosts/mysecrets/default.nix`. Deploy mysecrets.
+
+### Rollback
+
+If step-ca on hawk fails:
+1. Move YubiKey back to mysecrets
+2. Flip `ca.internal` CNAME back to mysecrets
+3. Restart step-ca on mysecrets
+
+No other hosts need any changes — they all use `ca.internal`.
+
+---
+
+## Phase 2: Migrate Kanidm
+
+**Downtime:** ~30 minutes (identity/OIDC unavailable)
+
+**Can happen independently of Phase 3.** Only requires Phase 1 complete (step-ca on hawk for local ACME).
+
+### Step 2.1: Prepare hawk Kanidm Configuration
 
 ```bash
+mkdir -p nixos/hosts/hawk/kanidm
+cp nixos/hosts/mysecrets/kanidm/default.nix nixos/hosts/hawk/kanidm/
+```
+
+**Required modifications:**
+
+1. **Remove the hardcoded ACME override.** The global default (`ca.internal:8443`) is correct. Remove or update the `security.acme.certs."auth.internal"` block and `extraLegoFlags` that reference `mysecrets.internal:8443`.
+
+2. **Update the root CA import path.** Change:
+   ```nix
+   security.pki.certificateFiles = [ ../step-ca/resources/root_ca.crt ];
+   ```
+   This path works as-is if step-ca is also on hawk (Phase 1). Verify.
+
+3. **Bind mount path.** Verify `/srv/kanidm` exists on hawk or will be created by tmpfiles rules.
+
+### Step 2.2: Add Kanidm Secrets to hawk
+
+```bash
+sops secrets/hawk/secrets.sops.yaml
+# Add: kanidm_admin_password
+```
+
+### Step 2.3: Update hawk/default.nix
+
+```nix
+imports = [
+  ./hardware-configuration.nix
+  ./secrets.nix
+  ./forgejo
+  ./step-ca
+  ./kanidm         # ADD
+];
+```
+
+### Step 2.4: Backup and Transfer Kanidm Data
+
+```bash
+# Trigger fresh backup
+ssh mysecrets.internal "sudo systemctl start kanidm-backup.service"
+
+# Stop Kanidm on mysecrets
+ssh mysecrets.internal "sudo systemctl stop kanidm"
+
+# Transfer data
+ssh mysecrets.internal "sudo tar -cf - /srv/kanidm" | \
+  ssh hawk.internal "sudo tar -xf - -C /"
+ssh hawk.internal "sudo chown -R kanidm:kanidm /srv/kanidm"
+```
+
+### Step 2.5: Deploy and Validate
+
+```bash
+just nix deploy hawk
+
+# Verify Kanidm running
+ssh hawk.internal "systemctl status kanidm"
+
+# Flip auth.internal DNS
+ssh routy.internal
+sudo knotc zone-begin internal
+sudo knotc zone-unset internal auth CNAME
+sudo knotc zone-set internal auth 300 CNAME hawk
+sudo knotc zone-commit internal
+
+# Validate
+curl -I https://auth.internal/.well-known/openid-configuration
+kanidm login --name admin
+kanidm person list --name admin
+```
+
+### Step 2.6: Disable Kanidm on mysecrets
+
+Remove `./kanidm` import from mysecrets. Deploy.
+
+### Rollback
+
+1. Re-enable Kanidm on mysecrets
+2. Flip `auth.internal` CNAME back to mysecrets
+3. Deploy mysecrets
+
+---
+
+## Phase 3: Migrate Vaultwarden (PostgreSQL Merge)
+
+**Downtime:** ~1 hour (password manager unavailable)
+
+**Can happen independently of Phase 2.** Only requires Phase 1 complete.
+
+### The PostgreSQL Challenge
+
+hawk already runs PostgreSQL for Forgejo (`nixos/hosts/hawk/forgejo/local-pg.nix`). Vaultwarden also needs PostgreSQL. These two `local-pg.nix` files **cannot coexist as-is** because they both define `services.postgresql` with separate `ensureDatabases`, `authentication`, and `initialScript`.
+
+**Solution:** Create a shared PostgreSQL configuration for hawk that serves both databases.
+
+### Step 3.1: Create Shared PostgreSQL Config
+
+Create `nixos/hosts/hawk/postgresql.nix`:
+
+```nix
+{ pkgs, config, ... }:
+{
+  services.postgresql = {
+    enable = true;
+    authentication = pkgs.lib.mkOverride 10 ''
+      #type database  DBuser  address          auth-method
+      local all       postgres                 peer
+      local all       all                      md5
+      host  all       all     127.0.0.1/32     md5
+      host  all       all     ::1/128          md5
+    '';
+    dataDir = "/srv/postgresql/${config.services.postgresql.package.psqlSchema}";
+    ensureDatabases = [ "forgejo" "vaultwarden" ];
+    initialScript = config.sops.templates."pg_init_script.sql".path;
+  };
+
+  services.postgresqlBackup = {
+    enable = true;
+    location = "/srv/backups/postgresql";
+  };
+
+  sops.secrets = {
+    forgejo_db_password = { owner = "forgejo"; };
+    vaultwarden_db_password = {};
+  };
+
+  sops.templates."pg_init_script.sql" = {
+    owner = "postgres";
+    content = ''
+      CREATE ROLE forgejo WITH LOGIN PASSWORD '${config.sops.placeholder.forgejo_db_password}';
+      GRANT ALL PRIVILEGES ON DATABASE forgejo TO forgejo;
+      ALTER DATABASE forgejo OWNER TO forgejo;
+
+      CREATE ROLE vaultwarden WITH LOGIN PASSWORD '${config.sops.placeholder.vaultwarden_db_password}';
+      GRANT ALL PRIVILEGES ON DATABASE vaultwarden TO vaultwarden;
+      ALTER DATABASE vaultwarden OWNER TO vaultwarden;
+    '';
+  };
+}
+```
+
+**Important:** The `initialScript` only runs on first PostgreSQL init. Since hawk already has a running PG instance, you'll create the vaultwarden role/database manually during migration (Step 3.4).
+
+### Step 3.2: Update Forgejo to Use Shared PostgreSQL
+
+Remove `./local-pg.nix` from `nixos/hosts/hawk/forgejo/default.nix`:
+
+```nix
+imports = [
+  # ./local-pg.nix        # REMOVE — moved to shared postgresql.nix
+  ./forgejo.nix
+  ./forgejo-runner.nix
+  ./forgejo-rclone.nix
+  ./forgejo-restic-remote.nix
+];
+```
+
+Also remove the `forgejo_db_password` sops secret from `forgejo/local-pg.nix` since it moves to the shared config.
+
+### Step 3.3: Prepare Vaultwarden Config
+
+```bash
+mkdir -p nixos/hosts/hawk/vaultwarden
+cp nixos/hosts/mysecrets/vaultwarden/vaultwarden.nix nixos/hosts/hawk/vaultwarden/
+```
+
+Create `nixos/hosts/hawk/vaultwarden/default.nix` (without `local-pg.nix` — PG is shared now):
+
+```nix
+{ ... }: {
+  imports = [
+    ./vaultwarden.nix
+  ];
+}
+```
+
+Update `vaultwarden.nix` to remove the hardcoded ACME override if it references `mysecrets.internal`.
+
+### Step 3.4: Update hawk/default.nix
+
+```nix
+imports = [
+  ./hardware-configuration.nix
+  ./secrets.nix
+  ./postgresql       # ADD — shared PostgreSQL for Forgejo + Vaultwarden
+  ./forgejo
+  ./step-ca
+  ./kanidm
+  ./vaultwarden      # ADD
+];
+```
+
+### Step 3.5: Add Vaultwarden Secrets to hawk
+
+```bash
+sops secrets/hawk/secrets.sops.yaml
+# Add: vaultwarden_db_password, vaultwarden_admin_token, vaultwarden_smtp_password
+```
+
+### Step 3.6: Build and Validate Before Migration
+
+```bash
+nix build .#nixosConfigurations.hawk.config.system.build.toplevel
+```
+
+**Deploy the shared PostgreSQL config first** (without Vaultwarden data) to make sure Forgejo keeps working:
+
+```bash
+just nix deploy hawk
+
+# Verify Forgejo still works
+ssh hawk.internal "systemctl status forgejo postgresql"
+curl -I https://forge.internal/
+```
+
+### Step 3.7: Migrate Vaultwarden Data
+
+```bash
+# Dump Vaultwarden database on mysecrets
+ssh mysecrets.internal
+sudo systemctl stop vaultwarden
+sudo -u postgres pg_dump vaultwarden | gzip > /tmp/vaultwarden-db.sql.gz
+
+# Transfer dump to hawk
+scp mysecrets.internal:/tmp/vaultwarden-db.sql.gz hawk.internal:/tmp/
+
+# Import on hawk
 ssh hawk.internal
-
-# Stop Vaultwarden (if started)
-sudo systemctl stop vaultwarden.service
-
-# Create database
 sudo -u postgres createdb vaultwarden
-
-# Import dump
-gunzip -c /tmp/vaultwarden-db-migration.sql.gz | sudo -u postgres psql vaultwarden
-
-# Set password from secrets
+sudo -u postgres createuser vaultwarden
+gunzip -c /tmp/vaultwarden-db.sql.gz | sudo -u postgres psql vaultwarden
 sudo -u postgres psql vaultwarden -c \
   "ALTER ROLE vaultwarden WITH PASSWORD '$(sudo cat /run/secrets/vaultwarden_db_password)';"
+sudo -u postgres psql vaultwarden -c "ALTER DATABASE vaultwarden OWNER TO vaultwarden;"
 
 # Verify import
 sudo -u postgres psql vaultwarden -c "SELECT COUNT(*) FROM users;"
 # Should match pre-migration count
 ```
 
-### Step 3.8: Fix File Ownership
+### Step 3.8: Start Vaultwarden and Flip DNS
 
 ```bash
-ssh hawk.internal
+# Start Vaultwarden
+ssh hawk.internal "sudo systemctl start vaultwarden"
+ssh hawk.internal "systemctl status vaultwarden"
 
-# Kanidm
-sudo chown -R kanidm:kanidm /srv/kanidm
-
-# PostgreSQL
-sudo chown -R postgres:postgres /srv/postgresql
-
-# Verify permissions
-ls -la /srv/kanidm/
-ls -la /srv/postgresql/
-```
-
-### Step 3.9: Start Services on hawk
-
-```bash
-ssh hawk.internal
-
-# Start services in dependency order
-sudo systemctl start step-ca.service
-sleep 5
-sudo systemctl status step-ca.service
-
-sudo systemctl start kanidm.service
-sleep 5
-sudo systemctl status kanidm.service
-
-sudo systemctl start vaultwarden.service
-sleep 5
-sudo systemctl status vaultwarden.service
-
-# Start nginx for reverse proxy
-sudo systemctl start nginx.service
-sudo systemctl status nginx.service
-```
-
-### Step 3.10: DNS Cutover
-
-```bash
+# Flip DNS
 ssh routy.internal
-
-# Update DNS records
 sudo knotc zone-begin internal
-
-# Update auth.internal CNAME
-sudo knotc zone-unset internal auth CNAME
-sudo knotc zone-set internal auth 300 CNAME hawk
-
-# Update vaultwarden.internal CNAME (if exists)
 sudo knotc zone-unset internal vaultwarden CNAME
 sudo knotc zone-set internal vaultwarden 300 CNAME hawk
-
 sudo knotc zone-commit internal
 
-# Verify
-dig @localhost auth.internal +short
-# Expected: hawk.internal. then 10.1.0.91
-```
-
----
-
-## Phase 4: Validation
-
-### Step 4.1: Service Health Checks
-
-```bash
-ssh hawk.internal
-
-# Check all services running
-systemctl status step-ca kanidm vaultwarden postgresql nginx
-
-# Check for errors
-journalctl -u step-ca --since "30 minutes ago" | grep -i error
-journalctl -u kanidm --since "30 minutes ago" | grep -i error
-journalctl -u vaultwarden --since "30 minutes ago" | grep -i error
-```
-
-### Step 4.2: step-ca Validation
-
-```bash
-# Test certificate issuance
-step ca certificate test.internal test.crt test.key \
-  --ca-url https://auth.internal:8443 \
-  --provisioner acme
-
-# Verify cert issued
-openssl x509 -in test.crt -text -noout | head -20
-
-# Cleanup
-rm test.crt test.key
-```
-
-### Step 4.3: Kanidm Validation
-
-```bash
-# Test login
-kanidm login --name admin
-
-# Verify user lookup
-kanidm person list --name admin
-
-# Test OIDC endpoint
-curl -I https://auth.internal/.well-known/openid-configuration
-# Expected: HTTP/1.1 200 OK
-```
-
-### Step 4.4: Vaultwarden Validation
-
-```bash
-# Test web access
+# Validate
 curl -I https://vaultwarden.internal/
-# Expected: HTTP/1.1 200 OK
-
-# Test API
 curl https://vaultwarden.internal/api/config
-# Expected: JSON config response
 ```
 
-### Step 4.5: ACME Certificate Renewal Test
+### Rollback
 
-```bash
-ssh hawk.internal
+If Vaultwarden on hawk fails:
+1. Stop Vaultwarden on hawk
+2. Re-enable Vaultwarden on mysecrets, restart
+3. Flip DNS back
 
-# Force ACME renewal for Kanidm
-sudo systemctl restart acme-auth.internal.service
-sudo systemctl status acme-auth.internal.service
-
-# Force ACME renewal for Vaultwarden
-sudo systemctl restart acme-vaultwarden.internal.service
-sudo systemctl status acme-vaultwarden.internal.service
-
-# Verify certs from step-ca (not self-signed)
-echo | openssl s_client -connect auth.internal:443 2>/dev/null | \
-  openssl x509 -noout -issuer
-# Expected: issuer containing "Ptinem" or your CA name
-```
-
-### Validation Checklist
-
-- [ ] step-ca service running
-- [ ] step-ca can issue certificates
-- [ ] YubiKey accessible (`ykman info` works)
-- [ ] Kanidm service running
-- [ ] Kanidm admin login works
-- [ ] Kanidm OIDC endpoint accessible
-- [ ] Vaultwarden service running
-- [ ] Vaultwarden web UI accessible
-- [ ] PostgreSQL database queries succeed
-- [ ] ACME certificates from step-ca (not self-signed)
-- [ ] DNS resolves auth.internal → hawk
-- [ ] No critical errors in service logs
+If the PostgreSQL merge breaks Forgejo:
+1. This is why we deploy the shared PG config **before** importing Vaultwarden data
+2. The shared config is functionally identical to the Forgejo-only config
+3. Worst case: revert to `forgejo/local-pg.nix` and redeploy hawk
 
 ---
 
-## Phase 5: Post-Migration
+## Phase 4: Cleanup and Decommission
 
-### Step 5.1: Monitoring Period (Days 1-7)
+### Step 4.1: Monitoring Period (7 days per service)
 
-**Daily checks:**
+After each phase, monitor for 7 days:
 
 ```bash
-# Service status
-ssh hawk.internal "systemctl status step-ca kanidm vaultwarden"
-
-# Error check
+ssh hawk.internal "systemctl status step-ca kanidm vaultwarden forgejo postgresql"
 ssh hawk.internal "journalctl --since yesterday -p err"
-
-# Disk usage
 ssh hawk.internal "df -h /srv"
-
-# Backup status
-ssh hawk.internal "systemctl status kanidm-backup postgresql-backup"
 ```
 
-### Step 5.2: Disable mysecrets Auto-Upgrade (Day 7)
-
-```bash
-# Edit mysecrets config
-# nixos/hosts/mysecrets/default.nix
-
-# Set:
-# system.autoUpgrade.enable = false;
-
-git add nixos/hosts/mysecrets/default.nix
-git commit -m "fix(mysecrets): disable auto-upgrade during decommission grace period"
-just nix deploy mysecrets
-```
-
-### Step 5.3: Decommission mysecrets (Day 30+)
+### Step 4.2: Decommission mysecrets
 
 **Prerequisites:**
-- 30 days stable operation on hawk
+- All three services stable on hawk for 7+ days
 - No rollback incidents
-- All backups verified
 
 ```bash
-ssh mysecrets.internal
+# Disable auto-upgrade
+# Edit nixos/hosts/mysecrets/default.nix: system.autoUpgrade.enable = false;
+just nix deploy mysecrets
 
-# Final backup (archive)
-sudo tar -czvf /tmp/mysecrets-final-archive-$(date +%Y%m%d).tar.gz /srv/
-
-# Stop and disable services
-sudo systemctl disable --now step-ca kanidm vaultwarden postgresql nginx
-
-# Power down
-sudo poweroff
+# After validation period: power down
+ssh mysecrets.internal "sudo poweroff"
 ```
 
-### Step 5.4: Update Documentation
+Keep mysecrets configs in the repo for 30 days as reference, then remove:
+- `nixos/hosts/mysecrets/`
+- `secrets/mysecrets/`
+- Flake entry in `flake.nix`
+- `.sops.yaml` creation rules for mysecrets
 
-Files to update:
-- [ ] `CLAUDE.md` - Update infrastructure section
-- [ ] `docs/README.md` - Update host list
-- [ ] This document - Mark as complete
+### Step 4.3: Clean Up eagle and beacon
 
----
+Both hosts are already powered down. Formally remove:
 
-## Rollback Procedures
+**eagle** (Forgejo migrated to hawk):
+- `nixos/hosts/eagle/`
+- `secrets/eagle/`
+- Flake entry in `flake.nix`
+- `.sops.yaml` creation rules for eagle
 
-### Scenario 1: Issues During Migration
+**beacon** (nix-serve — evaluate if still needed):
+- If binary cache is no longer needed, remove `nixos/hosts/beacon/` and flake entry
+- If needed, consider running nix-serve on hawk or as a K3s service
 
-**If problems occur during maintenance window:**
+### Step 4.4: Update Documentation
 
-```bash
-# 1. Stop hawk services
-ssh hawk.internal
-sudo systemctl stop step-ca kanidm vaultwarden nginx
-
-# 2. Relocate YubiKey back to mysecrets
-# (Physical action)
-
-# 3. Revert DNS on routy
-ssh routy.internal
-sudo knotc zone-begin internal
-sudo knotc zone-unset internal auth CNAME
-sudo knotc zone-set internal auth 300 CNAME mysecrets
-sudo knotc zone-commit internal
-
-# 4. Restart mysecrets services
-ssh mysecrets.internal
-sudo systemctl start step-ca kanidm vaultwarden nginx
-
-# 5. Verify mysecrets operational
-curl -I https://auth.internal/
-```
-
-### Scenario 2: Issues After Migration
-
-**If problems discovered in first 7 days:**
-
-1. Keep mysecrets in standby (services stopped but data intact)
-2. YubiKey can be moved back if needed
-3. Full state preserved on mysecrets /srv
-
-### Scenario 3: Data Recovery
-
-**If data loss occurs:**
-
-```bash
-# Restore from backup
-ssh hawk.internal
-
-# Kanidm
-sudo systemctl stop kanidm
-sudo rm -rf /srv/kanidm/*
-sudo tar -xzf /path/to/backup/kanidm-backup.tar.gz -C /srv/kanidm/
-sudo chown -R kanidm:kanidm /srv/kanidm
-sudo systemctl start kanidm
-
-# Vaultwarden (PostgreSQL)
-sudo systemctl stop vaultwarden
-sudo -u postgres dropdb vaultwarden
-sudo -u postgres createdb vaultwarden
-gunzip -c /path/to/backup/vaultwarden-db.sql.gz | sudo -u postgres psql vaultwarden
-sudo systemctl start vaultwarden
-```
+- [ ] `CLAUDE.md` — Update host count (17 → 14), update hawk's service list, remove mysecrets/eagle/beacon from host table
+- [ ] `docs/README.md` — Update host list
+- [ ] This document — Mark as complete
 
 ---
 
@@ -712,48 +644,46 @@ sudo systemctl start vaultwarden
 
 | Risk | Impact | Probability | Mitigation |
 |------|--------|-------------|------------|
-| YubiKey not available | CRITICAL | Low | Verify availability before scheduling |
-| YubiKey damaged during move | CRITICAL | Very Low | Handle carefully, have recovery plan |
-| Database corruption | High | Low | Multiple backups, test restore |
+| YubiKey not available | CRITICAL (blocks Phase 1) | Low | Verify availability before scheduling |
+| YubiKey damaged during move | CRITICAL | Very Low | Handle carefully |
+| PostgreSQL merge breaks Forgejo | High | Low | Deploy shared PG config before Vaultwarden data import; validate Forgejo first |
 
 ### Medium Risks
 
 | Risk | Impact | Probability | Mitigation |
 |------|--------|-------------|------------|
-| State version mismatch (Kanidm) | Medium | Medium | Test schema upgrade beforehand |
-| ACME cert failures | Medium | Low | Force renewal, verify step-ca first |
-| DNS propagation delay | Medium | Low | Short TTL (300s) |
+| ACME cert failures after ca.internal switch | Medium | Low | Test on one host first in Phase 0 |
+| DNS propagation delay | Medium | Low | Short TTL (300s) on all records |
+| hawk resource contention (many services) | Medium | Low | 24GB RAM is plenty; monitor after each phase |
 
 ### Low Risks
 
 | Risk | Impact | Probability | Mitigation |
 |------|--------|-------------|------------|
-| File permission errors | Low | Medium | Scripted ownership fix |
-| Service startup order | Low | Low | Explicit dependency in systemd |
+| File permission errors | Low | Medium | chown after each data transfer |
+| Nginx vhost conflicts | Low | Low | NixOS merges nginx configs; verify no contradictions |
 
 ---
 
 ## Estimated Timeline
 
-| Phase | Duration | Notes |
-|-------|----------|-------|
-| Configuration prep | 1-2 hours | Can be done ahead of maintenance |
-| Secrets migration | 30 minutes | SOPS operations |
-| Build validation | 30 minutes | nix build |
-| **Maintenance window** | **2-4 hours** | Services unavailable |
-| Validation | 1-2 hours | Testing all services |
-| Monitoring period | 7 days | Daily checks |
-| Decommission | 1 hour | After 30-day grace |
+| Phase | Duration | Can Start After | Notes |
+|-------|----------|----------------|-------|
+| Phase 0: ca.internal | 1 hour | Immediately | Zero downtime, deploy gradually |
+| Phase 1: step-ca | ~30 min downtime | Phase 0 validated | Requires YubiKey |
+| Phase 2: Kanidm | ~30 min downtime | Phase 1 stable | Independent of Phase 3 |
+| Phase 3: Vaultwarden | ~1 hour downtime | Phase 1 stable | PG merge adds complexity |
+| Phase 4: Cleanup | 1-2 hours | All phases stable 7+ days | Remove old configs |
 
-**Total project duration:** ~38 days (including grace periods)
+Phases can be spread across days or weeks. No rush — each phase is independently valuable and independently rollback-safe.
 
 ---
 
 ## Open Questions
 
-1. **Kanidm schema upgrade**: Need to verify 23.11 → 25.11 compatibility
-2. **Backup automation**: Does hawk have backup timers configured?
-3. **Tailscale configuration**: Is hawk already in the tailnet?
+1. ~~**Kanidm schema upgrade**: Need to verify 23.11 → 25.11 compatibility~~ Non-issue: `kanidm_1_8` package comes from nixpkgs input, not stateVersion
+2. **Backup automation**: Does hawk have backup timers? The shared postgresql.nix includes `postgresqlBackup` but verify Kanidm backup schedule carries over
+3. **beacon**: Is nix-serve still useful, or can it be permanently retired?
 
 ---
 
@@ -762,10 +692,11 @@ sudo systemctl start vaultwarden
 - Forgejo migration (precedent): `docs/migration/forgejo-eagle-to-hawk-migration.md`
 - Kanidm administration: `docs/guides/identity/kanidm-user-management.md`
 - SOPS secrets management: `CLAUDE.md` (Secrets Management section)
+- Global ACME config: `nixos/modules/nixos/security/acme.nix`
 - mysecrets configuration: `nixos/hosts/mysecrets/`
 - hawk configuration: `nixos/hosts/hawk/`
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2026-02-01
+**Document Version:** 2.0
+**Last Updated:** 2026-02-08
