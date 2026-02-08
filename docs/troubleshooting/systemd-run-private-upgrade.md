@@ -1,4 +1,4 @@
-# systemd /run/private Permission Mismatch on Service Restart
+# systemd /run/private Permission Mismatch on Live Upgrade
 
 ## Incident: 2026-02-08
 
@@ -21,14 +21,8 @@ resolved the issue at ~06:47 EST.
 
 ### Root Cause
 
-systemd 258.3 has an internal inconsistency in how it handles `/run/private`:
-
-1. **At boot**, systemd (PID 1) creates `/run/private` with mode **0710**
-2. **Initial service start** (at boot) works fine — systemd uses a creation
-   code path that doesn't validate the parent directory's existing permissions
-3. **Any subsequent service restart** fails — systemd's `mkdirat_safe_internal()`
-   (in `src/basic/mkdir.c`) validates the existing `/run/private` against mode
-   0700 and rejects 0710:
+The failure is caused by systemd's `mkdirat_safe_internal()` function (in
+`src/basic/mkdir.c`) rejecting `/run/private` during a **live systemd upgrade**:
 
 ```c
 if ((st.st_mode & ~mode & 0777) != 0)
@@ -36,20 +30,31 @@ if ((st.st_mode & ~mode & 0777) != 0)
     //  (%04o was requested), refusing."
 ```
 
-The group-execute bit (010) is present in the existing directory (0710) but not
-in the requested mode (0700), so the check fails.
+The group-execute bit (010) in the existing 0710 directory triggers a mismatch
+against the requested mode 0700.
 
-Key observations:
-- systemd itself creates `/run/private` as 0710 at boot
-- systemd's `mkdir_safe` rejects 0710 as "too permissive" when 0700 is requested
-- The **first** start at boot always works (different code path)
-- **Any restart** after boot fails (validation path)
-- `chmod 0700 /run/private` fixes it and the mode stays 0700 for the session
-- This is **not** specific to upgrades — a simple `systemctl restart` triggers it
+### When It Triggers (and When It Doesn't)
+
+Extensive testing after the incident narrowed down the exact conditions:
+
+- **Clean boot with systemd 258.3**: `/run/private` is created as 0710. All
+  `DynamicUser=yes` services start fine. Manual `systemctl restart` also works
+  fine. Manually recreating `/run/private` as 0710 and restarting services also
+  works. The issue **cannot be reproduced on a clean boot**.
+
+- **Live upgrade from 258.2 → 258.3 via `switch-to-configuration`**: The
+  systemd daemon is restarted in-place, creating a mixed state where the new
+  systemd binary runs with old runtime state. In this context, restarting
+  `DynamicUser=yes` services fails with the RUNTIME_DIRECTORY permission error.
+
+This means the bug is specifically a **live systemd daemon upgrade** issue —
+the in-place daemon restart leaves systemd in a state where `mkdir_safe`
+validation behaves differently than on a clean boot. After a reboot with the
+same systemd version, the problem disappears.
 
 ### Impact
 
-All services with `DynamicUser=yes` fail on restart:
+All services with `DynamicUser=yes` fail to start after a live systemd upgrade:
 - **kea-dhcp4-server** — DHCP down, no IP address assignment
 - **kea-dhcp-ddns-server** — Dynamic DNS updates down
 - **adguardhome** — DNS ad-blocking down
@@ -63,7 +68,7 @@ On routy (the network gateway), this means total network outage for all clients.
 | 03:00 | nixos-upgrade.service starts, pulls latest flake |
 | 03:03 | Build completes, `switch-to-configuration switch` begins |
 | 03:03 | systemd-boot updated 258.2 → 258.3 |
-| 03:03 | Services stopped, systemd restarted, services restarted |
+| 03:03 | Services stopped, systemd restarted in-place, services restarted |
 | 03:03 | Kea, AdGuardHome fail with RUNTIME_DIRECTORY permission error |
 | 03:03 | `switch-to-configuration` reports failure (exit status 4) |
 | 03:03–06:25 | Kea crash-loops (2316 restart attempts), network down |
@@ -73,14 +78,18 @@ On routy (the network gateway), this means total network outage for all clients.
 ### Fix
 
 A boot-time workaround has been added to routy's NixOS configuration. It runs a
-oneshot service early in boot that chmods `/run/private` from 0710 to 0700, so
-that any subsequent service restart passes the `mkdir_safe` permission check.
+oneshot service early in boot that chmods `/run/private` from 0710 to 0700.
 
 See `nixos/hosts/routy/fixup-run-private.nix`.
 
+This is defensive insurance — the issue only manifests during live systemd
+upgrades (not clean boots), but the chmod is harmless and protects against the
+case where `switch-to-configuration` upgrades systemd in-place and restarts
+`DynamicUser` services within the same boot session.
+
 ### Manual Recovery
 
-If the workaround is not deployed and Kea is crash-looping:
+If Kea is crash-looping due to this issue:
 
 ```bash
 sudo chmod 0700 /run/private
@@ -88,20 +97,21 @@ sudo systemctl restart kea-dhcp4-server
 sudo systemctl restart kea-dhcp-ddns-server
 ```
 
-Or simply reboot the machine — the initial boot start works fine.
+Or simply reboot the machine — a clean boot always works.
 
 ### Removal Criteria
 
 This workaround should be removable once either:
 - systemd fixes the inconsistency between creation mode (0710) and mkdir_safe
-  validation mode (0700)
+  validation mode (0700) during in-place daemon upgrades
 - NixOS adds a general workaround in `switch-to-configuration`
 
 ### Affected Hosts
 
-Any host running systemd 258.3 with `DynamicUser=yes` services is affected, but
-routy is the most critical because DHCP/DNS failure causes a network-wide outage.
-Other hosts would experience service-specific failures but no cascading impact.
+Any host running systemd 258.x with `DynamicUser=yes` services could be
+affected during a live systemd upgrade. routy is the most critical because
+DHCP/DNS failure causes a network-wide outage. Other hosts would experience
+service-specific failures but no cascading impact.
 
 ### References
 
