@@ -15,6 +15,7 @@
       ./tailscale.nix
       ./android16-fix.nix
       ./sentinel.nix
+      ./fixup-run-private.nix
     ];
 
   networking.domain = "internal";
