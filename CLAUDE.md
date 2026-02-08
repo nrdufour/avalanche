@@ -290,6 +290,16 @@ After a Longhorn instance-manager hotfix/upgrade, old IMs persist because runnin
 
 **The correct approach is node drain/uncordon:** drain each affected node one at a time (uncordon the previous before draining the next). This forces all volumes to detach and reattach on the new IMs. Avoid `--force --grace-period=0` pod deletes on instance-managers — it kills the API object but can orphan replica processes and leave volumes degraded.
 
+### systemd /run/private Workaround (routy)
+
+systemd 258.x creates `/run/private` with mode 0710 at boot, but its own `mkdir_safe()` rejects 0710 as "too permissive" (expects 0700) when `DynamicUser=yes` services are restarted during a live `switch-to-configuration` (i.e. `nixos-rebuild switch` or autoupgrade without reboot). This breaks Kea DHCP, Kea DDNS, and AdGuardHome on routy, causing a network-wide outage.
+
+**Workaround**: `nixos/hosts/routy/fixup-run-private.nix` — boot-time oneshot that chmods `/run/private` to 0700. Defensive insurance since the issue only triggers on live systemd daemon upgrades, not clean boots.
+
+**Manual recovery** if Kea is crash-looping: `sudo chmod 0700 /run/private && sudo systemctl restart kea-dhcp4-server`
+
+See `docs/troubleshooting/systemd-run-private-upgrade.md` for full incident details.
+
 ### Network Architecture Notes
 
 #### Android 16 & DSCP Marking Fix (routy)
