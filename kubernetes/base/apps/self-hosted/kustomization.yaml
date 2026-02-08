@@ -11,3 +11,4 @@ resources:
   - wikijs-app.yaml
   - wallabag-app.yaml
   - miniflux-app.yaml
+  - homebox-app.yaml
