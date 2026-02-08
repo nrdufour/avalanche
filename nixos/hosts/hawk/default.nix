@@ -17,6 +17,9 @@
 
   # Register QEMU binfmt for ARM64 emulation (needed for multi-platform Docker builds)
   boot.binfmt.emulatedSystems = [ "aarch64-linux" ];
+  # Fix-binary flag loads the QEMU interpreter at registration time, making it
+  # available inside Docker containers that don't have the /run/binfmt path.
+  boot.binfmt.registrations.aarch64-linux.fixBinary = true;
 
   # Disable CPU turbo boost to prevent crashes during QEMU ARM64 emulation.
   # The Beelink SER5 Max has a known power delivery issue where rapid core
