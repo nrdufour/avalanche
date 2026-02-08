@@ -112,6 +112,10 @@ const containerCredentialsPath = path.posix.join(
 
 The fix is trivial - use these variables instead of hardcoding paths. This would make v6 work universally on GitHub Actions, Forgejo, Gitea, and any other CI system that sets these standard environment variables.
 
+## See Also
+
+- [Plan to replace actions/checkout with raw git commands](../plans/replace-actions-checkout.md) — migration plan to drop the dependency entirely
+
 ## References
 
 - **GitHub Issue**: [#2321 - actions/checkout@v6 broken on non-GitHub runners (Forgejo, Gitea, etc.)](https://github.com/actions/checkout/issues/2321)

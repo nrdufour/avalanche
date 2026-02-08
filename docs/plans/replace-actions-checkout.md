@@ -1,5 +1,9 @@
 # Replace actions/checkout with Raw Git Commands
 
+## See Also
+
+- [Detailed technical analysis](../troubleshooting/actions-checkout-v6-forgejo-incompatibility.md) — source code tracing, git config comparisons, and evidence
+
 ## Background
 
 `actions/checkout@v6` broke compatibility with non-GitHub runners (Forgejo, Gitea,
