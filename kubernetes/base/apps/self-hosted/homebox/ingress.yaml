@@ -1,0 +1,32 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: homebox-ingress
+  annotations:
+    gethomepage.dev/description: Home inventory management
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/group: Home
+    gethomepage.dev/icon: sh-homebox
+    gethomepage.dev/name: Homebox
+    gethomepage.dev/pod-selector: "app=homebox"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: ca-server-cluster-issuer
+    cert-manager.io/common-name: homebox.internal
+spec:
+  tls:
+    - hosts:
+        - homebox.internal
+      secretName: homebox-ing-cert
+  ingressClassName: nginx
+  rules:
+    - host: homebox.internal
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: homebox
+                port:
+                  number: 7745
