@@ -115,17 +115,19 @@
         in
         {
           # Infrastructure services (from snowpea)
-          eagle = mkNixosConfig {
-            hostname = "eagle";
-            system = "aarch64-linux";
-            hardwareModules = [
-              "${nixpkgs}/nixos/modules/installer/sd-card/sd-image-aarch64.nix"
-              ./nixos/profiles/hw-rpi4.nix
-            ];
-            profileModules = [
-              ./nixos/profiles/role-server.nix
-            ];
-          };
+
+          # eagle — powered down, Forgejo migrated to hawk
+          # eagle = mkNixosConfig {
+          #   hostname = "eagle";
+          #   system = "aarch64-linux";
+          #   hardwareModules = [
+          #     "${nixpkgs}/nixos/modules/installer/sd-card/sd-image-aarch64.nix"
+          #     ./nixos/profiles/hw-rpi4.nix
+          #   ];
+          #   profileModules = [
+          #     ./nixos/profiles/role-server.nix
+          #   ];
+          # };
 
           mysecrets = mkNixosConfig {
             hostname = "mysecrets";
@@ -268,16 +270,18 @@
           };
 
           # x86 Servers (from snowpea)
-          beacon = mkNixosConfig {
-            hostname = "beacon";
-            system = "x86_64-linux";
-            hardwareModules = [
-              ./nixos/profiles/hw-acer-minipc.nix
-            ];
-            profileModules = [
-              ./nixos/profiles/role-server.nix
-            ];
-          };
+
+          # beacon — powered down, nix-serve no longer needed
+          # beacon = mkNixosConfig {
+          #   hostname = "beacon";
+          #   system = "x86_64-linux";
+          #   hardwareModules = [
+          #     ./nixos/profiles/hw-acer-minipc.nix
+          #   ];
+          #   profileModules = [
+          #     ./nixos/profiles/role-server.nix
+          #   ];
+          # };
 
           routy = mkNixosConfig {
             hostname = "routy";

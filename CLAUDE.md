@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Avalanche is a unified infrastructure-as-code monorepo managing 17 NixOS hosts (ARM SBCs, x86 servers, and workstations) plus a Kubernetes cluster using GitOps. This consolidates configurations from previously separate repositories (snowy, snowpea, home-ops).
+Avalanche is a unified infrastructure-as-code monorepo managing 15 NixOS hosts (ARM SBCs, x86 servers, and workstations) plus a Kubernetes cluster using GitOps. This consolidates configurations from previously separate repositories (snowy, snowpea, home-ops).
 
 ## Architecture
 
@@ -114,12 +114,14 @@ Web-based gateway management dashboard for routy (network services, DHCP, firewa
 
 ## Infrastructure Details
 
-### NixOS Hosts (17 total)
+### NixOS Hosts (15 active)
 - **Workstation**: calypso (ASUS ROG Strix)
-- **Infrastructure**: mysecrets (step-ca, Vaultwarden, Kanidm), hawk (Forgejo, CI/CD), possum (Garage S3, backups)
-- **x86 Servers**: beacon, routy (main gateway), cardinal, sparrow01
+- **Infrastructure**: mysecrets (step-ca, Vaultwarden, Kanidm), hawk (Forgejo, CI/CD), possum (Minio S3, Samba, NFS, ZFS)
+- **x86 Servers**: routy (main gateway), cardinal
 - **K3s Controllers**: opi01-03 (Orange Pi 5 Plus, aarch64, **NPU-enabled**)
 - **K3s Workers**: raccoon00-05 (Raspberry Pi 4, aarch64)
+- **Decommissioned**: eagle (Forgejo migrated to hawk), beacon (nix-serve, powered down)
+- **Archive**: sparrow01 (Raspberry Pi 3, reference config only, no flake entry)
 
 ### Key Technologies
 - **Deployment**: nixos-rebuild over SSH to `<hostname>.internal` (Tailscale)
