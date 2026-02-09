@@ -29,10 +29,9 @@ in
           ];
           port = exporterPort;
 
-          # Do not collect anything on nfs mounts
-          # Use a regexp
+          # Exclude virtual and network filesystems from collection
           extraFlags = [
-            "--collector.filesystem.fs-types-exclude='^(nfs|nfs4)$'"
+            "--collector.filesystem.fs-types-exclude='^(nfs|nfs4|tmpfs|devtmpfs|efivarfs|ramfs|nsfs|rpc_pipefs)$'"
           ];
         };
         smartctl = {

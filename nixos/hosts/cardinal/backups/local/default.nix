@@ -1,5 +1,6 @@
 {
   config,
+  lib,
   pkgs,
   ...
 }:
@@ -61,7 +62,7 @@
   ];
 
   # Do not monitor the activity on /srv/backup/*
-  services.prometheus.exporters.node.extraFlags = [
+  services.prometheus.exporters.node.extraFlags = lib.mkAfter [
     "--collector.filesystem.mount-points-exclude=^/srv/backup/.*"
   ];
 
