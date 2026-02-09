@@ -9,50 +9,56 @@ let
   exporterPort = 9002;
 in
 {
-  options.mySystem.services.monitoring.enable = mkEnableOption "Prometheus Monitoring";
-
-  config = mkIf cfg.enable {
-    services.prometheus = {
-      exporters = {
-        node = {
-          enable = true;
-          enabledCollectors = [
-            "diskstats"
-            "filesystem"
-            "loadavg"
-            "meminfo"
-            "netdev"
-            "stat"
-            "time"
-            "uname"
-            "systemd"
-          ];
-          port = exporterPort;
-
-          # Exclude virtual and network filesystems from collection
-          extraFlags = [
-            "--collector.filesystem.fs-types-exclude='^(nfs|nfs4|tmpfs|devtmpfs|efivarfs|ramfs|nsfs|rpc_pipefs)$'"
-          ];
-        };
-        smartctl = {
-          enable = true;
-        };
-      };
+  options.mySystem.services.monitoring = {
+    enable = mkEnableOption "Prometheus Monitoring";
+    nodeExporter.enable = mkOption {
+      type = types.bool;
+      default = true;
+      description = "Whether to enable the Prometheus node exporter. Disable on K3s nodes where the K8s DaemonSet provides one.";
     };
+  };
 
-    systemd.services."prometheus-smartctl-exporter".serviceConfig.DeviceAllow = lib.mkOverride 10 [
+  config = mkIf cfg.enable (mkMerge [
+    # Node exporter (can be disabled independently for K3s nodes)
+    (mkIf cfg.nodeExporter.enable {
+      services.prometheus.exporters.node = {
+        enable = true;
+        enabledCollectors = [
+          "diskstats"
+          "filesystem"
+          "loadavg"
+          "meminfo"
+          "netdev"
+          "stat"
+          "time"
+          "uname"
+          "systemd"
+        ];
+        port = exporterPort;
+
+        # Exclude virtual and network filesystems from collection
+        extraFlags = [
+          "--collector.filesystem.fs-types-exclude='^(nfs|nfs4|tmpfs|devtmpfs|efivarfs|ramfs|nsfs|rpc_pipefs)$'"
+        ];
+      };
+
+      networking.firewall.allowedTCPPorts = [ exporterPort ];
+    })
+
+    # Smartctl exporter (always enabled when monitoring is on)
+    {
+      services.prometheus.exporters.smartctl.enable = true;
+
+      systemd.services."prometheus-smartctl-exporter".serviceConfig.DeviceAllow = lib.mkOverride 10 [
         "block-blkext rw"
         "block-sd rw"
         "char-nvme rw"
-    ];
+      ];
 
-    services.udev.extraRules = ''
-      SUBSYSTEM=="nvme", KERNEL=="nvme[0-9]*", GROUP="disk"
-    '';
-
-    networking.firewall = {
-      allowedTCPPorts = [ exporterPort ];
-    };
-  };
+      services.udev.extraRules = ''
+        SUBSYSTEM=="nvme", KERNEL=="nvme[0-9]*", GROUP="disk"
+      '';
+    }
+  ]);
 
 }

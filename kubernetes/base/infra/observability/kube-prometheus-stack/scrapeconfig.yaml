@@ -7,7 +7,6 @@ metadata:
 spec:
   staticConfigs:
     - targets:
-        - eagle.internal:9002
         - mysecrets.internal:9002
         #- beacon.internal:9002
         - possum.internal:9002

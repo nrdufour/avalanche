@@ -11,6 +11,7 @@
       enable = true;
       role = "server";
     };
+    services.monitoring.nodeExporter.enable = false;
   };
 
   # Network sysctl tuning for K3s controller nodes

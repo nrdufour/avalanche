@@ -104,6 +104,9 @@ nodeExporter:
 
 prometheus-node-exporter:
   fullnameOverride: node-exporter
+  extraArgs:
+    - --collector.filesystem.fs-types-exclude=^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs|erofs|tmpfs|efivarfs|ramfs|nfs|nfs4)$
+    - --collector.netdev.device-exclude=^(veth|cni|docker|br-)
   prometheus:
     monitor:
       enabled: true
