@@ -17,7 +17,6 @@ mod k8s '.justfiles/k8s.just'
 mod vw '.justfiles/vw.just'
 mod forge '.justfiles/forge.just'
 mod cnpg '.justfiles/cnpg.just'
-mod prd '.justfiles/prd.just'
 
 # Default recipe - list available commands
 default:
