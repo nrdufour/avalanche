@@ -3,6 +3,8 @@ crds:
   upgradeJob:
     enabled: true
     forceConflicts: true
+    image:
+      tag: v1.34.3
 cleanPrometheusOperatorObjectNames: true
 
 alertmanager:
