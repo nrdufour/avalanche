@@ -12,6 +12,7 @@
         ../../personalities/chat
         ../../personalities/backups
         ../../personalities/knowledge
+        ../../personalities/astrophotography
     ];
 
     networking.hostName = "calypso";
