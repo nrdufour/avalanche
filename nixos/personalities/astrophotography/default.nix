@@ -4,8 +4,10 @@
     ];
 
     environment.systemPackages = with pkgs; [
-        # INDI server with all drivers (includes ZWO ASI driver: indi_asi_ccd)
-        indi-full
+        # INDI server with all drivers including unfree ones (ZWO ASI driver: indi_asi_ccd)
+        # indi-full only includes free-licensed drivers; indi-full-nonfree adds
+        # unfree drivers like indi-asi which depends on ZWO's proprietary libasi SDK
+        indi-full-nonfree
 
         # KStars includes Ekos for camera control and capture
         kstars
