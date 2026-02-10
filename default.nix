@@ -8,7 +8,6 @@ pkgs.mkShell {
 
     # NixOS tools
     statix
-    nixpkgs-fmt
     nixfmt-rfc-style
     fd
     nixos-rebuild
