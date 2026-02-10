@@ -24,4 +24,9 @@
       sentinel-src = inputs.sentinel;
     };
   };
+
+  # FireCapture planetary imaging
+  firecapture = final: prev: {
+    firecapture = final.callPackage ../pkgs/firecapture { };
+  };
 }

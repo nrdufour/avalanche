@@ -12,8 +12,8 @@
         # KStars includes Ekos for camera control and capture
         kstars
 
-        # Java runtime for FireCapture (run manually: java -jar FireCapture.jar)
-        jdk
+        # Planetary image capture (bundled JRE, run: firecapture)
+        firecapture
 
         # Post-processing
         siril
