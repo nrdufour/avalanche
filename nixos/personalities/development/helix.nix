@@ -46,7 +46,7 @@
     # helm-ls already in vscode.nix
 
     # Additional formatters/linters used by Helix
-    nixpkgs-fmt # Nix formatter
+    nixfmt-rfc-style # Nix formatter
     nodePackages.prettier # JS/TS/JSON/YAML/MD formatter
   ];
 

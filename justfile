@@ -28,7 +28,7 @@ lint:
 
 # Format project files
 format:
-    nixpkgs-fmt {{justfile_directory()}}
+    fd -e nix . {{justfile_directory()}} -x nixfmt
 
 # Install fish completions for just
 install-fish-completions:
