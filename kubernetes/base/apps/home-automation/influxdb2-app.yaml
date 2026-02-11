@@ -31,6 +31,15 @@ spec:
           value: "1000"
         - name: VOLSYNC_GID
           value: "1000"
+  ignoreDifferences:
+    # PVC was created manually during migration; dataSourceRef is immutable
+    # and harmless to ignore (only used on initial PVC creation for restore)
+    - group: ""
+      kind: PersistentVolumeClaim
+      name: influxdb2
+      jsonPointers:
+        - /spec/dataSourceRef
+        - /spec/dataSource
   destination:
     server: https://kubernetes.default.svc
     namespace: home-automation
