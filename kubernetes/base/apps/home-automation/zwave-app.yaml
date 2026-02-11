@@ -8,89 +8,103 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
-  source:
-    repoURL: oci://ghcr.io/bjw-s/helm/app-template
-    targetRevision: 3.7.3
-    path: .
-    helm:
-      valuesObject:
-        defaultPodOptions:
-          affinity:
-            nodeAffinity:
-              requiredDuringSchedulingIgnoredDuringExecution:
-                nodeSelectorTerms:
-                  - matchExpressions:
-                    - key: "homeseer.feature.node.kubernetes.io/g8"
-                      operator: "In"
-                      values:
-                        - "true"
-        controllers:
-          zwave:
-            containers:
-              app:
-                image:
-                  repository: ghcr.io/zwave-js/zwave-js-ui
-                  tag: 11.9.1@sha256:a7036e59a9d7916d1f92f2fa1e0b9f4a5ed317fc8bef38756368f7c865e0e95a
-                env:
-                  TZ: America/New_York
-                  PORT: &port 80
-                probes:
-                  liveness: &probes
-                    enabled: true
-                    custom: true
-                    spec:
-                      httpGet:
-                        path: /health
-                        port: *port
-                      initialDelaySeconds: 0
-                      periodSeconds: 10
-                      timeoutSeconds: 1
-                      failureThreshold: 3
-                  readiness: *probes
-                securityContext:
-                  privileged: true
-                resources:
-                  requests:
-                    cpu: 10m
-                  limits:
-                    memory: 512Mi
-        service:
-          app:
-            controller: zwave
-            ports:
-              http:
-                port: *port
-              websocket:
-                port: 3000
-        ingress:
-          app:
-            className: nginx
-            annotations:
-              gethomepage.dev/description: ZWave Device Management
-              gethomepage.dev/enabled: "true"
-              gethomepage.dev/group: Home
-              gethomepage.dev/icon: sh-z-wave-js-ui
-              gethomepage.dev/name: ZWave JS UI
-              gethomepage.dev/pod-selector: "app.kubernetes.io/name=zwave"
-            hosts:
-              - host: "zwave.internal"
-                paths:
-                  - path: /
-                    service:
-                      identifier: app
-                      port: http
-        persistence:
-          config:
-            existingClaim: zwave-pvc
-            globalMounts:
-              - path: /usr/src/app/store
-          tmp:
-            type: emptyDir
-          device:
-            type: hostPath
-            hostPath: /dev/ttyACM0
-            globalMounts:
-              - path: /dev/zwave
+  sources:
+    - repoURL: oci://ghcr.io/bjw-s/helm/app-template
+      targetRevision: 3.7.3
+      path: .
+      helm:
+        valuesObject:
+          defaultPodOptions:
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                      - key: "homeseer.feature.node.kubernetes.io/g8"
+                        operator: "In"
+                        values:
+                          - "true"
+          controllers:
+            zwave:
+              containers:
+                app:
+                  image:
+                    repository: ghcr.io/zwave-js/zwave-js-ui
+                    tag: 11.9.1@sha256:a7036e59a9d7916d1f92f2fa1e0b9f4a5ed317fc8bef38756368f7c865e0e95a
+                  env:
+                    TZ: America/New_York
+                    PORT: &port 80
+                  probes:
+                    liveness: &probes
+                      enabled: true
+                      custom: true
+                      spec:
+                        httpGet:
+                          path: /health
+                          port: *port
+                        initialDelaySeconds: 0
+                        periodSeconds: 10
+                        timeoutSeconds: 1
+                        failureThreshold: 3
+                    readiness: *probes
+                  securityContext:
+                    privileged: true
+                  resources:
+                    requests:
+                      cpu: 10m
+                    limits:
+                      memory: 512Mi
+          service:
+            app:
+              controller: zwave
+              ports:
+                http:
+                  port: *port
+                websocket:
+                  port: 3000
+          ingress:
+            app:
+              className: nginx
+              annotations:
+                gethomepage.dev/description: ZWave Device Management
+                gethomepage.dev/enabled: "true"
+                gethomepage.dev/group: Home
+                gethomepage.dev/icon: sh-z-wave-js-ui
+                gethomepage.dev/name: ZWave JS UI
+                gethomepage.dev/pod-selector: "app.kubernetes.io/name=zwave"
+              hosts:
+                - host: "zwave.internal"
+                  paths:
+                    - path: /
+                      service:
+                        identifier: app
+                        port: http
+          persistence:
+            config:
+              existingClaim: zwave
+              globalMounts:
+                - path: /usr/src/app/store
+            tmp:
+              type: emptyDir
+            device:
+              type: hostPath
+              hostPath: /dev/ttyACM0
+              globalMounts:
+                - path: /dev/zwave
+    - repoURL: https://forge.internal/nemo/avalanche.git
+      targetRevision: main
+      path: kubernetes/base/apps/home-automation/zwave
+      plugin:
+        name: kustomize-envsubst
+        env:
+          - name: APP
+            value: zwave
+          - name: VOLSYNC_CAPACITY
+            value: "1Gi"
+          - name: VOLSYNC_BITWARDEN_KEY
+            value: "b45f65b2-6326-42b8-b159-0e630fd223db"
+          - name: VOLSYNC_SCHEDULE
+            value: "0 */6 * * *"
   destination:
     server: https://kubernetes.default.svc
     namespace: home-automation
