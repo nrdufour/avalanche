@@ -7,10 +7,10 @@ NFS from possum.internal causes sqlite issues and adds a dependency on possum fo
 
 ## Progress
 
-- [ ] **zwave** — code changes done, awaiting runtime migration
-- [ ] **grafana** — code changes done, awaiting runtime migration
-- [ ] **home-assistant** — code changes done, awaiting runtime migration
-- [ ] **influxdb2** — code changes done, awaiting runtime migration
+- [x] **zwave** — migrated 2026-02-11, first backup successful (2393 files, 59 MiB)
+- [x] **grafana** — migrated 2026-02-11, first backup successful (329 files, 64.6 MiB)
+- [ ] **home-assistant** — pending
+- [ ] **influxdb2** — pending
 - [ ] Clean up: delete old NFS data from possum (after all apps confirmed stable)
 
 ## Sizing
@@ -26,7 +26,7 @@ All apps use Bitwarden item `b45f65b2-6326-42b8-b159-0e630fd223db` for S3 creden
 
 ## Runtime Migration Procedure (per app)
 
-1. Disable ArgoCD auto-sync: `argocd app set applications --sync-policy none && argocd app set <app> --sync-policy none`
+1. Disable ArgoCD auto-sync top-down (cluster → applications → app) via `kubectl patch` (argocd CLI has OCI registry validation issues)
 2. Scale down: `kubectl scale deployment/<name> -n home-automation --replicas=0`
 3. Create new Longhorn PVC manually
 4. Copy data via temp pod (old mount read-only)
@@ -38,3 +38,10 @@ All apps use Bitwarden item `b45f65b2-6326-42b8-b159-0e630fd223db` for S3 creden
 10. Delete old NFS PV/PVC from k8s (NFS data on possum stays)
 
 See the approved plan for detailed kubectl commands.
+
+## Lessons Learned
+
+- **All volsync env vars must be explicit.** The volsync-v2 component templates use `${ARGOCD_ENV_*}` directly and `envsubst` replaces unset variables with empty strings. The "optional, default: X" comments in the component are documentation only — not real defaults. Always set: `APP`, `VOLSYNC_CAPACITY`, `VOLSYNC_BITWARDEN_KEY`, `VOLSYNC_STORAGECLASS`, `VOLSYNC_ACCESSMODE`, `VOLSYNC_CACHE_CAPACITY`, `VOLSYNC_SCHEDULE`, `VOLSYNC_UID`, `VOLSYNC_GID`.
+- **Disable auto-sync top-down.** The `cluster` app self-heals `applications`, which self-heals child apps. Must disable all three: cluster → applications → child.
+- **Use `kubectl patch` not `argocd app set`.** The argocd CLI validates the full app spec on `set`, which fails for OCI Helm repos behind auth. Use `kubectl patch application -n argocd --type json` instead.
+- **Sync order matters for multi-source.** After pushing code: sync `applications` first (to update the child app spec), then hard-refresh the child app (to regenerate CMP manifests), then sync the child.
