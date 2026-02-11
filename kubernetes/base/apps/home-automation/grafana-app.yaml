@@ -1,3 +1,4 @@
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -6,12 +7,33 @@ metadata:
 spec:
   project: default
   source:
-    path: kubernetes/base/apps/home-automation/grafana
     repoURL: https://forge.internal/nemo/avalanche.git
-    targetRevision: HEAD
+    targetRevision: main
+    path: kubernetes/base/apps/home-automation/grafana
+    plugin:
+      name: kustomize-envsubst
+      env:
+        - name: APP
+          value: grafana
+        - name: VOLSYNC_CAPACITY
+          value: "1Gi"
+        - name: VOLSYNC_BITWARDEN_KEY
+          value: "b45f65b2-6326-42b8-b159-0e630fd223db"
+        - name: VOLSYNC_STORAGECLASS
+          value: longhorn
+        - name: VOLSYNC_ACCESSMODE
+          value: ReadWriteOnce
+        - name: VOLSYNC_CACHE_CAPACITY
+          value: "2Gi"
+        - name: VOLSYNC_SCHEDULE
+          value: "0 */6 * * *"
+        - name: VOLSYNC_UID
+          value: "472"
+        - name: VOLSYNC_GID
+          value: "472"
   destination:
+    server: https://kubernetes.default.svc
     namespace: home-automation
-    name: 'in-cluster'
   syncPolicy:
     automated:
       prune: true
