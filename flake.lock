@@ -86,11 +86,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1770694022,
-        "narHash": "sha256-+blZO0NoxRrM4PU7s4fv/iD5juNH2LQZ65OWLjcKHfU=",
+        "lastModified": 1770780014,
+        "narHash": "sha256-lcgSxJp7y13RqWfAO51UEcOOLQvTJewo+ZTEbEAcMMk=",
         "owner": "numtide",
         "repo": "llm-agents.nix",
-        "rev": "1210ebee485fdbd8000d790418d7855f7431493f",
+        "rev": "a6a223b7f4c695fa470e9199a52fe3b13b0798f8",
         "type": "github"
       },
       "original": {
@@ -106,11 +106,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1770692379,
-        "narHash": "sha256-05tn6+BH/B4Js+ele6uq2Xno0xpB0wv8fA6TNXMoXX8=",
+        "lastModified": 1770778600,
+        "narHash": "sha256-xTPaNglk/be9A9kt5U56wBr/FU2gHBmjRXMj00ZXoU8=",
         "owner": "nix-community",
         "repo": "nix-vscode-extensions",
-        "rev": "07f2af64427334c4098770884746ecf2471a574f",
+        "rev": "fccfa780f00c7fc2359088f5d79671fa1f1b91b4",
         "type": "github"
       },
       "original": {
@@ -169,11 +169,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1770464364,
-        "narHash": "sha256-z5NJPSBwsLf/OfD8WTmh79tlSU8XgIbwmk6qB1/TFzY=",
+        "lastModified": 1770617025,
+        "narHash": "sha256-1jZvgZoAagZZB6NwGRv2T2ezPy+X6EFDsJm+YSlsvEs=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "23d72dabcb3b12469f57b37170fcbc1789bd7457",
+        "rev": "2db38e08fdadcc0ce3232f7279bab59a15b94482",
         "type": "github"
       },
       "original": {
@@ -205,11 +205,11 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1770695440,
-        "narHash": "sha256-gwB+xJJnlLdGN4ddGoCIKrPTHpVdTfbD8RzcH/JsD9U=",
+        "lastModified": 1770781682,
+        "narHash": "sha256-xbeDNAhaVkzbYwY3Ilj4PqEzM42JP0CQ7EwTayvv7vs=",
         "owner": "nix-community",
         "repo": "NUR",
-        "rev": "4d7ed1cc2b6e7d3b7e9b3041a339bed4e50982cc",
+        "rev": "7fecaf548b82b8d2d3ed883579a3ddda51ae33da",
         "type": "github"
       },
       "original": {
@@ -234,11 +234,11 @@
     "sentinel": {
       "flake": false,
       "locked": {
-        "lastModified": 1770660217,
-        "narHash": "sha256-xC2UIzHIM//F0VlR0RiOmsyNYGYENZA76Uc9dSXnRG4=",
+        "lastModified": 1770779019,
+        "narHash": "sha256-qs2fATwgfhHpMF3pQeOVQBMv0DgEWHnyH/qkQvqD4/8=",
         "ref": "refs/heads/main",
-        "rev": "f2d0eeefa4cf02f81fd6ae9e1d0540e794e78612",
-        "revCount": 11,
+        "rev": "8592d470d6304b7dbda9ea81df72c15ada6c5f68",
+        "revCount": 13,
         "type": "git",
         "url": "https://forge.internal/nemo/sentinel.git"
       },
