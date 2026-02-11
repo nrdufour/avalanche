@@ -28,55 +28,7 @@
     autoPrune = {
       enable = true;
     };
-    # Enable containerd image store for multi-platform builds (--platform linux/amd64,linux/arm64)
-    # without needing docker/setup-buildx-action (which has known issues with Forgejo runners).
-    # Note: existing images will need to be re-pulled after this change.
-    daemon.settings = {
-      features = {
-        containerd-snapshotter = true;
-      };
-    };
   };
-
-  # Ensure the multiarch buildx builder exists after reboot.
-  # docker-container builders are regular containers that don't survive reboots,
-  # so we recreate and bootstrap the builder each time Docker starts.
-  systemd.services.docker-buildx-multiarch = {
-    description = "Create Docker Buildx multiarch builder";
-    after = [ "docker.service" ];
-    requires = [ "docker.service" ];
-    wantedBy = [ "multi-user.target" ];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-    };
-    path = [ pkgs.docker ];
-    script = ''
-      # Remove stale builder metadata if the container is gone
-      docker buildx rm multiarch 2>/dev/null || true
-      # Create the builder with the custom buildkitd config
-      docker buildx create \
-        --name multiarch \
-        --driver docker-container \
-        --config /etc/buildkit/buildkitd.toml \
-        --buildkitd-flags '--allow-insecure-entitlement=network.host' \
-        --use
-      # Bootstrap it so the container is running and ready
-      docker buildx inspect multiarch --bootstrap
-    '';
-  };
-
-  environment.etc."buildkit/buildkitd.toml".text = ''
-    # Disable Container Device Interface (CDI) to prevent GPU detection
-    # Hawk has no discrete GPU, and CDI auto-detection causes container start failures
-    [cdi]
-      disabled = true
-
-    [registry."forge.internal"]
-      http = true
-      insecure = true
-      ca=["/etc/ssl/certs/ca-certificates.crt"]
-  '';
 
   #
   # Ref: https://github.com/colonelpanic8/dotfiles/blob/03346eeaeb68633a50d6687659cbcdf46d243d36/nixos/forgejo-runner.nix#L20
