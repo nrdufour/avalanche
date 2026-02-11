@@ -14,11 +14,12 @@ components:
 
 patches:
   # Remove dataSourceRef from volsync PVC - this is an existing app with data,
-  # we don't want to restore from backup on sync
-  # (scoped to 'influxdb2' only, not 'influxdb2-backup-pvc')
+  # we don't want to restore from backup on sync.
+  # Regex matches the pre-envsubst name '${ARGOCD_ENV_APP}' but not
+  # 'influxdb2-backup-pvc' (kustomize runs before envsubst).
   - target:
       kind: PersistentVolumeClaim
-      name: influxdb2
+      name: '\$\{'
     patch: |
       - op: remove
         path: /spec/dataSourceRef
