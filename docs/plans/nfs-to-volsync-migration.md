@@ -9,7 +9,7 @@ NFS from possum.internal causes sqlite issues and adds a dependency on possum fo
 
 - [x] **zwave** — migrated 2026-02-11, first backup successful (2393 files, 59 MiB)
 - [x] **grafana** — migrated 2026-02-11, first backup successful (329 files, 64.6 MiB)
-- [ ] **home-assistant** — pending
+- [x] **home-assistant** — migrated 2026-02-11, first backup successful (57 files, 1.2 MiB)
 - [ ] **influxdb2** — pending
 - [ ] Clean up: delete old NFS data from possum (after all apps confirmed stable)
 
