@@ -10,7 +10,7 @@ NFS from possum.internal causes sqlite issues and adds a dependency on possum fo
 - [x] **zwave** — migrated 2026-02-11, first backup successful (2393 files, 59 MiB)
 - [x] **grafana** — migrated 2026-02-11, first backup successful (329 files, 64.6 MiB)
 - [x] **home-assistant** — migrated 2026-02-11, first backup successful (57 files, 1.2 MiB)
-- [ ] **influxdb2** — pending
+- [x] **influxdb2** — migrated 2026-02-11, first backup successful (12725 files, 4.7 GiB)
 - [ ] Clean up: delete old NFS data from possum (after all apps confirmed stable)
 
 ## Sizing
@@ -45,3 +45,6 @@ See the approved plan for detailed kubectl commands.
 - **Disable auto-sync top-down.** The `cluster` app self-heals `applications`, which self-heals child apps. Must disable all three: cluster → applications → child.
 - **Use `kubectl patch` not `argocd app set`.** The argocd CLI validates the full app spec on `set`, which fails for OCI Helm repos behind auth. Use `kubectl patch application -n argocd --type json` instead.
 - **Sync order matters for multi-source.** After pushing code: sync `applications` first (to update the child app spec), then hard-refresh the child app (to regenerate CMP manifests), then sync the child.
+- **dataSourceRef patch needs `'\$\{'` regex for apps with multiple PVCs.** Kustomize runs before envsubst, so the volsync PVC name is `${ARGOCD_ENV_APP}`. Using `name: .*` would also target other PVCs (e.g., `influxdb2-backup-pvc`) and fail on `op: remove` if they lack dataSourceRef.
+- **Manually-created PVCs conflict with volsync template.** The volsync component PVC includes dataSourceRef, but manually-created PVCs don't. Since PVC spec is immutable, use `ignoreDifferences` + `RespectIgnoreDifferences=true` to skip the diff during sync.
+- **Watch out for `--force` on PVCs.** Force sync can trigger delete/recreate of PVCs, losing data. If this happens, immediately set the PV reclaimPolicy to Retain before the PVC terminates.
