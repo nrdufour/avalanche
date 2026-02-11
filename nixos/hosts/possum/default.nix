@@ -5,7 +5,7 @@
 }: {
   imports = [
     ./secrets.nix
-    ./backups
+    # ./backups
     # ./garage
     # ./services
   ];
@@ -35,13 +35,13 @@
     };
   };
 
-  services.nginx = {
-    enable = true;
-    recommendedGzipSettings = true;
-    recommendedOptimisation = true;
-    recommendedProxySettings = true;
-    recommendedTlsSettings = true;
-  };
+  # services.nginx = {
+  #   enable = true;
+  #   recommendedGzipSettings = true;
+  #   recommendedOptimisation = true;
+  #   recommendedProxySettings = true;
+  #   recommendedTlsSettings = true;
+  # };
 
   mySystem = {
     system.zfs = {
@@ -51,28 +51,28 @@
     
     services.nfs.enable = true;
 
-    services.minio = {
-      enable = true;
-      package = pkgs.unstable.minio;
-      dataDir = "/tank/Minio";
-      rootCredentialsFile = config.sops.secrets."storage/minio/root-credentials".path;
-      minioConsoleURL = "minio.internal";
-      minioS3URL = "s3.internal";
-    };
+    # services.minio = {
+    #   enable = true;
+    #   package = pkgs.unstable.minio;
+    #   dataDir = "/tank/Minio";
+    #   rootCredentialsFile = config.sops.secrets."storage/minio/root-credentials".path;
+    #   minioConsoleURL = "minio.internal";
+    #   minioS3URL = "s3.internal";
+    # };
 
-    services.samba = {
-      enable = true;
-      shares = {
-        Books = {
-          path = "/tank/Books";
-          "read only" = "no";
-        };
-        Media = {
-          path = "/tank/Media";
-          "read only" = "no";
-        };
-      };
-    };
+    # services.samba = {
+    #   enable = true;
+    #   shares = {
+    #     Books = {
+    #       path = "/tank/Books";
+    #       "read only" = "no";
+    #     };
+    #     Media = {
+    #       path = "/tank/Media";
+    #       "read only" = "no";
+    #     };
+    #   };
+    # };
   };
 
   environment.systemPackages = with pkgs; [
