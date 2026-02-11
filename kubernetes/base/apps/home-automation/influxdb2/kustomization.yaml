@@ -13,8 +13,11 @@ components:
   - ../../../components/volsync-v2
 
 patches:
-  # Remove dataSourceRef from volsync PVC - this is an existing app with data,
-  # we don't want to restore from backup on sync.
+  # !! DISASTER RECOVERY WARNING !!
+  # This patch PREVENTS restore-from-backup on a fresh cluster.
+  # If rebuilding the cluster, REMOVE this patch so the PVC is created
+  # with dataSourceRef and VolSync restores data from S3 automatically.
+  # Re-add it after the restore is complete.
   # Regex matches the pre-envsubst name '${ARGOCD_ENV_APP}' but not
   # 'influxdb2-backup-pvc' (kustomize runs before envsubst).
   - target:
