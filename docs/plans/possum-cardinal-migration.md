@@ -93,21 +93,69 @@ Home Assistant has a built-in Prometheus integration:
          - targets: ["home-assistant.internal:8123"]
    ```
 
-### Phase 5: Migrate historical InfluxDB data
+### Phase 5: Migrate historical InfluxDB data — in progress
 
 **Objective**: Import years of weather data from InfluxDB into VictoriaMetrics.
 
-**Tool**: `vmctl` — VictoriaMetrics's migration CLI with native InfluxDB support.
+**Tool**: `vmctl` (bundled with VictoriaMetrics package on possum).
 
-1. Ensure InfluxDB is accessible from possum (it runs in K8s, service on port 8086)
-2. Plan metric naming convention:
-   - InfluxDB model: `measurement` + `tags` + `fields`
-   - Prometheus model: `metric_name{labels}`
-   - Example: InfluxDB `weather,sensor=outdoor temperature=21.5` → VM `weather_temperature{sensor="outdoor"} 21.5`
-3. Run `vmctl` in dry-run mode first to verify mapping
-4. Run full import
-5. Verify data in Grafana — compare InfluxDB and VM dashboards side by side
-6. Keep InfluxDB running in parallel until confident
+#### InfluxDB inventory
+
+| Bucket | Time Range | Measurements | Notes |
+|---|---|---|---|
+| `rtl433_sensors` | 2022-01 → now | 5 real sensors + ~118 pod-status junk | Primary target |
+| `home_assistant` | 2024-09 → now | Many HA entities | Active |
+| `home_sensors` | 2019-12 → 2024-09 | 8 (light, pressure, temp, etc.) | Historical, dead since Sep 2024 |
+| `test_scrapper` | — | 0 | Empty, skip |
+
+**rtl433_sensors details:**
+- Real sensor measurements: `Acurite-Atlas`, `Acurite-Tower`, `Acurite-515`, `Acurite-6045M`, `Acurite-986`
+- 212 series, 158 numeric fields, 13 tags
+- The `rtl_433_<pod-hash>` measurements are per-pod status metrics from pod restarts — low value, filter out
+
+#### Access details
+
+- **InfluxDB endpoint**: `http://influxdb2.internal:8086` (LoadBalancer service in `home-automation` namespace)
+- **Org**: `nemoworld`
+- **Admin token**: `kubectl get secret influxdb2-admin-token -n home-automation -o jsonpath='{.data.token}' | base64 -d`
+- **v1 compat API**: Works — DBRP mappings exist for all buckets, bucket name = database name, retention policy = `autogen`
+
+#### vmctl auth workaround (InfluxDB 2.x)
+
+vmctl uses the InfluxDB v1 query API. InfluxDB 2.x v1 compat rejects query-param auth (`?u=&p=`) but accepts Basic auth. To make vmctl send Basic auth, **both user and password must be set**:
+
+```bash
+INFLUX_TOKEN=$(kubectl get secret influxdb2-admin-token -n home-automation -o jsonpath='{.data.token}' | base64 -d)
+
+ssh possum.internal "bash -c 'export INFLUX_PASSWORD=\"$INFLUX_TOKEN\" && vmctl influx \
+  --influx-addr http://influxdb2.internal:8086 \
+  --influx-user token \
+  --influx-database rtl433_sensors \
+  --influx-filter-series \"from /Acurite/\" \
+  --vm-addr http://localhost:8428 \
+  --disable-progress-bar \
+  -s 2>&1'"
+```
+
+Key: `--influx-user token` (any non-empty string) + `INFLUX_PASSWORD=<token>` env var.
+
+#### Naming convention
+
+vmctl produces `{measurement}_{field}{tags}` by default (separator configurable via `--influx-measurement-field-separator`):
+- InfluxDB: measurement=`Acurite-Atlas`, field=`wind_avg_mi_h`, tags=`{channel="C", id="837"}`
+- VM: `Acurite-Atlas_wind_avg_mi_h{channel="C", id="837", db="rtl433_sensors"}`
+
+#### Progress
+
+Partial import completed (killed mid-run): 2,979 series imported covering `Acurite-986` and `Acurite-Tower` (16 metric names). `Acurite-Atlas`, `Acurite-515`, `Acurite-6045M` still pending. vmctl is idempotent — re-running will deduplicate existing data.
+
+#### Remaining steps
+
+1. Complete `rtl433_sensors` Acurite import (re-run same command)
+2. Import `home_assistant` bucket: `--influx-database home_assistant` (no filter needed)
+3. Import `home_sensors` bucket: `--influx-database home_sensors` (historical data, one-time)
+4. Verify data in Grafana — compare InfluxDB and VM dashboards side by side
+5. Keep InfluxDB running in parallel until confident
 
 ### Phase 6: Decommission InfluxDB
 
