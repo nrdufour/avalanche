@@ -6,125 +6,63 @@ Repurpose possum from a multi-role NFS/Samba/Minio box into a lean data services
 
 ## Current State
 
-### possum (Raspberry Pi 4, 8GB RAM, 3TB USB 3.0 SSD, ZFS)
-- Minio S3 (legacy, Garage on cardinal has replaced it)
-- NFS server — exports `/tank/NFS/*` datasets for K8s workloads:
-  - influxdb2, home-assistant, esphome, grafana, mqtt, kanboard, komga, calibre, znc, zwave, marmitton
-- Samba server — shares Books, Media
-- ZFS pool "tank" on USB SSD
-- Nginx reverse proxy + ACME
-- Restic backup of Books to Scaleway S3
+### possum (Raspberry Pi 4, 8GB RAM, 3.6TB WD Blue SA510 USB SSD, ext4)
+- VictoriaMetrics (10y retention, data on SSD at `/data/victoriametrics`)
+- SSD: `/dev/disk/by-id/ata-WD_Blue_SA510_2.5_4TB_24129M4A1E13`, single GPT partition, ext4 labeled `POSSUM_DATA`, mounted at `/data`
+- NFS, Samba, Minio, nginx, ZFS — all removed
 
 ### cardinal (x86_64 mini PC, 5x 2TB NVMe RAIDZ1 ~8TB usable, ZFS)
 - Garage S3 (active, serves K8s backups)
-- NFS server — exports Books, Media, Images
+- NFS server — exports Books, Media, Images (+ migrated workloads from possum)
 - Samba server — shares Books, Media
 - Jellyfin, Navidrome, Calibre-Web Automated
 - Rclone backups to elephant.internal NAS + Backblaze B2
 
 ### InfluxDB 2.x (runs in K8s, home-automation namespace)
 - Image: `influxdb:2.8`
-- Data stored on possum NFS: `possum.internal:/tank/NFS/influxdb2`
+- Data stored on cardinal NFS (migrated from possum)
 - Daily backup CronJob to Longhorn PVC (7-day retention)
 - Primary data: rtl_433 weather sensors, Home Assistant metrics
 - Years of historical weather data
 
 ## Migration Phases
 
-### Phase 1: Migrate NFS + Samba from possum to cardinal
+### Phase 1: Migrate NFS + Samba from possum to cardinal ✅
 
-**Objective**: Move all file-sharing responsibilities off possum so ZFS can be removed.
+**Completed.** All NFS exports and Samba shares migrated to cardinal. Minio decommissioned. Nginx and Restic backup removed from possum.
 
-#### 1a. Migrate K8s NFS workloads
+### Phase 2: Reformat possum (remove ZFS) ✅
 
-The following ZFS datasets on possum serve K8s pods via NFS. Each needs to be moved to cardinal.
+**Completed.** ZFS pool exported and wiped. SSD reformatted:
+- Wiped ZFS signatures with `wipefs -a`
+- Created GPT partition table with single ext4 partition labeled `POSSUM_DATA`
+- Mounted at `/data` via `/dev/disk/by-label/POSSUM_DATA` (stable across reboots)
+- Removed `hostId` from NixOS config (no longer needed without ZFS)
 
-| Dataset | Current path (possum) | UID:GID |
-|---------|----------------------|---------|
-| influxdb2 | /tank/NFS/influxdb2 | 1000:1000 |
-| home-assistant | /tank/NFS/home-assistant | 0:0 |
-| esphome | /tank/NFS/esphome | 0:0 |
-| grafana | /tank/NFS/grafana | 472:472 |
-| mqtt | /tank/NFS/mqtt | 1883:1883 |
-| kanboard | /tank/NFS/kanboard | 0:0 |
-| komga (config) | /tank/NFS/komga/config | 1000:1000 |
-| komga (data) | /tank/NFS/komga/data | 1000:1000 |
-| calibre-books | /tank/NFS/calibre-books | 1000:1000 |
-| calibre-config | /tank/NFS/calibre-config | 1000:1000 |
-| znc | /tank/NFS/znc | 100:101 |
-| zwave | /tank/NFS/zwave | 0:0 |
-| marmitton | /tank/NFS/marmitton | 0:0 |
+### Phase 3: Deploy VictoriaMetrics on possum ✅
 
-**Steps:**
-1. Create matching directories on cardinal under `/tank/NFS/` (or similar)
-2. Set correct ownership (UID:GID) for each
-3. Add NFS exports on cardinal for each directory
-4. rsync data from possum to cardinal for each dataset
-5. Update K8s PersistentVolume definitions to point to `cardinal.internal` instead of `possum.internal`
-6. Restart affected pods, verify functionality
-7. Remove NFS exports from possum
+**Completed.** VictoriaMetrics v1.135.0 running on possum:8428.
 
-**Note:** Some of these NFS workloads may be candidates for migration to VolSync + Longhorn instead of NFS. Evaluate on a case-by-case basis — this migration is a good opportunity to reduce NFS dependencies.
+NixOS config:
+```nix
+services.victoriametrics = {
+  enable = true;
+  retentionPeriod = "10y";
+};
 
-#### 1b. Migrate Samba shares
+# Bind mount redirects /var/lib/victoriametrics → /data/victoriametrics (SSD)
+# The NixOS module hardcodes storageDataPath to /var/lib/victoriametrics;
+# the bind mount avoids writing time-series data to the SD card.
+fileSystems."/var/lib/victoriametrics" = {
+  device = "/data/victoriametrics";
+  options = [ "bind" ];
+};
+```
 
-possum and cardinal already share the same Samba config (Books + Media). If the underlying data is the same (or cardinal already has copies), this may just be removing the Samba config from possum.
-
-If possum has unique data in `/tank/Books` or `/tank/Media`:
-1. rsync to cardinal
-2. Verify on cardinal
-3. Remove Samba config from possum
-
-#### 1c. Migrate Books backup
-
-possum runs a Restic backup of `/tank/Books` to Scaleway S3. Once Books lives on cardinal:
-1. Add equivalent Restic backup job to cardinal config (or rely on cardinal's existing B2 backup)
-2. Remove backup job from possum
-
-#### 1d. Decommission Minio
-
-Minio on possum is legacy (Garage on cardinal has replaced it). If nothing still depends on it:
-1. Verify no services point to `minio.internal` / `s3.internal`
-2. Remove Minio config from possum
-3. Remove nginx vhosts for minio/s3
-
-### Phase 2: Reformat possum (remove ZFS)
-
-**Objective**: Strip ZFS from possum, reformat SSD with ext4, minimal footprint.
-
-**Prerequisites**: Phase 1 complete. No data remains on possum's ZFS pool.
-
-1. Verify nothing reads from possum NFS or Samba
-2. SSH to possum, export ZFS pool: `zpool export tank`
-3. Update possum NixOS config:
-   - Remove ZFS configuration (hostId, pool settings, datasets)
-   - Remove NFS server config
-   - Remove Samba server config
-   - Remove Minio config
-   - Remove nginx vhosts for removed services
-4. Reformat SSD as ext4, mount at `/data` (or similar)
-5. Deploy updated config
-
-### Phase 3: Deploy VictoriaMetrics on possum
-
-**Objective**: Get VictoriaMetrics running and accessible for experimentation.
-
-1. Add to possum NixOS config:
-   ```nix
-   services.victoriametrics = {
-     enable = true;
-     extraOptions = [
-       "-retentionPeriod=10y"
-       "-storageDataPath=/data/victoriametrics"
-       "-httpListenAddr=:8428"
-     ];
-   };
-   ```
-2. Add nginx reverse proxy: `https://vm.internal` → `localhost:8428`
-3. Open firewall port (or rely on Tailscale)
-4. Deploy and verify VictoriaMetrics is running
-5. Add as Grafana datasource (Prometheus type, URL: `http://possum.internal:8428`)
-6. Test writing sample metrics and querying them
+**Remaining:**
+1. Add nginx reverse proxy: `https://vm.internal` → `localhost:8428`
+2. Add as Grafana datasource (Prometheus type, URL: `http://possum.internal:8428`)
+3. Test writing sample metrics and querying them
 
 ### Phase 4: Set up data ingestion pipelines
 

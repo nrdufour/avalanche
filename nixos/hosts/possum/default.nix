@@ -19,17 +19,32 @@
         device = "/dev/disk/by-label/FIRMWARE";
         fsType = "vfat";
       };
+
+    "/data" =
+      {
+        device = "/dev/disk/by-label/POSSUM_DATA";
+        fsType = "ext4";
+      };
   };
 
   networking = {
     hostName = "possum";
-    # Setting the hostid for zfs
-    hostId = "05176a3c";
 
     firewall = {
       enable = false;
       # allowedTCPPorts = [ 80 443 ];
     };
+  };
+
+  services.victoriametrics = {
+    enable = true;
+    retentionPeriod = "10y";
+  };
+
+  # Store VM data on the SSD rather than the SD card
+  fileSystems."/var/lib/victoriametrics" = {
+    device = "/data/victoriametrics";
+    options = [ "bind" ];
   };
 
   environment.systemPackages = with pkgs; [
