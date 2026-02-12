@@ -40,9 +40,8 @@
           { name = "vaultwarden"; target = "mysecrets.internal."; }
           # Forgejo (hawk host)
           { name = "forge"; target = "hawk.internal."; }
-          # Storage (possum host)
-          { name = "minio"; target = "possum.internal."; }
-          { name = "s3"; target = "possum.internal."; }
+          # Metrics (possum host)
+          { name = "vm"; target = "possum.internal."; }
           # Media services (cardinal host)
           { name = "jellyfin"; target = "cardinal.internal."; }
           { name = "jellyfin-tv"; target = "cardinal.internal."; }

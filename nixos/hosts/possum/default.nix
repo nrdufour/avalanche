@@ -47,6 +47,22 @@
     options = [ "bind" ];
   };
 
+  security.acme.certs."vm.internal" = { };
+
+  services.nginx = {
+    enable = true;
+    recommendedGzipSettings = true;
+    recommendedOptimisation = true;
+    recommendedProxySettings = true;
+    recommendedTlsSettings = true;
+
+    virtualHosts."vm.internal" = {
+      forceSSL = true;
+      enableACME = true;
+      locations."/".proxyPass = "http://localhost:8428";
+    };
+  };
+
   environment.systemPackages = with pkgs; [
       rclone
   ];
