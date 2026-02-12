@@ -59,10 +59,12 @@ fileSystems."/var/lib/victoriametrics" = {
 };
 ```
 
+Nginx reverse proxy: `https://vm.internal` → `localhost:8428` (step-ca ACME cert).
+DNS: `vm.internal` CNAME → `possum.internal` (routy Knot static records).
+
 **Remaining:**
-1. Add nginx reverse proxy: `https://vm.internal` → `localhost:8428`
-2. Add as Grafana datasource (Prometheus type, URL: `http://possum.internal:8428`)
-3. Test writing sample metrics and querying them
+1. Add as Grafana datasource (Prometheus type, URL: `http://possum.internal:8428`)
+2. Test writing sample metrics and querying them
 
 ### Phase 4: Set up data ingestion pipelines
 
