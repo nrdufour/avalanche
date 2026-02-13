@@ -62,24 +62,27 @@ fileSystems."/var/lib/victoriametrics" = {
 Nginx reverse proxy: `https://vm.internal` → `localhost:8428` (step-ca ACME cert).
 DNS: `vm.internal` CNAME → `possum.internal` (routy Knot static records).
 
-**Remaining:**
-1. Add as Grafana datasource (Prometheus type, URL: `http://possum.internal:8428`)
-2. Test writing sample metrics and querying them
+**Completed:**
+- Grafana datasource added (Prometheus type, URL: `http://possum.internal:8428`)
+- Live data verified in Grafana dashboards
 
 ### Phase 4: Set up data ingestion pipelines
 
 **Objective**: Route rtl_433 and Home Assistant metrics to VictoriaMetrics.
 
-#### 4a. rtl_433
+#### 4a. rtl_433 ✅
 
-rtl_433 currently publishes to MQTT. Options:
-- **Telegraf**: MQTT consumer → VictoriaMetrics remote write (Telegraf has native support for both)
-- **mqtt2prometheus**: Lightweight MQTT-to-Prometheus bridge, VM scrapes it
-- **VictoriaMetrics native**: VM supports InfluxDB line protocol on `/write` endpoint — a lightweight MQTT-to-HTTP bridge could forward directly
+**Completed.** Added a second `-Finflux://` output to the rtl_433 deployment pointing to VM's InfluxDB-compatible write endpoint. rtl_433 now dual-writes to both InfluxDB and VictoriaMetrics.
 
-Recommended: Start with Telegraf since it handles both MQTT input and VM output natively, and can run on possum as a NixOS service.
+Config change in `kubernetes/base/apps/home-automation/rtl433/helm-values.yaml`:
+```yaml
+- "-Finflux://influxdb2.internal:8086/api/v2/write?org=nemoworld&bucket=rtl433_sensors,token=$(INFLUXDB2_TOKEN)"
+- "-Finflux://possum.internal:8428/write?db=rtl433_sensors"
+```
 
-#### 4b. Home Assistant
+**Why this works:** VM's `/write` endpoint accepts InfluxDB line protocol and applies the same `{measurement}_{field}{tags}` naming as vmctl. The `?db=rtl433_sensors` parameter adds the `db` label, matching the historical import. No Telegraf or extra components needed.
+
+#### 4b. Home Assistant — not started
 
 Home Assistant has a built-in Prometheus integration:
 1. Enable in Home Assistant config: `prometheus:`
@@ -93,11 +96,18 @@ Home Assistant has a built-in Prometheus integration:
          - targets: ["home-assistant.internal:8123"]
    ```
 
+**Note:** Unlike rtl_433, HA's Prometheus integration produces Prometheus-format metrics natively, so the live scrape metrics will have different names than the vmctl-imported InfluxDB data. This needs consideration before starting — options:
+- Accept different naming for live vs historical (query both in Grafana)
+- Use VM's relabeling to align names
+- Skip live HA scrape and just keep importing from InfluxDB periodically until decommission
+
 ### Phase 5: Migrate historical InfluxDB data — in progress
 
-**Objective**: Import years of weather data from InfluxDB into VictoriaMetrics.
+**Objective**: Import historical data from InfluxDB into VictoriaMetrics.
 
-**Tool**: `vmctl` (bundled with VictoriaMetrics package on possum).
+**Tool**: `vmctl` (from `nix-shell -p victoriametrics`). Run locally on workstation for speed (not on possum RPi4).
+
+**Strategy**: Set up live ingestion first (Phase 4), then backfill historical data. This avoids gaps — live data flows while the slow import runs.
 
 #### InfluxDB inventory
 
@@ -147,14 +157,15 @@ vmctl produces `{measurement}_{field}{tags}` by default (separator configurable 
 
 #### Progress
 
-**rtl433_sensors: COMPLETE** — 2,979 series imported covering all 5 Acurite families (Atlas, Tower, 515, 6045M, 986). 40 metric names confirmed in VictoriaMetrics.
-
-**home_assistant**: Not started.
-**home_sensors**: Not started.
+| Bucket | Live ingestion | Historical import | Next action |
+|---|---|---|---|
+| `rtl433_sensors` | ✅ Dual-write via `-Finflux://` | Partial (2022–~2025), needs gap backfill | Run `./scripts/influxdb-to-vm-migrate.sh rtl433` |
+| `home_assistant` | Not started (Phase 4b) | Not started | Set up HA Prometheus scrape first, then import |
+| `home_sensors` | N/A (dead since Sep 2024) | Not started | One-time import: `./scripts/influxdb-to-vm-migrate.sh home_sensors` |
 
 #### Migration script
 
-`scripts/influxdb-to-vm-migrate.sh` — runs from the workstation, SSHes into possum, launches vmctl in a tmux session. Safe to re-run (vmctl deduplicates). Each bucket runs sequentially (RPi4 memory constraint).
+`scripts/influxdb-to-vm-migrate.sh` — runs vmctl locally (default) or on possum (`--remote`). Safe to re-run (vmctl deduplicates but re-transfers all data each time).
 
 ```bash
 # Import all remaining buckets (runs for hours)
@@ -171,10 +182,12 @@ ssh possum.internal "bash -c 'tail -f /tmp/vmctl-home_assistant-*.log'"
 
 #### Remaining steps
 
-1. Run `./scripts/influxdb-to-vm-migrate.sh home_assistant` — import HA metrics
-2. Run `./scripts/influxdb-to-vm-migrate.sh home_sensors` — import historical data
-3. Verify data in Grafana — compare InfluxDB and VM dashboards side by side
-4. Keep InfluxDB running in parallel until confident
+1. Backfill `rtl433_sensors` gap: `./scripts/influxdb-to-vm-migrate.sh rtl433`
+2. Set up Home Assistant live ingestion (Phase 4b) — decide on naming strategy
+3. Import `home_assistant`: `./scripts/influxdb-to-vm-migrate.sh home_assistant`
+4. Import `home_sensors` (one-time): `./scripts/influxdb-to-vm-migrate.sh home_sensors`
+5. Verify data in Grafana — compare InfluxDB and VM dashboards side by side
+6. Keep InfluxDB running in parallel until confident
 
 ### Phase 6: Decommission InfluxDB
 
