@@ -147,15 +147,34 @@ vmctl produces `{measurement}_{field}{tags}` by default (separator configurable 
 
 #### Progress
 
-Partial import completed (killed mid-run): 2,979 series imported covering `Acurite-986` and `Acurite-Tower` (16 metric names). `Acurite-Atlas`, `Acurite-515`, `Acurite-6045M` still pending. vmctl is idempotent — re-running will deduplicate existing data.
+**rtl433_sensors: COMPLETE** — 2,979 series imported covering all 5 Acurite families (Atlas, Tower, 515, 6045M, 986). 40 metric names confirmed in VictoriaMetrics.
+
+**home_assistant**: Not started.
+**home_sensors**: Not started.
+
+#### Migration script
+
+`scripts/influxdb-to-vm-migrate.sh` — runs from the workstation, SSHes into possum, launches vmctl in a tmux session. Safe to re-run (vmctl deduplicates). Each bucket runs sequentially (RPi4 memory constraint).
+
+```bash
+# Import all remaining buckets (runs for hours)
+./scripts/influxdb-to-vm-migrate.sh
+
+# Import a single bucket
+./scripts/influxdb-to-vm-migrate.sh home_assistant
+./scripts/influxdb-to-vm-migrate.sh home_sensors
+
+# Monitor (from another terminal)
+ssh possum.internal "bash -c 'screen -r vmctl-home_assistant'"
+ssh possum.internal "bash -c 'tail -f /tmp/vmctl-home_assistant-*.log'"
+```
 
 #### Remaining steps
 
-1. Complete `rtl433_sensors` Acurite import (re-run same command)
-2. Import `home_assistant` bucket: `--influx-database home_assistant` (no filter needed)
-3. Import `home_sensors` bucket: `--influx-database home_sensors` (historical data, one-time)
-4. Verify data in Grafana — compare InfluxDB and VM dashboards side by side
-5. Keep InfluxDB running in parallel until confident
+1. Run `./scripts/influxdb-to-vm-migrate.sh home_assistant` — import HA metrics
+2. Run `./scripts/influxdb-to-vm-migrate.sh home_sensors` — import historical data
+3. Verify data in Grafana — compare InfluxDB and VM dashboards side by side
+4. Keep InfluxDB running in parallel until confident
 
 ### Phase 6: Decommission InfluxDB
 
