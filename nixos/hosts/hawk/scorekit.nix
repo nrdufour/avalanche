@@ -11,8 +11,16 @@
     "d /srv/scorekit 0755 root root -"
   ];
 
+  sops.secrets.anthropic_api_key = {};
+
+  sops.templates."scorekit.env" = {
+    content = ''
+      ANTHROPIC_API_KEY=${config.sops.placeholder.anthropic_api_key}
+    '';
+  };
+
   virtualisation.oci-containers.containers."scorekit" = {
-    image = "forge.internal/nemo/scorekit:main-b632060-1771163874";
+    image = "forge.internal/nemo/scorekit:main-aadd951-1771165924";
 
     volumes = [
       "/srv/scorekit:/data"
@@ -24,9 +32,11 @@
 
     environment = {
       TZ = "America/New_York";
-      # TODO: Add ANTHROPIC_API_KEY via SOPS secret for the Python instrument labeling pipeline
-      # ANTHROPIC_API_KEY = "";
     };
+
+    environmentFiles = [
+      config.sops.templates."scorekit.env".path
+    ];
   };
 
   # Nginx reverse proxy with ACME TLS
