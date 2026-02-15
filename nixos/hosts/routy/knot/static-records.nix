@@ -38,8 +38,9 @@
           # Identity & secrets (mysecrets host)
           { name = "auth"; target = "mysecrets.internal."; }
           { name = "vaultwarden"; target = "mysecrets.internal."; }
-          # Forgejo (hawk host)
+          # Forgejo & apps (hawk host)
           { name = "forge"; target = "hawk.internal."; }
+          { name = "scorekit"; target = "hawk.internal."; }
           # Metrics (possum host)
           { name = "vm"; target = "possum.internal."; }
           # Media services (cardinal host)
