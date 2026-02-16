@@ -20,7 +20,8 @@
   };
 
   virtualisation.oci-containers.containers."scorekit" = {
-    image = "forge.internal/nemo/scorekit:main-aadd951-1771165924";
+    image = "forge.internal/nemo/scorekit:latest";
+    extraOptions = [ "--pull=always" ];
 
     volumes = [
       "/srv/scorekit:/data"
