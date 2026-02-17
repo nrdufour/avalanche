@@ -39,7 +39,47 @@ in
     };
   };
 
+  # Whisper Dictation — local push-to-talk speech-to-text using whisper.cpp
+  # https://github.com/jacopone/whisper-dictation
+  #
+  # Post-deploy steps:
+  #   1. Log out and back in (ensures user services start with the graphical session)
+  #   2. Download a whisper model:
+  #        mkdir -p ~/.local/share/whisper-models
+  #        curl -L -o ~/.local/share/whisper-models/ggml-base.bin \
+  #          https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin
+  #   3. Verify services are running:
+  #        systemctl --user status ydotoold whisper-dictation
+  #
+  # Usage: Hold Super+Period, speak, release — transcribed text is pasted at cursor.
+  # All processing is local (no cloud). Uses ydotool for text injection.
+
+  # ydotool daemon for whisper-dictation text input
+  systemd.user.services.ydotoold = {
+    description = "ydotool daemon";
+    wantedBy = [ "graphical-session.target" ];
+    serviceConfig = {
+      ExecStart = "${pkgs.ydotool}/bin/ydotoold";
+      Restart = "on-failure";
+    };
+  };
+
+  # Whisper Dictation daemon - local push-to-talk speech-to-text
+  systemd.user.services.whisper-dictation = {
+    description = "Whisper Dictation daemon";
+    wantedBy = [ "graphical-session.target" ];
+    after = [ "ydotoold.service" ];
+    serviceConfig = {
+      ExecStart = "${inputs.whisper-dictation.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/run-daemon-en";
+      Restart = "on-failure";
+    };
+  };
+
   environment.systemPackages = with pkgs; [
+    # Local push-to-talk speech-to-text (whisper.cpp based)
+    inputs.whisper-dictation.packages.${pkgs.stdenv.hostPlatform.system}.default
+    ydotool
+
     # Let's try this little guy as well ;)
     # vllm
 

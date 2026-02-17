@@ -40,6 +40,9 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Whisper Dictation - local push-to-talk speech-to-text
+    whisper-dictation.url = "github:jacopone/whisper-dictation";
+
     # Sentinel gateway dashboard
     sentinel = {
       url = "git+https://forge.internal/nemo/sentinel.git";
