@@ -70,7 +70,7 @@ in
     wantedBy = [ "graphical-session.target" ];
     after = [ "ydotoold.service" ];
     serviceConfig = {
-      ExecStart = "${inputs.whisper-dictation.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/run-daemon-en";
+      ExecStart = "${inputs.whisper-dictation.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/whisper-dictation";
       Restart = "on-failure";
     };
   };

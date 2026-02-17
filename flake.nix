@@ -41,7 +41,10 @@
     };
 
     # Whisper Dictation - local push-to-talk speech-to-text
-    whisper-dictation.url = "github:jacopone/whisper-dictation";
+    whisper-dictation = {
+      url = "github:jacopone/whisper-dictation";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # Sentinel gateway dashboard
     sentinel = {
