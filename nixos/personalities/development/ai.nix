@@ -69,6 +69,7 @@ in
     description = "Whisper Dictation daemon";
     wantedBy = [ "graphical-session.target" ];
     after = [ "ydotoold.service" ];
+    path = [ pkgs.ydotool pkgs.procps ];
     serviceConfig = {
       ExecStart = "${inputs.whisper-dictation.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/whisper-dictation";
       Restart = "on-failure";
