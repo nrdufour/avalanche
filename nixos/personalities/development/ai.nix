@@ -13,6 +13,11 @@ let
       cudaSupport = true;
     };
   };
+
+  # Patched whisper-dictation: add ROG key (KEY_PROG1) support and single-key hotkeys
+  whisper-dictation = (inputs.whisper-dictation.packages.${pkgs.stdenv.hostPlatform.system}.default).overrideAttrs (old: {
+    patches = (old.patches or [ ]) ++ [ ./whisper-dictation-hotkeys.patch ];
+  });
 in
 {
   # From https://wiki.nixos.org/wiki/Ollama
@@ -44,14 +49,15 @@ in
   #
   # Post-deploy steps:
   #   1. Log out and back in (ensures user services start with the graphical session)
-  #   2. Download a whisper model:
+  #   2. Download a whisper model (small recommended for speed/accuracy balance):
   #        mkdir -p ~/.local/share/whisper-models
-  #        curl -L -o ~/.local/share/whisper-models/ggml-base.bin \
-  #          https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin
+  #        curl -L -o ~/.local/share/whisper-models/ggml-small.bin \
+  #          https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin
   #   3. Verify services are running:
   #        systemctl --user status ydotoold whisper-dictation
   #
-  # Usage: Hold Super+Period, speak, release — transcribed text is pasted at cursor.
+  # Usage: Hold the ROG key (KEY_PROG1), speak, release — transcribed text is pasted at cursor.
+  # Config: ~/.config/whisper-dictation/config.yaml (hotkey, model, input device)
   # All processing is local (no cloud). Uses ydotool for text injection.
 
   # ydotool daemon for whisper-dictation text input
@@ -71,14 +77,14 @@ in
     after = [ "ydotoold.service" ];
     path = [ pkgs.ydotool pkgs.procps ];
     serviceConfig = {
-      ExecStart = "${inputs.whisper-dictation.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/whisper-dictation";
+      ExecStart = "${whisper-dictation}/bin/whisper-dictation";
       Restart = "on-failure";
     };
   };
 
   environment.systemPackages = with pkgs; [
     # Local push-to-talk speech-to-text (whisper.cpp based)
-    inputs.whisper-dictation.packages.${pkgs.stdenv.hostPlatform.system}.default
+    whisper-dictation
     ydotool
 
     # Let's try this little guy as well ;)

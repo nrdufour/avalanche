@@ -1,0 +1,21 @@
+diff --git a/src/whisper_dictation/config.py b/src/whisper_dictation/config.py
+--- a/src/whisper_dictation/config.py
++++ b/src/whisper_dictation/config.py
+@@ -45,6 +45,7 @@ class Config:
+         "space": ecodes.KEY_SPACE,
+         "slash": ecodes.KEY_SLASH,
+         "semicolon": ecodes.KEY_SEMICOLON,
++        "prog1": ecodes.KEY_PROG1,
+         # Add more as needed
+     }
+
+diff --git a/src/whisper_dictation/daemon.py b/src/whisper_dictation/daemon.py
+--- a/src/whisper_dictation/daemon.py
++++ b/src/whisper_dictation/daemon.py
+@@ -208,7 +208,7 @@ class DictationDaemon:
+
+         # Check if ANY of the modifier keys are pressed (e.g., left OR right Super)
+-        has_modifiers = any(mod in self.keys_pressed for mod in hotkey_modifiers)
++        has_modifiers = not hotkey_modifiers or any(mod in self.keys_pressed for mod in hotkey_modifiers)
+         hotkey_pressed = hotkey_key in self.keys_pressed
+
