@@ -1,10 +1,32 @@
 # Hetzner Cloud VPS Management Scripts
 
-This directory contains scripts to manage a Tailscale exit node VPS on Hetzner Cloud.
+This directory contains scripts to manage VPS instances on Hetzner Cloud for network egress.
 
-## Overview
+## VPS Types
 
-These scripts automate the provisioning, management, and deprovisioning of a VPS configured as a Tailscale exit node. This is used to protect services like the IRC bot from exposing the home IP address.
+### WireGuard Exit Node (Active)
+
+A WireGuard VPN exit point used by routy's SOCKS5 proxy. K8s pods route traffic through `routy:1080` → WireGuard tunnel → VPS → internet.
+
+**Scripts:**
+- `provision-wg-exit.sh` — Create VPS, generate WireGuard keys, store in SOPS
+- `deprovision-wg-exit.sh` — Destroy VPS (keys preserved in SOPS for reprovisioning)
+- `cloud-init-wireguard.yaml.template` — Cloud-init template for WireGuard VPS
+
+**Architecture:** See `docs/architecture/network/vpn-egress-socks-proxy.md`
+
+### Tailscale Exit Node (Legacy)
+
+Previous approach using Tailscale as exit node. Superseded by WireGuard due to [tailscale/tailscale#15173](https://github.com/tailscale/tailscale/issues/15173).
+
+**Scripts:**
+- `provision-exit-node.sh` — Create Tailscale exit node VPS
+- `deprovision-exit-node.sh` — Destroy Tailscale VPS
+- `cloud-init.yaml.template` — Cloud-init template for Tailscale VPS
+
+### Shared Scripts
+
+- `update-home-ip.sh` — Update Hetzner firewall SSH rule when home IP changes. Set `FIREWALL_NAME` env var to target the correct firewall (default: `tailscale-exit-fw`).
 
 ## Prerequisites
 
@@ -13,179 +35,113 @@ These scripts automate the provisioning, management, and deprovisioning of a VPS
    - Configure with: `hcloud context create`
    - Set up API token from: https://console.hetzner.cloud/
 
-2. **Tailscale Auth Key**
-   - Get from: https://login.tailscale.com/admin/settings/keys
-   - Recommended: Create a **reusable key** that doesn't expire
-   - Store in SOPS-encrypted file: `secrets/cloud/secrets.sops.yaml`
-
-3. **SOPS with Age**
+2. **SOPS with Age**
    - Already configured in avalanche repository
    - Secrets encrypted with your Age keys
 
-## Setup
+3. **WireGuard tools** (for `provision-wg-exit.sh` only)
+   - `wg genkey` / `wg pubkey` used during key generation
+   - Available via: `nix-shell -p wireguard-tools`
 
-### 1. Add Tailscale Auth Key to SOPS
+## WireGuard Exit Node Usage
 
-Edit the encrypted secrets file:
-
-```bash
-sops ../../secrets/cloud/secrets.sops.yaml
-```
-
-Replace `YOUR_TAILSCALE_AUTH_KEY_HERE` with your actual Tailscale auth key:
-
-```yaml
-tailscale_auth_key: tskey-auth-xxxxxxxxxxxxxxxxxxxx
-```
-
-Save and exit. SOPS will automatically re-encrypt the file.
-
-## Usage
-
-### Provision VPS
-
-Create a new Hetzner VPS configured as a Tailscale exit node:
+### Provision
 
 ```bash
-./provision-exit-node.sh
+./provision-wg-exit.sh
 ```
 
 This script will:
-1. Detect your home IP address (with confirmation)
-2. Create a Hetzner Cloud Firewall restricting SSH to your home IP
-3. Upload your SSH key to Hetzner (if not already present)
-4. Decrypt the Tailscale auth key from SOPS
-5. Generate cloud-init configuration with the auth key
-6. Create the VPS (CX22, €4.51/month, Nuremberg)
-7. Attach the firewall to the VPS
-8. Clean up the temporary cloud-init file
+1. Generate WireGuard keypairs (or reuse existing from SOPS)
+2. Detect your home IP address (with confirmation)
+3. Create a Hetzner Cloud Firewall (SSH from home IP, WireGuard from anywhere, ICMP)
+4. Create the VPS with WireGuard cloud-init
+5. Store all keys + VPS IP in `secrets/cloud/secrets.sops.yaml`
+6. Store routy's WireGuard private key in `secrets/routy/secrets.sops.yaml`
 
 **Default Configuration:**
-- Server name: `tailscale-exit`
-- Server type: `cpx11` (2 vCPU, 2 GB RAM, 40 GB SSD) - **New generation**
+- Server name: `wg-exit`
+- Server type: `cax11` (2 vCPU ARM, 4 GB RAM, 40 GB SSD) — ~€3.29/month
 - Location: `nbg1` (Nuremberg, Germany)
 - Image: `ubuntu-24.04`
-- Firewall: SSH (port 22) from home IP only, ICMP allowed
-
-**Note:** Previously used `cx22` but that server type is deprecated (end of year 2025). The `cpx11` is the new generation replacement.
 
 **Customize with environment variables:**
 
 ```bash
-SERVER_NAME=my-exit-node SERVER_TYPE=cpx21 LOCATION=hel1 ./provision-exit-node.sh
+SERVER_NAME=wg-exit-2 SERVER_TYPE=cpx21 LOCATION=hel1 ./provision-wg-exit.sh
 ```
 
 ### After Provisioning
 
-1. **Wait 1-2 minutes** for cloud-init to complete Tailscale setup
-
-2. **Approve the exit node** in Tailscale admin panel:
-   - Go to: https://login.tailscale.com/admin/machines
-   - Find device named `tailscale-exit`
-   - Click the three dots menu
-   - Select "Edit route settings"
-   - Enable "Use as exit node"
-
-3. **Verify it's working:**
-
-```bash
-# SSH to the server
-ssh root@<SERVER_IP>
-
-# Check Tailscale status
-tailscale status
-
-# You should see "Exit node: advertised"
-```
+1. **Wait 1-2 minutes** for cloud-init to complete
+2. **Verify VPS:** `ssh root@<VPS_IP> 'wg show'`
+3. **Deploy routy:** `just nix deploy routy`
+4. **Verify tunnel:** `ssh routy.internal bash -c 'wg show wg-egress'`
+5. **Test proxy:** `curl --socks5 10.1.0.1:1080 https://ifconfig.me` (should show VPS IP)
 
 ### Update Home IP
 
-If your home IP address changes, update the firewall rule:
-
 ```bash
-./update-home-ip.sh
+FIREWALL_NAME=wg-exit-fw ./update-home-ip.sh
 ```
 
-This script will:
-1. Detect your current public IP
-2. Show the current and new IP addresses
-3. Update the firewall rule to allow SSH from the new IP
-
-### Deprovision VPS
-
-Destroy the VPS and clean up resources:
+### Deprovision
 
 ```bash
-./deprovision-exit-node.sh
+./deprovision-wg-exit.sh
 ```
 
-This script will:
-1. Show details of resources to be deleted
-2. Ask for confirmation
-3. Delete the VPS
-4. Delete the firewall (if not used by other servers)
-5. Remind you to remove the device from Tailscale admin panel
+WireGuard keys are preserved in SOPS — reprovisioning will reuse them automatically.
 
-**Note:** Remember to manually remove the device from Tailscale admin panel after deprovisioning.
+### Reprovisioning
+
+If the VPS is destroyed and recreated, the same keys are reused so routy doesn't need reconfiguration. Just run `provision-wg-exit.sh` again.
 
 ## Cost
 
-**Current configuration:** ~€3.85/month (~$4.20/month)
+~€3.29/month (~$3.60/month)
 
-- CPX11: €3.85/month (€0.0063/hour) - 2 vCPU, 2 GB RAM, 40 GB disk
-- Traffic: Unlimited (20 TB included)
-
-**Alternative options:**
-- `SERVER_TYPE=cpx21` for €7.00/month (3 vCPU, 4 GB RAM) - if you need more resources
-- You're only charged for the time the server exists (billed hourly)
-
-**Note:** The old CX series (cx11, cx22, etc.) is deprecated and will be removed end of 2025. Use CPX series instead.
+- CAX11: €3.29/month — 2 vCPU ARM, 4 GB RAM, 40 GB disk
+- Traffic: 20 TB included
+- Billed hourly (only pay while server exists)
 
 ## Security
 
-### Firewall Configuration
+### Firewall Configuration (WireGuard VPS)
 
-The Hetzner Cloud Firewall restricts access to:
-- **SSH (port 22):** Only from your home IP address
-- **ICMP:** Allowed from anywhere (for ping)
-- **Tailscale (port 41641/udp):** Implicitly allowed by Tailscale itself
+Hetzner Cloud Firewall:
+- **SSH (port 22/tcp):** Only from home IP
+- **WireGuard (port 51820/udp):** From anywhere (encrypted by design)
+- **ICMP:** From anywhere
 
-The VPS also has UFW (Uncomplicated Firewall) configured as a secondary layer:
+UFW on VPS (secondary layer):
 - SSH: allowed
-- Tailscale: allowed
+- WireGuard: allowed
 
-### Secrets Management
+### Secrets
 
-- Tailscale auth key is stored encrypted in `secrets/cloud/secrets.sops.yaml` using SOPS with Age
-- The auth key is only decrypted during provisioning
-- Generated cloud-init files (containing unencrypted secrets) are automatically cleaned up
-- A trap is set to clean up the cloud-init file even if the script exits early
+- WireGuard keypairs stored in `secrets/cloud/secrets.sops.yaml` (SOPS + Age)
+- routy's private key also stored in `secrets/routy/secrets.sops.yaml`
+- Generated cloud-init files (containing unencrypted keys) are auto-cleaned via trap
 
 ### SSH Access
 
-- Only your SSH public key is added to the VPS
-- SSH is restricted to your home IP via firewall
-- Root login is enabled (standard for VPS, accessed via SSH key only)
+- SSH key-only authentication
+- Restricted to home IP via Hetzner firewall
 
 ## Files
 
-- **`provision-exit-node.sh`** - Main provisioning script
-- **`deprovision-exit-node.sh`** - Deprovisioning/cleanup script
-- **`update-home-ip.sh`** - Update firewall when home IP changes
-- **`cloud-init.yaml.template`** - Template for cloud-init configuration
-- **`cloud-init.yaml`** - Generated file (temporary, auto-deleted, contains secrets)
+| File | Purpose |
+|------|---------|
+| `provision-wg-exit.sh` | Provision WireGuard exit node VPS |
+| `deprovision-wg-exit.sh` | Destroy WireGuard VPS |
+| `cloud-init-wireguard.yaml.template` | Cloud-init for WireGuard VPS |
+| `provision-exit-node.sh` | Provision Tailscale exit node (legacy) |
+| `deprovision-exit-node.sh` | Destroy Tailscale VPS (legacy) |
+| `cloud-init.yaml.template` | Cloud-init for Tailscale VPS (legacy) |
+| `update-home-ip.sh` | Update firewall SSH rule |
 
 ## Troubleshooting
-
-### Script says auth key not set
-
-```bash
-# Edit the secrets file
-sops ../../secrets/cloud/secrets.sops.yaml
-
-# Make sure it contains:
-tailscale_auth_key: tskey-auth-xxxxxxxxxxxxxxxxxxxx
-```
 
 ### Can't SSH to VPS
 
@@ -194,55 +150,30 @@ tailscale_auth_key: tskey-auth-xxxxxxxxxxxxxxxxxxxx
 curl https://api.ipify.org
 
 # Update firewall
-./update-home-ip.sh
+FIREWALL_NAME=wg-exit-fw ./update-home-ip.sh
 ```
 
-### Tailscale not connecting
+### WireGuard not working on VPS
 
 ```bash
-# SSH to VPS
-ssh root@<SERVER_IP>
+ssh root@<VPS_IP>
 
-# Check cloud-init logs
-tail -f /var/log/cloud-init-output.log
+# Check cloud-init completed
+cat /root/wireguard-setup.log
 
-# Check Tailscale status
-tailscale status
+# Check WireGuard
+wg show
 
-# Check Tailscale logs
-journalctl -u tailscaled -f
+# Check IP forwarding
+sysctl net.ipv4.ip_forward
+
+# Check masquerade
+iptables -t nat -L POSTROUTING -v
 ```
-
-### VPS not showing as exit node
-
-1. Make sure you approved it in Tailscale admin panel
-2. Check that IP forwarding is enabled:
-   ```bash
-   ssh root@<SERVER_IP> 'sysctl net.ipv4.ip_forward net.ipv6.conf.all.forwarding'
-   # Both should be 1
-   ```
-
-## Integration with Kubernetes
-
-Once the exit node is approved, you can use it in Kubernetes with the Tailscale operator:
-
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: marmithon-irc-bot
-  annotations:
-    tailscale.com/proxy: "true"
-    tailscale.com/tags: "tag:k8s"
-    tailscale.com/use-exit-node: "tailscale-exit"
-spec:
-  # ... your pod spec
-```
-
-See Phase 2 of the avalanche-plan.md for full Kubernetes integration details.
 
 ## References
 
-- Hetzner Cloud Docs: https://docs.hetzner.com/cloud/
-- Tailscale Exit Nodes: https://tailscale.com/kb/1103/exit-nodes
-- Cloud-init Documentation: https://cloudinit.readthedocs.io/
+- [Hetzner Cloud Docs](https://docs.hetzner.com/cloud/)
+- [WireGuard Documentation](https://www.wireguard.com/)
+- [Cloud-init Documentation](https://cloudinit.readthedocs.io/)
+- Architecture: `docs/architecture/network/vpn-egress-socks-proxy.md`

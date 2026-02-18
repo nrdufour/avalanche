@@ -21,6 +21,10 @@ pkgs.mkShell {
     cmctl
     argocd
 
+    # Cloud/VPN
+    hcloud
+    wireguard-tools
+
     # Forgejo
     forgejo-cli
 
