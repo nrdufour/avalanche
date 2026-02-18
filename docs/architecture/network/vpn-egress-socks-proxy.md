@@ -4,7 +4,7 @@
 
 Cluster-wide SOCKS5 proxy service for K8s pods that need to mask the home IP. Traffic flows through a WireGuard tunnel from routy (home gateway) to a Hetzner VPS, exiting with the VPS's public IP.
 
-**Status**: Planned (replaces gluetun sidecar pattern)
+**Status**: Active (replaced gluetun sidecar pattern, Feb 2026)
 
 ## Problem Statement
 
@@ -118,7 +118,7 @@ cd cloud/scripts
 
 ### Cost
 
-~€3.29/month (Hetzner CAX11: 2 vCPU ARM, 4 GB RAM, 40 GB SSD, 20 TB traffic).
+~€3.79/month (Hetzner CAX11: 2 vCPU ARM, 4 GB RAM, 40 GB SSD, 20 TB traffic).
 
 ## Files
 
@@ -129,9 +129,11 @@ cd cloud/scripts
 | `cloud/scripts/provision-wg-exit.sh` | Create VPS (reads keys from SOPS) |
 | `cloud/scripts/set-wg-endpoint.sh` | Record VPS IP in routy secrets |
 | `cloud/scripts/deprovision-wg-exit.sh` | Destroy VPS |
-| `nixos/hosts/routy/vpn-egress.nix` | WireGuard + microsocks + nftables on routy |
+| `nixos/hosts/routy/vpn-egress.nix` | WireGuard + microsocks + nftables + exporter on routy |
 | `secrets/cloud/secrets.sops.yaml` | WireGuard keypairs (both sides) |
 | `secrets/routy/secrets.sops.yaml` | routy's WireGuard private key, VPS pubkey + endpoint |
+| `kubernetes/base/infra/observability/kube-prometheus-stack/scrapeconfig.yaml` | Prometheus scrape target for WireGuard exporter |
+| `kubernetes/base/apps/home-automation/dashboards/wireguard.yaml` | Grafana dashboard ConfigMap |
 
 ## Extending to New Services
 
@@ -181,7 +183,7 @@ curl --socks5 10.1.0.1:1080 https://ifconfig.me
 
 # If showing home IP: check nftables mark rule
 nft list table inet mangle-egress
-# Should show: meta skuid "microsocks" meta mark set 0x0000ca6c
+# Should show: meta skuid 400 meta mark set 0x0000ca6c
 ```
 
 ### VPS WireGuard not responding
@@ -210,6 +212,17 @@ sysctl net.ipv4.ip_forward
 | Infrastructure cost | VPN subscription (~€5-10/mo) | Hetzner VPS (~€3.85/mo) |
 | Control over exit IP | VPN provider chooses | Fixed, known VPS IP |
 | Complexity | Per-pod sidecar config | One-time routy setup |
+
+## Monitoring
+
+- **Prometheus exporter**: `prometheus-wireguard-exporter` runs on routy (port 9586), scoped to `wg-egress` interface. Defined in `nixos/hosts/routy/vpn-egress.nix`.
+- **Scrape config**: `kubernetes/base/infra/observability/kube-prometheus-stack/scrapeconfig.yaml` (target `10.0.0.1:9586`)
+- **Grafana dashboard**: "WireGuard VPN Egress Tunnel" — auto-discovered via k8s-sidecar from `kubernetes/base/apps/home-automation/dashboards/wireguard.yaml`
+
+Key metrics:
+- `wireguard_latest_handshake_delay_seconds` — tunnel health (green < 150s, stale < 300s, down > 300s)
+- `wireguard_sent_bytes_total` / `wireguard_received_bytes_total` — traffic counters
+- `rate(wireguard_sent_bytes_total[5m])` — throughput
 
 ## Security Notes
 
