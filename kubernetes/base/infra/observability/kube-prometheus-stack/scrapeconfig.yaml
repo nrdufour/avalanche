@@ -18,3 +18,20 @@ spec:
     - action: replace
       targetLabel: job
       replacement: *name
+---
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: &wg wireguard-exporter
+  namespace: observability
+spec:
+  staticConfigs:
+    - targets:
+        - '10.0.0.1:9586'
+      labels:
+        instance: routy
+  metricsPath: /metrics
+  relabelings:
+    - action: replace
+      targetLabel: job
+      replacement: *wg

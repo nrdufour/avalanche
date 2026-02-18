@@ -91,6 +91,22 @@ in
     };
   };
 
+  # --- Prometheus WireGuard exporter (port 9586) ---
+  systemd.services.prometheus-wireguard-exporter = {
+    description = "Prometheus WireGuard exporter";
+    after = [ "wg-egress.service" ];
+    wants = [ "wg-egress.service" ];
+    wantedBy = [ "multi-user.target" ];
+    path = [ pkgs.wireguard-tools ];
+    serviceConfig = {
+      ExecStart = "${pkgs.prometheus-wireguard-exporter}/bin/prometheus_wireguard_exporter -i wg-egress -d true -r true";
+      Restart = "always";
+      RestartSec = 10;
+      # Runs as root — wg show requires CAP_NET_ADMIN and the exporter
+      # shells out to `wg`, so ambient caps on a dynamic user aren't enough.
+    };
+  };
+
   # --- nftables: mark microsocks traffic for WireGuard routing ---
   networking.nftables.tables.mangle-egress = {
     family = "inet";
