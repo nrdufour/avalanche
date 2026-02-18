@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vpn-egress-test
+  namespace: argocd
+spec:
+  project: default
+  source:
+    path: kubernetes/base/apps/tests/vpn-egress-test
+    repoURL: 'https://forge.internal/nemo/avalanche.git'
+    targetRevision: HEAD
+  destination:
+    namespace: tests
+    name: 'in-cluster'
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: vpn-egress-test
+  namespace: tests
+spec:
+  containers:
+    - name: test
+      image: curlimages/curl:latest
+      command:
+        - /bin/sh
+        - -c
+        - |
+          echo "=== VPN Egress Proxy Test ==="
+          echo ""
+          echo "Direct IP (no proxy):"
+          curl -s --max-time 10 https://ifconfig.me || echo "FAILED"
+          echo ""
+          echo "Proxied IP (via routy SOCKS5):"
+          curl -s --max-time 10 --socks5-hostname 10.1.0.1:1080 https://ifconfig.me || echo "FAILED"
+          echo ""
+          echo "=== Done ==="
+          sleep 3600
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          memory: 64Mi
+  restartPolicy: Never
