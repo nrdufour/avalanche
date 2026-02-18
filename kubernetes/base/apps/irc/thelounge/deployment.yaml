@@ -17,10 +17,6 @@ spec:
       labels:
         app: thelounge
     spec:
-      securityContext:
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
       containers:
         - name: thelounge
           image: ghcr.io/thelounge/thelounge:latest
