@@ -6,6 +6,8 @@ resources:
   - deployment.yaml
   - ingress.yaml
   - service.yaml
+  - dashboard-provider.yaml
+  - sidecar-rbac.yaml
 
 commonLabels:
   app.kubernetes.io/name: grafana

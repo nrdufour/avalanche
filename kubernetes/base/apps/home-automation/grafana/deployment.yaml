@@ -53,7 +53,42 @@ spec:
           volumeMounts:
             - mountPath: /var/lib/grafana
               name: grafana-storage
+            - mountPath: /etc/grafana/provisioning/dashboards/sidecar.yaml
+              name: dashboard-provider
+              subPath: sidecar.yaml
+            - mountPath: /tmp/dashboards
+              name: dashboards
+        - name: k8s-sidecar
+          image: ghcr.io/kiwigrid/k8s-sidecar:1.28.0
+          env:
+            - name: LABEL
+              value: grafana_dashboard
+            - name: LABEL_VALUE
+              value: "1"
+            - name: FOLDER
+              value: /tmp/dashboards
+            - name: NAMESPACE
+              value: ALL
+            - name: RESOURCE
+              value: configmap
+            - name: FOLDER_ANNOTATION
+              value: grafana_folder
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+          volumeMounts:
+            - mountPath: /tmp/dashboards
+              name: dashboards
+      serviceAccountName: grafana-sidecar
       volumes:
         - name: grafana-storage
           persistentVolumeClaim:
             claimName: grafana
+        - name: dashboard-provider
+          configMap:
+            name: grafana-dashboard-provider
+        - name: dashboards
+          emptyDir: {}
