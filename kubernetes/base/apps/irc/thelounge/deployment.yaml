@@ -1,0 +1,40 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thelounge
+  labels:
+    app: thelounge
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: thelounge
+  template:
+    metadata:
+      labels:
+        app: thelounge
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: thelounge
+          image: ghcr.io/thelounge/thelounge:latest
+          ports:
+            - containerPort: 9000
+          volumeMounts:
+            - mountPath: /var/opt/thelounge
+              name: thelounge-data
+          resources:
+            requests:
+              cpu: 10m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+      volumes:
+        - name: thelounge-data
+          persistentVolumeClaim:
+            claimName: thelounge
