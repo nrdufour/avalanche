@@ -41,6 +41,7 @@ runcmd:
   - systemctl enable --now wg-quick@wg0
   - ufw allow 22/tcp comment 'SSH'
   - ufw allow 51820/udp comment 'WireGuard'
+  - ufw route allow in on wg0 out on eth0 comment 'WireGuard forwarding'
   - ufw --force enable
   - echo "WireGuard exit node configured" | tee /root/wireguard-setup.log
   - 'echo "Setup completed at: $(date)" >> /root/wireguard-setup.log'

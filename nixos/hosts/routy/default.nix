@@ -13,6 +13,7 @@
       ./omada-controller.nix
       ./adguardhome
       ./tailscale.nix
+      ./vpn-egress.nix
       ./android16-fix.nix
       ./sentinel.nix
       ./fixup-run-private.nix

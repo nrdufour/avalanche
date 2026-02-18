@@ -86,14 +86,21 @@ env:
 
 ## VPS Lifecycle
 
+### Initial Setup (one-time)
+
+```bash
+cd cloud/scripts
+./generate-wg-keys.sh      # generate keypairs, store in SOPS
+```
+
 ### Provision
 
 ```bash
 cd cloud/scripts
-./provision-wg-exit.sh
+./provision-wg-exit.sh     # create VPS (reads keys from SOPS)
+./set-wg-endpoint.sh       # record VPS IP in routy's secrets
+just nix deploy routy      # deploy WireGuard + microsocks to routy
 ```
-
-Generates WireGuard keypairs, creates VPS with cloud-init, stores keys in SOPS. See script for details.
 
 ### Update Home IP
 
@@ -117,12 +124,14 @@ cd cloud/scripts
 
 | File | Purpose |
 |------|---------|
+| `cloud/scripts/generate-wg-keys.sh` | One-time: generate keypairs, store in SOPS |
 | `cloud/scripts/cloud-init-wireguard.yaml.template` | Cloud-init for WireGuard VPS |
-| `cloud/scripts/provision-wg-exit.sh` | Create VPS + generate keys |
+| `cloud/scripts/provision-wg-exit.sh` | Create VPS (reads keys from SOPS) |
+| `cloud/scripts/set-wg-endpoint.sh` | Record VPS IP in routy secrets |
 | `cloud/scripts/deprovision-wg-exit.sh` | Destroy VPS |
 | `nixos/hosts/routy/vpn-egress.nix` | WireGuard + microsocks + nftables on routy |
 | `secrets/cloud/secrets.sops.yaml` | WireGuard keypairs (both sides) |
-| `secrets/routy/secrets.sops.yaml` | routy's WireGuard private key |
+| `secrets/routy/secrets.sops.yaml` | routy's WireGuard private key, VPS pubkey + endpoint |
 
 ## Extending to New Services
 

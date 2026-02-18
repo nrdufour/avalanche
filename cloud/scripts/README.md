@@ -9,8 +9,10 @@ This directory contains scripts to manage VPS instances on Hetzner Cloud for net
 A WireGuard VPN exit point used by routy's SOCKS5 proxy. K8s pods route traffic through `routy:1080` → WireGuard tunnel → VPS → internet.
 
 **Scripts:**
-- `provision-wg-exit.sh` — Create VPS, generate WireGuard keys, store in SOPS
-- `deprovision-wg-exit.sh` — Destroy VPS (keys preserved in SOPS for reprovisioning)
+- `generate-wg-keys.sh` — One-time: generate WireGuard keypairs, store in SOPS
+- `provision-wg-exit.sh` — Create VPS (reads keys from SOPS)
+- `set-wg-endpoint.sh` — Record VPS IP in routy's SOPS secrets
+- `deprovision-wg-exit.sh` — Destroy VPS (keys preserved in SOPS)
 - `cloud-init-wireguard.yaml.template` — Cloud-init template for WireGuard VPS
 
 **Architecture:** See `docs/architecture/network/vpn-egress-socks-proxy.md`
@@ -39,25 +41,29 @@ Previous approach using Tailscale as exit node. Superseded by WireGuard due to [
    - Already configured in avalanche repository
    - Secrets encrypted with your Age keys
 
-3. **WireGuard tools** (for `provision-wg-exit.sh` only)
+3. **WireGuard tools** (for `generate-wg-keys.sh` only)
    - `wg genkey` / `wg pubkey` used during key generation
-   - Available via: `nix-shell -p wireguard-tools`
+   - Available in the dev shell
 
 ## WireGuard Exit Node Usage
 
-### Provision
+### Initial Setup (one-time)
+
+Generate WireGuard keypairs and store in SOPS:
+
+```bash
+./generate-wg-keys.sh
+```
+
+Keys are stored in both `secrets/cloud/` and `secrets/routy/` SOPS files. Safe to re-run (asks before overwriting).
+
+### Provision VPS
 
 ```bash
 ./provision-wg-exit.sh
 ```
 
-This script will:
-1. Generate WireGuard keypairs (or reuse existing from SOPS)
-2. Detect your home IP address (with confirmation)
-3. Create a Hetzner Cloud Firewall (SSH from home IP, WireGuard from anywhere, ICMP)
-4. Create the VPS with WireGuard cloud-init
-5. Store all keys + VPS IP in `secrets/cloud/secrets.sops.yaml`
-6. Store routy's WireGuard private key in `secrets/routy/secrets.sops.yaml`
+Reads keys from SOPS, creates the VPS. Does NOT modify any secrets files.
 
 **Default Configuration:**
 - Server name: `wg-exit`
@@ -75,9 +81,10 @@ SERVER_NAME=wg-exit-2 SERVER_TYPE=cpx21 LOCATION=hel1 ./provision-wg-exit.sh
 
 1. **Wait 1-2 minutes** for cloud-init to complete
 2. **Verify VPS:** `ssh root@<VPS_IP> 'wg show'`
-3. **Deploy routy:** `just nix deploy routy`
-4. **Verify tunnel:** `ssh routy.internal bash -c 'wg show wg-egress'`
-5. **Test proxy:** `curl --socks5 10.1.0.1:1080 https://ifconfig.me` (should show VPS IP)
+3. **Set endpoint:** `./set-wg-endpoint.sh <VPS_IP>` (or omit IP to auto-detect from hcloud)
+4. **Deploy routy:** `just nix deploy routy`
+5. **Verify tunnel:** `ssh routy.internal bash -c 'wg show wg-egress'`
+6. **Test proxy:** `curl --socks5 10.1.0.1:1080 https://ifconfig.me` (should show VPS IP)
 
 ### Update Home IP
 
@@ -95,7 +102,14 @@ WireGuard keys are preserved in SOPS — reprovisioning will reuse them automati
 
 ### Reprovisioning
 
-If the VPS is destroyed and recreated, the same keys are reused so routy doesn't need reconfiguration. Just run `provision-wg-exit.sh` again.
+Keys are stable in SOPS. To reprovision:
+
+```bash
+./deprovision-wg-exit.sh
+./provision-wg-exit.sh
+./set-wg-endpoint.sh          # auto-detects IP from hcloud
+just nix deploy routy
+```
 
 ## Cost
 
@@ -133,7 +147,9 @@ UFW on VPS (secondary layer):
 
 | File | Purpose |
 |------|---------|
+| `generate-wg-keys.sh` | Generate WireGuard keypairs (one-time) |
 | `provision-wg-exit.sh` | Provision WireGuard exit node VPS |
+| `set-wg-endpoint.sh` | Record VPS IP in routy's SOPS secrets |
 | `deprovision-wg-exit.sh` | Destroy WireGuard VPS |
 | `cloud-init-wireguard.yaml.template` | Cloud-init for WireGuard VPS |
 | `provision-exit-node.sh` | Provision Tailscale exit node (legacy) |

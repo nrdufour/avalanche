@@ -31,6 +31,10 @@
           owner = "sentinel";
           group = "sentinel";
         };
+
+        "wireguard/egress-private-key" = {};
+        "wireguard/egress-server-pubkey" = {};
+        "wireguard/egress-server-endpoint" = {};
       };
 
       # nsupdate TSIG key template (different format than Knot's keyfile)
