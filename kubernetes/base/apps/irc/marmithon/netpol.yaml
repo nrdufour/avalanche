@@ -1,15 +1,29 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: marmitton-access
+  name: marmithon-access
   namespace: irc
 spec:
   podSelector:
     matchLabels:
-      app: marmitton
+      app: marmithon
   policyTypes:
     - Egress
   egress:
+    # Allow SOCKS5 proxy on routy
+    - to:
+        - ipBlock:
+            cidr: 10.1.0.1/32
+      ports:
+        - port: 1080
+          protocol: TCP
+    # Allow DNS
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Allow external internet (not internal networks)
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0

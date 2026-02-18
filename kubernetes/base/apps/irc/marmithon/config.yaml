@@ -19,6 +19,9 @@ data:
     metricsEnabled = true
     metricsPort = "9090"
 
+    # SOCKS5 proxy for IP masking (routy VPN egress)
+    proxyAddress = "10.1.0.1:1080"
+
     # Automatic reconnection
     reconnectEnabled = true
     reconnectDelaySeconds = 30
