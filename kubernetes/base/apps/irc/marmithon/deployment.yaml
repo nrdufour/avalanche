@@ -17,32 +17,15 @@ spec:
       labels:
         app: marmithon
     spec:
-      # TCP keepalive settings to prevent NAT timeout-induced connection resets
-      # Sends keepalive probes after 30s idle, every 10s, up to 3 times (90s total)
-      securityContext:
-        sysctls:
-          - name: net.ipv4.tcp_keepalive_time
-            value: "30"
-          - name: net.ipv4.tcp_keepalive_intvl
-            value: "10"
-          - name: net.ipv4.tcp_keepalive_probes
-            value: "3"
       containers:
         # Main Marmithon IRC bot container with native identd and metrics
         - name: marmithon
           image: forge.internal/nemo/marmitton:latest
           imagePullPolicy: Always
           command:
-            - /bin/sh
-            - -c
-            - |
-              echo "Waiting for Gluetun VPN to be ready..."
-              until curl -sf http://localhost:9999 >/dev/null 2>&1; do
-                echo "VPN not ready, waiting 5s..."
-                sleep 5
-              done
-              echo "VPN is ready! Starting Marmithon..."
-              exec /app/marmithon -config /etc/marmithon/marmithon.conf
+            - /app/marmithon
+            - -config
+            - /etc/marmithon/marmithon.conf
           ports:
             - name: ident
               containerPort: 113
@@ -69,55 +52,55 @@ spec:
               drop:
                 - ALL
 
-        # Gluetun VPN sidecar
-        - name: gluetun
-          image: ghcr.io/qdm12/gluetun:v3.40.1
-          ports:
-            - name: gluetun-http
-              containerPort: 9999
-              protocol: TCP
-          lifecycle:
-            preStop:
-              exec:
-                command: ["/bin/sh", "-c", "sleep 5"]
-          env:
-            - name: VPN_SERVICE_PROVIDER
-              value: "protonvpn"
-            - name: VPN_TYPE
-              value: "wireguard"
-            - name: WIREGUARD_PERSISTENT_KEEPALIVE
-              value: "25"
-            - name: SERVER_COUNTRIES
-              value: "Iceland"
-            - name: FIREWALL_OUTBOUND_SUBNETS
-              value: "10.42.0.0/16,10.43.0.0/16"
-            - name: LOG_LEVEL
-              value: "info"
-            - name: HEALTH_VPN_DURATION_INITIAL
-              value: "30s"
-            - name: HEALTH_SUCCESS_WAIT_DURATION
-              value: "10s"
-            - name: HEALTH_SERVER_ADDRESS
-              value: "0.0.0.0:9999"
-            - name: DOT
-              value: "off"
-            - name: DNS_ADDRESS
-              value: "127.0.0.1"
-          envFrom:
-            - secretRef:
-                name: marmithon-vpn
-          resources:
-            requests:
-              cpu: 50m
-              memory: 128Mi
-            limits:
-              memory: 512Mi
-          securityContext:
-            capabilities:
-              add:
-                - NET_ADMIN
-                - NET_RAW
-            allowPrivilegeEscalation: true
+        # # Gluetun VPN sidecar (disabled — return-path issues with ProtonVPN)
+        # - name: gluetun
+        #   image: ghcr.io/qdm12/gluetun:v3.40.1
+        #   ports:
+        #     - name: gluetun-http
+        #       containerPort: 9999
+        #       protocol: TCP
+        #   lifecycle:
+        #     preStop:
+        #       exec:
+        #         command: ["/bin/sh", "-c", "sleep 5"]
+        #   env:
+        #     - name: VPN_SERVICE_PROVIDER
+        #       value: "protonvpn"
+        #     - name: VPN_TYPE
+        #       value: "wireguard"
+        #     - name: WIREGUARD_PERSISTENT_KEEPALIVE
+        #       value: "25"
+        #     - name: SERVER_COUNTRIES
+        #       value: "Iceland"
+        #     - name: FIREWALL_OUTBOUND_SUBNETS
+        #       value: "10.42.0.0/16,10.43.0.0/16"
+        #     - name: LOG_LEVEL
+        #       value: "info"
+        #     - name: HEALTH_VPN_DURATION_INITIAL
+        #       value: "30s"
+        #     - name: HEALTH_SUCCESS_WAIT_DURATION
+        #       value: "10s"
+        #     - name: HEALTH_SERVER_ADDRESS
+        #       value: "0.0.0.0:9999"
+        #     - name: DOT
+        #       value: "off"
+        #     - name: DNS_ADDRESS
+        #       value: "127.0.0.1"
+        #   envFrom:
+        #     - secretRef:
+        #         name: marmithon-vpn
+        #   resources:
+        #     requests:
+        #       cpu: 50m
+        #       memory: 128Mi
+        #     limits:
+        #       memory: 512Mi
+        #   securityContext:
+        #     capabilities:
+        #       add:
+        #         - NET_ADMIN
+        #         - NET_RAW
+        #     allowPrivilegeEscalation: true
 
       volumes:
         - name: config
