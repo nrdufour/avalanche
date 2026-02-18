@@ -13,3 +13,4 @@ resources:
   - esphome-app.yaml
   - home-assistant-app.yaml
   - frigate-app.yaml
+  - dashboards-app.yaml
