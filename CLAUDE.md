@@ -31,7 +31,8 @@ Avalanche is a unified infrastructure-as-code monorepo managing 15 NixOS hosts (
    - `clusters/`: Cluster-specific configurations
    - **Primary GitOps**: ArgoCD only
 
-3. **Cloud Layer** (`cloud/`): Future cloud infrastructure
+3. **Cloud Layer** (`cloud/`): Cloud infrastructure
+   - `scripts/`: Hetzner VPS provisioning (WireGuard exit node for VPN egress)
    - `nixos/`: NixOS-based VPS configs
    - `terraform/`: Non-NixOS cloud resources
 
@@ -126,7 +127,7 @@ Web-based gateway management dashboard for routy (network services, DHCP, firewa
 ### Key Technologies
 - **Deployment**: nixos-rebuild over SSH to `<hostname>.internal` (Tailscale)
 - **Secrets**: SOPS with Age encryption (keys in `~/.config/sops/age/keys.txt`)
-- **Network**: Tailscale mesh VPN (remote access), Gluetun VPN proxy (egress for K8s workloads), kube-vip for K8s HA (VIP: 10.1.0.5)
+- **Network**: Tailscale mesh VPN (remote access), WireGuard + microsocks SOCKS5 proxy on routy (VPN egress for K8s workloads via Hetzner VPS), kube-vip for K8s HA (VIP: 10.1.0.5)
 - **Identity**: Kanidm at `https://auth.internal` (users: `username@auth.internal`)
 - **GitOps**: ArgoCD only
 - **Nixpkgs Mirror**: `forge.internal/Mirrors/nixpkgs` (fallback for GitHub outages)
@@ -307,12 +308,17 @@ See `docs/troubleshooting/systemd-run-private-upgrade.md` for full incident deta
 #### Android 16 & DSCP Marking Fix (routy)
 routy applies a global DSCP clearing rule (`nixos/hosts/routy/android16-fix.nix`) that resets all DSCP markings to cs0 on the FORWARD chain. This resolves Android 16 strict packet validation issues. If you later implement QoS policies that depend on DSCP, this rule should be reconsidered.
 
-#### Tailscale vs Gluetun Separation
-- **Tailscale**: Remote access to home network (mesh VPN, subnet routing via routy)
-- **Gluetun**: VPN egress for containerized workloads (qbittorrent sidecar, marmithon IRC bot)
-- **Do NOT use Tailscale exit nodes for K8s pods** - use Gluetun instead
+#### VPN Egress Proxy (WireGuard + microsocks)
+K8s pods that need IP masking use a SOCKS5 proxy at `10.1.0.1:1080` on routy. Traffic flows through a WireGuard tunnel to a Hetzner VPS (CAX11, ~€3.79/month), exiting with the VPS's public IP.
 
-See `docs/architecture/network/network-architecture-migration.md` for details.
+- **Config**: `nixos/hosts/routy/vpn-egress.nix` (WireGuard tunnel, microsocks, nftables marking, Prometheus exporter)
+- **Provisioning**: `cloud/scripts/provision-wg-exit.sh` / `deprovision-wg-exit.sh`
+- **Monitoring**: WireGuard exporter on routy:9586, Grafana dashboard "WireGuard VPN Egress Tunnel"
+- **How pods use it**: Configure SOCKS5 proxy address `10.1.0.1:1080` in the application (no sidecars, no NET_ADMIN)
+- **Do NOT use Gluetun sidecars** — they drop idle TCP connections due to conntrack expiry
+- **Do NOT use Tailscale exit nodes for K8s pods** — [tailscale#15173](https://github.com/tailscale/tailscale/issues/15173) blocks cluster-internal traffic
+
+See `docs/architecture/network/vpn-egress-socks-proxy.md` for full architecture details.
 
 ### NPU (Neural Processing Unit) Integration
 
