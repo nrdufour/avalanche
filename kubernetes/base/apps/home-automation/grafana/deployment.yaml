@@ -59,7 +59,7 @@ spec:
             - mountPath: /tmp/dashboards
               name: dashboards
         - name: k8s-sidecar
-          image: ghcr.io/kiwigrid/k8s-sidecar:1.28.0
+          image: ghcr.io/kiwigrid/k8s-sidecar:2.5.0
           env:
             - name: LABEL
               value: grafana_dashboard
