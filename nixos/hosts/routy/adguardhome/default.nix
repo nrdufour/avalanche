@@ -25,6 +25,7 @@
           "[/internal/]10.0.0.53"
           "127.0.0.1"
         ];
+        blocking_mode = "nxdomain";
         ipv6 = false;
       };
       filtering = {
