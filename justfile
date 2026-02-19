@@ -8,7 +8,6 @@ kubernetes_dir := root_dir / "kubernetes"
 # Note: KUBECONFIG and SOPS_AGE_KEY_FILE are set by direnv via .envrc
 # kubernetes_dir is still needed for justfile recipes
 
-
 # Import sub-justfiles as modules
 mod nix '.justfiles/nix.just'
 mod sops '.justfiles/sops.just'
