@@ -24,6 +24,6 @@ data:
 
     # Automatic reconnection
     reconnectEnabled = true
-    reconnectDelaySeconds = 30
+    reconnectDelaySeconds = 60
     reconnectMaxAttempts = 0  # 0 = unlimited
 
