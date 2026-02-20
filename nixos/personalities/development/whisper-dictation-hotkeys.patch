@@ -1,3 +1,25 @@
+diff --git a/src/whisper_dictation/recorder.py b/src/whisper_dictation/recorder.py
+--- a/src/whisper_dictation/recorder.py
++++ b/src/whisper_dictation/recorder.py
+@@ -3,6 +3,7 @@ Audio recording module using ffmpeg
+ """
+
+ import logging
++import os
+ import subprocess
+ from pathlib import Path
+
+@@ -14,7 +15,9 @@ class AudioRecorder:
+
+     def __init__(self, config):
+         self.config = config
+-        self.temp_dir = Path("/tmp/whisper-dictation")
++        runtime_dir = os.environ.get("XDG_RUNTIME_DIR")
++        base = Path(runtime_dir) if runtime_dir else Path("/tmp") / f"whisper-dictation-{os.getuid()}"
++        self.temp_dir = base / "whisper-dictation"
+         self.temp_dir.mkdir(exist_ok=True)
+         self.audio_file = self.temp_dir / "recording.wav"
+         self.process: subprocess.Popen | None = None
 diff --git a/src/whisper_dictation/config.py b/src/whisper_dictation/config.py
 --- a/src/whisper_dictation/config.py
 +++ b/src/whisper_dictation/config.py
