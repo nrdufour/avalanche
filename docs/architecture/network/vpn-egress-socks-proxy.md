@@ -43,16 +43,74 @@ The critical difference from gluetun: microsocks runs on routy (the gateway itse
 
 ## Network Flow Detail
 
+### Outbound (pod → internet)
+
 ```
 1. Pod sends TCP to 10.1.0.1:1080 (SOCKS5 CONNECT to irc.server:6697)
-2. microsocks accepts, opens outbound connection to irc.server:6697
-3. nftables OUTPUT chain marks packet (skuid microsocks → fwmark 0xCA6C)
-4. ip rule: fwmark 0xCA6C → table 51820
-5. table 51820: default via 10.100.0.1 (VPS tunnel endpoint)
-6. Packet enters wg-egress, encrypted via WireGuard to VPS
-7. VPS decapsulates, MASQUERADE to eth0, packet reaches irc.server
-8. Return traffic: irc.server → VPS eth0 → conntrack → wg0 → routy wg-egress → microsocks → pod
+2. microsocks (uid 400) accepts, opens outbound connection to irc.server:6697
+3. nftables OUTPUT mangle chain: meta skuid 400 → mark 0xCA6C (decimal 51820)
+4. Kernel re-routes: fwmark 0xCA6C matches ip rule → lookup table 51820
+5. Table 51820: default via 10.100.0.1 → packet enters wg-egress interface
+6. nftables POSTROUTING: masquerade on oifname "wg-egress" → SNAT to 10.100.0.2
+7. WireGuard encrypts, sends outer UDP to VPS (78.47.76.161:51820)
+8. VPS decapsulates, MASQUERADE to eth0 → packet reaches irc.server with VPS IP
 ```
+
+### Return (internet → pod)
+
+```
+1. irc.server replies to VPS public IP
+2. VPS conntrack reverse-NATs → wg0 tunnel → routy wg-egress
+3. routy conntrack reverse-NATs (10.100.0.2 → routy WAN IP)
+4. microsocks receives reply, forwards to pod via lab0 (10.1.0.x)
+```
+
+### Why microsocks replies stay on LAN
+
+When microsocks sends a SYN-ACK back to the pod (10.1.0.x), that packet also
+gets fwmarked 0xCA6C (because it's from uid 400). Without LAN routes in table
+51820, the reply would be routed into the WireGuard tunnel instead of back to
+the pod. The LAN routes (`10.0.0.0/24 dev lan0`, `10.1.0.0/24 dev lab0`, etc.)
+in table 51820 are more specific than the default route, so reply traffic
+correctly goes back to the LAN interface.
+
+### Why the VPS endpoint route is needed
+
+WireGuard copies the fwmark from inner packets to outer (encapsulated) UDP
+packets. Without a direct route for the VPS IP in table 51820, the outer UDP
+packet would match `default via 10.100.0.1` → re-enter wg-egress → infinite
+loop. The `wg-egress-route` service adds `<VPS_IP> via <WAN_GW> dev wan0` to
+table 51820, breaking the loop.
+
+## Routing Table 51820
+
+All routes managed declaratively by systemd-networkd, except the VPS endpoint
+route which is managed by `wg-egress-route.service` (because the VPS IP is a
+SOPS secret and the WAN gateway changes with DHCP).
+
+```
+default via 10.100.0.1 dev wg-egress    # tunnel default (40-wg-egress.network)
+10.0.0.0/24 dev lan0                     # LAN reply path  (30-lan0.network)
+10.1.0.0/24 dev lab0                     # K8s reply path  (30-lab0.network)
+10.2.0.0/24 dev lab1                     # Lab1 reply path (30-lab1.network)
+<VPS_IP> via <WAN_GW> dev wan0           # loop prevention (wg-egress-route.service)
+```
+
+## Systemd Services
+
+| Service | Type | Purpose |
+|---------|------|---------|
+| `wg-egress` | oneshot | Creates wg-egress interface, applies WireGuard config, sets IP |
+| `wg-egress-route` | simple (long-running) | Waits for WAN DHCP gateway, adds VPS endpoint route to table 51820, monitors for gateway changes every 30s |
+| `microsocks-egress` | simple | SOCKS5 proxy on 10.1.0.1:1080 (uid 400) |
+| `prometheus-wireguard-exporter` | simple | Metrics on port 9586 |
+
+### Declarative config (systemd-networkd)
+
+The ip rule (`fwmark 0xCA6C → table 51820`) is managed by systemd-networkd via
+`40-wg-egress.network`, not by the wg-egress script. This is intentional —
+tailscaled flushes ip rules on startup, so a script-added rule gets wiped.
+systemd-networkd re-applies it when the interface is reconfigured.
 
 ## How Pods Use It
 
@@ -129,7 +187,8 @@ cd cloud/scripts
 | `cloud/scripts/provision-wg-exit.sh` | Create VPS (reads keys from SOPS) |
 | `cloud/scripts/set-wg-endpoint.sh` | Record VPS IP in routy secrets |
 | `cloud/scripts/deprovision-wg-exit.sh` | Destroy VPS |
-| `nixos/hosts/routy/vpn-egress.nix` | WireGuard + microsocks + nftables + exporter on routy |
+| `nixos/hosts/routy/vpn-egress.nix` | WireGuard + microsocks + nftables + routing policy + exporter on routy |
+| `nixos/hosts/routy/network/default.nix` | LAN interface routes in table 51820 (reply path for microsocks) |
 | `secrets/cloud/secrets.sops.yaml` | WireGuard keypairs (both sides) |
 | `secrets/routy/secrets.sops.yaml` | routy's WireGuard private key, VPS pubkey + endpoint |
 | `kubernetes/base/infra/observability/kube-prometheus-stack/scrapeconfig.yaml` | Prometheus scrape target for WireGuard exporter |
@@ -146,44 +205,123 @@ If the application doesn't support SOCKS5 natively, options:
 
 ## Troubleshooting
 
-### WireGuard tunnel not up (routy)
+### Quick health check
 
 ```bash
-# Check interface status
-wg show wg-egress
-
-# Should show: latest handshake within last 2 minutes
-# If no handshake: check VPS is running, firewall allows UDP 51820
-
-# Check routing table
-ip route show table 51820
-# Should show: default via 10.100.0.1
-
-# Check ip rules
-ip rule show | grep 51820
-# Should show: fwmark 0xca6c lookup 51820
+# From routy — does traffic exit via VPS?
+curl -s --max-time 5 -x socks5h://10.1.0.1:1080 http://ifconfig.me
+# Should print the VPS IP (78.47.76.161). If it prints the home IP or times out, see below.
 ```
 
-### microsocks not listening
+### Check all components at once
 
 ```bash
-ss -tlnp | grep 1080
-# Should show microsocks listening on 10.1.0.1:1080
+# Services running?
+systemctl is-active wg-egress wg-egress-route microsocks-egress
 
-systemctl status microsocks-egress
-journalctl -u microsocks-egress -f
+# IP rule present?
+ip rule list | grep ca6c
+# Expected: 32765: from all fwmark 0xca6c lookup 51820 proto static
+
+# Routing table complete?
+sudo ip route show table 51820
+# Expected:
+#   default via 10.100.0.1 dev wg-egress proto static onlink
+#   10.0.0.0/24 dev lan0 proto static scope link
+#   10.1.0.0/24 dev lab0 proto static scope link
+#   10.2.0.0/24 dev lab1 proto static scope link
+#   <VPS_IP> via <WAN_GW> dev wan0
+
+# Tunnel alive?
+ping -c 2 -W 2 -I wg-egress 10.100.0.1
+# Expected: 0% packet loss, ~100ms
 ```
 
-### Proxy works but wrong IP
+### Proxy times out (can't reach microsocks)
+
+microsocks reply traffic is being routed into the tunnel instead of back to
+the LAN. Check that table 51820 has LAN routes:
 
 ```bash
-# Test from routy directly
-curl --socks5 10.1.0.1:1080 https://ifconfig.me
-# Should show VPS IP
+sudo ip route show table 51820 | grep -E 'lan0|lab0'
+# Should show 10.0.0.0/24 dev lan0 and 10.1.0.0/24 dev lab0
+# If missing: systemd-networkd didn't apply the routes — restart it
+sudo systemctl restart systemd-networkd
+```
 
-# If showing home IP: check nftables mark rule
-nft list table inet mangle-egress
+### Proxy works but shows home IP (not VPS IP)
+
+The fwmark routing isn't working. Check each step:
+
+```bash
+# 1. Is the ip rule present?
+ip rule list | grep ca6c
+# If missing: tailscaled may have flushed it. Restart systemd-networkd:
+sudo systemctl restart systemd-networkd
+
+# 2. Is the nftables mark rule active?
+sudo nft list table inet mangle-egress
 # Should show: meta skuid 400 meta mark set 0x0000ca6c
+# If wrong UID: check microsocks user (id microsocks, should be uid 400)
+
+# 3. Is table 51820 populated?
+sudo ip route show table 51820
+# If empty or missing default: restart wg-egress
+sudo systemctl restart wg-egress
+```
+
+### SOCKS proxy times out to internet (tunnel broken)
+
+```bash
+# Is the VPS endpoint route present?
+sudo ip route show table 51820 | grep <VPS_IP>
+# If missing: the WAN gateway wasn't available when wg-egress-route started
+sudo systemctl restart wg-egress-route
+
+# Is the tunnel passing traffic?
+ping -c 2 -W 2 -I wg-egress 10.100.0.1
+# If 100% loss: check VPS is running, firewall allows UDP 51820
+hcloud server list  # should show wg-exit as running
+
+# Check WAN gateway changed? (ISP gives new IP on reboot)
+ip route show default
+# wg-egress-route monitors this every 30s, but check its logs:
+journalctl -u wg-egress-route -b
+```
+
+### Stale IRC connections (marmithon "Too many host connections")
+
+IRCnet has a per-IP global connection limit. Rapid reconnection (30s cycle)
+creates overlapping connections that stack up past the limit.
+
+```bash
+# Check active connections through the proxy
+sudo conntrack -L -p tcp --dport 6667
+ss -tnp | grep 6667
+
+# Kill stale connections
+sudo conntrack -D -p tcp --dport 6667
+sudo ss -K dst <stale_ip> dport = 6667
+
+# If persistent: restart microsocks to drop all connections
+sudo systemctl restart microsocks-egress
+# Then scale down the bot and wait 2-3 minutes before scaling back up
+```
+
+### VPS SSH blocked (home IP changed)
+
+The Hetzner firewall allowlists SSH by home IP. After an IP change:
+
+```bash
+# Check current home IP vs firewall rule
+curl -s ifconfig.me
+hcloud firewall describe wg-exit-fw
+
+# Update the rule
+hcloud firewall delete-rule wg-exit-fw --direction in --protocol tcp --port 22 \
+  --source-ips <OLD_IP>/32 --description "SSH from home"
+hcloud firewall add-rule wg-exit-fw --direction in --protocol tcp --port 22 \
+  --source-ips <NEW_IP>/32 --description "SSH from home"
 ```
 
 ### VPS WireGuard not responding
@@ -200,6 +338,16 @@ iptables -t nat -L POSTROUTING -v
 # Check IP forwarding
 sysctl net.ipv4.ip_forward
 # Should be 1
+```
+
+### Nuclear option: full restart sequence
+
+```bash
+sudo systemctl restart wg-egress        # recreates interface
+sudo systemctl restart wg-egress-route   # re-adds VPS endpoint route
+sudo systemctl restart microsocks-egress # drops all proxy connections
+# Wait a few seconds, then test:
+curl -s --max-time 5 -x socks5h://10.1.0.1:1080 http://ifconfig.me
 ```
 
 ## Comparison with Previous Approach (Gluetun)

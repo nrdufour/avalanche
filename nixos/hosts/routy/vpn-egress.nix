@@ -45,29 +45,11 @@ in
         ip addr add 10.100.0.2/24 dev wg-egress
         ip link set wg-egress up
 
-        # Policy routing: only marked packets use this tunnel
-        ip rule add fwmark 51820 table 51820 || true
-        ip route add default via 10.100.0.1 table 51820 || true
-
-        # Copy connected routes so LAN reply traffic isn't tunneled.
-        # Without this, microsocks' SYN-ACK to LAN clients gets fwmarked
-        # and routed into the tunnel instead of back to the client.
-        ip route show table main scope link | while read -r route; do
-          ip route add $route table 51820 2>/dev/null || true
-        done
-
-        # Prevent routing loop: outer WireGuard UDP packets inherit the fwmark
-        # from inner packets, so they'd loop back into the tunnel. Add a direct
-        # route for the VPS endpoint via the WAN default gateway in table 51820.
-        VPS_IP=$(${pkgs.gnugrep}/bin/grep -oP 'Endpoint\s*=\s*\K[^:]+' ${config.sops.templates."wg-egress.conf".path})
-        GATEWAY=$(ip route show default | ${pkgs.gawk}/bin/awk '{print $3; exit}')
-        if [ -n "$VPS_IP" ] && [ -n "$GATEWAY" ]; then
-          ip route add "$VPS_IP" via "$GATEWAY" table 51820 || true
-        fi
+        # VPS endpoint route is managed by wg-egress-route.service below
+        # (needs to track WAN gateway changes from DHCP).
       '';
       ExecStop = pkgs.writeShellScript "wg-egress-down" ''
         ip link del wg-egress || true
-        ip rule del fwmark 51820 table 51820 || true
       '';
     };
   };
@@ -105,6 +87,64 @@ in
       # Runs as root — wg show requires CAP_NET_ADMIN and the exporter
       # shells out to `wg`, so ambient caps on a dynamic user aren't enough.
     };
+  };
+
+  # --- VPS endpoint route (prevents routing loop) ---
+  # WireGuard copies the fwmark from inner to outer packets, so without a
+  # direct route for the VPS endpoint, outer UDP packets loop back into the
+  # tunnel via table 51820. This service waits for the WAN DHCP gateway and
+  # keeps the route updated if the gateway changes (ISP rotates IPs on reboot).
+  systemd.services.wg-egress-route = {
+    description = "VPS endpoint route for WireGuard egress";
+    after = [ "wg-egress.service" ];
+    requires = [ "wg-egress.service" ];
+    wantedBy = [ "multi-user.target" ];
+    path = [ pkgs.iproute2 pkgs.gnugrep pkgs.gawk pkgs.coreutils ];
+    serviceConfig = {
+      Type = "simple";
+      Restart = "on-failure";
+      RestartSec = 5;
+      ExecStart = pkgs.writeShellScript "wg-egress-route" ''
+        set -euo pipefail
+        VPS_IP=$(grep -oP 'Endpoint\s*=\s*\K[^:]+' ${config.sops.templates."wg-egress.conf".path})
+
+        # Wait for WAN default gateway (DHCP may not be ready at boot)
+        GATEWAY=""
+        while [ -z "$GATEWAY" ]; do
+          GATEWAY=$(ip route show default | awk '{print $3; exit}')
+          [ -z "$GATEWAY" ] && sleep 2
+        done
+        ip route replace "$VPS_IP" via "$GATEWAY" table 51820
+
+        # Monitor for gateway changes (DHCP renew / IP rotation)
+        while true; do
+          sleep 30
+          NEW_GW=$(ip route show default | awk '{print $3; exit}')
+          if [ -n "$NEW_GW" ] && [ "$NEW_GW" != "$GATEWAY" ]; then
+            ip route replace "$VPS_IP" via "$NEW_GW" table 51820
+            GATEWAY="$NEW_GW"
+          fi
+        done
+      '';
+    };
+  };
+
+  # --- Declarative routing policy: fwmark 51820 → table 51820 ---
+  # Managed by systemd-networkd so it survives tailscaled ip-rule flushes.
+  systemd.network.networks."40-wg-egress" = {
+    matchConfig.Name = "wg-egress";
+    linkConfig.RequiredForOnline = "no";
+    # Keep the VPS endpoint route set by the wg-egress ExecStart script
+    # (it depends on a SOPS secret so it can't be declared here).
+    networkConfig.KeepConfiguration = "static";
+    routingPolicyRules = [{
+      FirewallMark = 51820;
+      Table = 51820;
+    }];
+    routes = [
+      # Default route through the tunnel
+      { Gateway = "10.100.0.1"; Table = 51820; }
+    ];
   };
 
   # --- nftables: mark microsocks traffic for WireGuard routing ---

@@ -219,6 +219,8 @@
           ActivationPolicy  = "always-up";
           RequiredForOnline = "no";
         };
+        # VPN egress: ensure microsocks reply traffic to LAN clients stays on LAN
+        routes = [{ Destination = "10.0.0.0/24"; Table = 51820; }];
         # vlan = [
         #   "lan0.20"  # HOME
         #   "lan0.50"  # GUEST
@@ -242,6 +244,8 @@
           ActivationPolicy  = "always-up";
           RequiredForOnline = "no";
         };
+        # VPN egress: ensure microsocks reply traffic to K8s pods stays on LAN
+        routes = [{ Destination = "10.1.0.0/24"; Table = 51820; }];
       };
 
       "30-lab1" = {
@@ -260,6 +264,8 @@
           ActivationPolicy  = "always-up";
           RequiredForOnline = "no";
         };
+        # VPN egress: ensure microsocks reply traffic stays on LAN
+        routes = [{ Destination = "10.2.0.0/24"; Table = 51820; }];
       };
 
       # # HOME VLAN
