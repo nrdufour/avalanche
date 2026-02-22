@@ -65,6 +65,9 @@
     environment = {
       TZ = "America/New_York";
       SERVICE_URL = "http://scorekit-worker:8000";
+      DISABLE_RATE_LIMIT = "true";
+      UNSCORE_LLM_LABELING = "false";
+      WORKERS = "2";
     };
   };
 
