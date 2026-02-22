@@ -51,6 +51,8 @@
   services.pulseaudio.enable = false;
   security.rtkit.enable = false;
 
+  environment.systemPackages = [ pkgs.screen ];
+
   system.autoUpgrade = {
     enable = true;
     allowReboot = true;
