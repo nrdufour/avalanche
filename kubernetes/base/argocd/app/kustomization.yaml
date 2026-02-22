@@ -8,7 +8,7 @@ resources:
   - ./namespace.yaml
   # ArgoCD itself
   # renovate: datasource=github-releases depName=argoproj/argo-cd
-  - https://raw.githubusercontent.com/argoproj/argo-cd/v3.3.1/manifests/ha/install.yaml
+  - https://raw.githubusercontent.com/argoproj/argo-cd/v3.3.2/manifests/ha/install.yaml
   # Temporary ingress -- til we switch to gateway
   - ingress.yaml
 

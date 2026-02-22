@@ -1,7 +1,7 @@
 # CMP Sidecar image with kustomize + envsubst
 # Build: docker build -t forge.internal/nemo/argocd-cmp-kustomize-envsubst:v3.2.0 .
 #
-FROM quay.io/argoproj/argocd:v3.3.1
+FROM quay.io/argoproj/argocd:v3.3.2
 
 USER root
 
