@@ -12,3 +12,4 @@ resources:
   - wallabag-app.yaml
   - miniflux-app.yaml
   - homebox-app.yaml
+  - ntfy-app.yaml

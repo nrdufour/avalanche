@@ -6,6 +6,7 @@
       ./secrets.nix
       ./forgejo
       ./scorekit.nix
+      ./ollama.nix
     ];
 
   # Use the systemd-boot EFI boot loader.
