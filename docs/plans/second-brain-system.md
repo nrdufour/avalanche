@@ -4,23 +4,34 @@
 
 Revision of the original second brain plan (Forgejo issue #100), incorporating:
 
-1. **Energy-efficient local AI**: Replace most Claude API calls with local Ollama inference (qwen2.5:3b on opi nodes). Add pgvector for semantic search (RAG). Keep Claude API only for the weekly recap.
+1. **Energy-efficient local AI**: Replace most Claude API calls with local Ollama inference (qwen2.5:3b on hawk). Add pgvector for semantic search (RAG). Keep Claude API only for the weekly recap.
 2. **GRAB system resilience patterns** ([Nate Jones](https://natesnewsletter.substack.com/p/grab-the-system-that-closes-open)): Confidence scoring (receipt), quality gate (bouncer), and fix button — the trust-building feedback loop that prevents second brain systems from dying.
 3. **Per-bucket structured extraction**: Each bucket has its own schema. The LLM doesn't just classify — it extracts the pertinent fields for that bucket type. A `log` table keeps the full raw record with capture time and sequence.
 
 ## Architecture
 
 ```
-┌─────────────┐     ┌──────────────────┐     ┌───────────────────────────────────────────┐
+                                              ┌──────────────────────────────┐
+                                              │ hawk (Beelink SER5 Max)      │
+                                              │ AMD Ryzen 7 6800U, 24GB RAM  │
+                                              │                              │
+                                              │  ┌─────────────┐             │
+                                              │  │ Ollama      │             │
+                                              │  │ (NixOS svc) │             │
+                                              │  │ qwen2.5:3b  │             │
+                                              │  │ nomic-embed  │             │
+                                              │  └──────┬──────┘             │
+                                              │         │ :11434             │
+                                              └─────────┼────────────────────┘
+                                                        │
+┌─────────────┐     ┌──────────────────┐     ┌──────────┼────────────────────────────────┐
 │ Phone/Desktop│────▶│ Mattermost       │────▶│ n8n (4 workflows)                         │
-│ (capture)    │     │ #capture channel │     │                                           │
-└─────────────┘     └──────────────────┘     │  ┌─────────────┐  ┌────────────────────┐  │
-                                              │  │ Ollama      │  │ pgvector           │  │
-                                              │  │ (local 3B)  │  │ (semantic search)  │  │
-                                              │  │ - classify  │  │ - similar thoughts │  │
-                                              │  │ - extract   │  │ - context for RAG  │  │
-                                              │  │ - embed     │  │                    │  │
-                                              │  └─────────────┘  └────────────────────┘  │
+│ (capture)    │     │ #capture channel │     │          │                                │
+└─────────────┘     └──────────────────┘     │  classify/embed/summarize                 │
+                                              │          │     ┌────────────────────┐      │
+                                              │          └────▶│ pgvector           │      │
+                                              │                │ (semantic search)  │      │
+                                              │                └────────────────────┘      │
                                               │                                           │
                                               │  ┌─────────────┐                          │
                                               │  │ Claude API  │  (weekly recap only)     │
@@ -45,8 +56,8 @@ Revision of the original second brain plan (Forgejo issue #100), incorporating:
 
 | Area | Original | Revised |
 |---|---|---|
-| Classification | Claude API | Ollama qwen2.5:3b (local) |
-| Daily digest | Claude API | Ollama qwen2.5:3b (local) |
+| Classification | Claude API | Ollama qwen2.5:3b (on hawk) |
+| Daily digest | Claude API | Ollama qwen2.5:3b (on hawk) |
 | Weekly recap | Claude API | Claude API (kept) |
 | Embeddings | Not planned | nomic-embed-text via Ollama |
 | Vector search | "Future enhancement" | Core — pgvector in secondbrain-db |
@@ -207,42 +218,52 @@ CREATE TABLE admin (
 
 **ArgoCD app:** `secondbrain-db-app.yaml` in `kubernetes/base/apps/ai/`
 
-### 4. Ollama Model Updates
+### 4. Ollama on hawk (NixOS Service)
 
-The existing Ollama StatefulSet needs two additional models.
+Ollama runs on hawk (Beelink SER5 Max, AMD Ryzen 7 6800U, 24GB RAM) as a NixOS service, **not** in the K8s cluster. Testing showed qwen2.5:3b runs at ~7s/thought on hawk vs ~8min on the Orange Pi ARM nodes — a 65x speedup that makes the system practical.
 
-**File to modify:** `kubernetes/base/apps/ai/ollama/statefulset.yaml`
+The existing K8s Ollama StatefulSet on opi01-03 stays unchanged (TinyLlama for general use). The second brain uses hawk exclusively.
 
-Update the `postStart` lifecycle hook:
-```yaml
-lifecycle:
-  postStart:
-    exec:
-      command:
-        - /bin/sh
-        - -c
-        - |
-          echo "Pulling models in background..."
-          ollama pull tinyllama > /dev/null 2>&1 &
-          ollama pull qwen2.5:3b > /dev/null 2>&1 &
-          ollama pull nomic-embed-text > /dev/null 2>&1 &
-          echo "Model pulls started"
+**New file:** `nixos/hosts/hawk/ollama.nix`
+
+```nix
+{ pkgs, ... }: {
+  services.ollama = {
+    enable = true;
+    host = "0.0.0.0";          # Listen on all interfaces (Tailscale-accessible)
+    port = 11434;
+    environmentVariables = {
+      OLLAMA_KEEP_ALIVE = "5m"; # Unload models after 5 min idle
+    };
+  };
+
+  # Open port for Tailscale access from K8s cluster
+  networking.firewall.allowedTCPPorts = [ 11434 ];
+}
 ```
 
-Add env var to auto-unload idle models:
-```yaml
-- name: OLLAMA_KEEP_ALIVE
-  value: "5m"
+**Modified file:** `nixos/hosts/hawk/default.nix` — add `./ollama.nix` to imports.
+
+**Post-deploy model pull** (one-time, via SSH):
+```bash
+ssh hawk.internal "ollama pull qwen2.5:3b && ollama pull nomic-embed-text"
 ```
 
-**Model sizes** (Q4 quantized): tinyllama ~637MB + qwen2.5:3b ~1.9GB + nomic-embed-text ~274MB = **~2.8GB** per pod (well within 20Gi PVC). Memory: qwen2.5:3b needs ~2.5GB at inference, fits within the 6Gi limit.
+**Model sizes:** qwen2.5:3b ~1.9GB + nomic-embed-text ~274MB = ~2.2GB on disk. ~2.5GB RAM at inference, well within hawk's 24GB.
+
+**Benchmarked performance** (turbo boost disabled):
+- Cold start (model load + inference): ~9s
+- Warm (model in memory): ~7s
+- Generation speed: ~10-13 tok/s
+
+**Endpoint from n8n:** `http://hawk.internal:11434` (via Tailscale DNS, accessible from K8s pods).
 
 ### 5. n8n Workflows (The Glue)
 
 4 workflows. LLM calls go to Ollama (local) except the weekly recap.
 
 **Service endpoints:**
-- Ollama: `http://ollama.ai.svc.cluster.local:11434`
+- Ollama: `http://hawk.internal:11434`
 - secondbrain-db: `secondbrain-16-db-rw.ai.svc.cluster.local:5432` (credentials from CNPG secret `secondbrain-16-db-app`)
 
 #### Workflow 1: Capture, Embed, Classify & Extract
@@ -449,9 +470,11 @@ Steps:
    - Create: `kubernetes/base/apps/self-hosted/ntfy-app.yaml`
    - Add to: `kubernetes/base/apps/self-hosted/kustomization.yaml`
 
-2. **Ollama model update** — pull qwen2.5:3b and nomic-embed-text.
-   - Modify: `kubernetes/base/apps/ai/ollama/statefulset.yaml` (lifecycle hook + OLLAMA_KEEP_ALIVE env)
-   - Pods will restart and pull models automatically.
+2. **Ollama on hawk** — deploy NixOS service, pull models.
+   - Create: `nixos/hosts/hawk/ollama.nix`
+   - Modify: `nixos/hosts/hawk/default.nix` (add import)
+   - Deploy: `just nix deploy hawk`
+   - Pull models: `ssh hawk.internal "ollama pull qwen2.5:3b && ollama pull nomic-embed-text"`
 
 3. **secondbrain-db** — CNPG cluster with pgvector + full schema.
    - Create: `kubernetes/base/apps/ai/secondbrain-db/` (full db/ subdirectory)
@@ -476,6 +499,8 @@ Steps:
 
 ### New files:
 ```
+nixos/hosts/hawk/ollama.nix                              — Ollama NixOS service config
+
 kubernetes/base/apps/self-hosted/ntfy/
   deployment.yaml
   service.yaml
@@ -500,13 +525,14 @@ kubernetes/base/apps/self-hosted/mattermost-app.yaml
 
 ### Modified files:
 ```
-kubernetes/base/apps/ai/ollama/statefulset.yaml          — add model pulls + OLLAMA_KEEP_ALIVE
+nixos/hosts/hawk/default.nix                             — add ./ollama.nix import
 kubernetes/base/apps/ai/kustomization.yaml               — add secondbrain-db-app.yaml
 kubernetes/base/apps/self-hosted/kustomization.yaml       — add ntfy-app.yaml, mattermost-app.yaml
 ```
 
 ### Key pattern files to copy from:
 ```
+nixos/personalities/development/ai.nix                   — Ollama NixOS service pattern (calypso/CUDA)
 kubernetes/base/apps/ai/n8n/db/                          — CNPG cluster + Barman backup pattern
 kubernetes/base/apps/ai/n8n-app.yaml                     — multi-source ArgoCD app with VolSync
 kubernetes/base/apps/self-hosted/kanboard/kustomization.yaml — simple VolSync app pattern
@@ -518,7 +544,7 @@ kubernetes/base/apps/self-hosted/homebox/                 — simple deployment 
 ### After each deployment step:
 
 1. **ntfy**: `curl -d "test" https://ntfy.internal/test` -> phone receives push notification
-2. **Ollama models**: `kubectl exec -n ai ollama-0 -- ollama list` shows qwen2.5:3b and nomic-embed-text
+2. **Ollama on hawk**: `ssh hawk.internal "ollama list"` shows qwen2.5:3b and nomic-embed-text; `curl http://hawk.internal:11434/api/tags` responds from K8s pod network
 3. **secondbrain-db**:
    - `kubectl get cluster -n ai secondbrain-16-db` shows 3/3 ready
    - Connect and verify: `SELECT extname FROM pg_extension WHERE extname = 'vector'` returns a row
@@ -553,8 +579,9 @@ kubernetes/base/apps/self-hosted/homebox/                 — simple deployment 
 - **Fix button re-extracts**: Reclassifying deletes the old bucket row and re-runs extraction. If the model extracts poorly, manual SQL is needed.
 - **IVFFlat index accuracy**: With few entries (<100), results may be imprecise. Skip the index until ~500 entries, or use exact search (remove the index, `<=>` still works).
 - **nomic-embed-text is English-focused**: Multilingual thoughts may embed poorly.
-- **Ollama cold start**: First inference after model unload takes ~10-15s on opi nodes. The 5m keep-alive mitigates this for burst captures.
-- **3B model extraction quality**: qwen2.5:3b may occasionally miss fields or hallucinate values. The bouncer catches low-confidence cases, but some extracted fields (e.g., `relationship`, `deadline`) may need manual correction.
+- **Ollama cold start**: First inference after model unload takes ~9s on hawk. The 5m keep-alive mitigates this for burst captures.
+- **hawk dependency**: If hawk is down, classification and daily digests stop (weekly recap still works via Claude API). hawk is always-on with auto-upgrade, so this is low risk.
+- **3B model extraction quality**: qwen2.5:3b may occasionally miss fields or hallucinate values. The bouncer catches low-confidence cases, but some extracted fields (e.g., `relationship`, `deadline`) may need manual correction. Tested: classification accuracy is good but bucket choice can be ambiguous (e.g., "ping Sarah" classified as admin vs people — the fix button handles this).
 
 ## Future Enhancements (Out of Scope)
 
