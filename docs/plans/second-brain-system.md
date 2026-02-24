@@ -275,116 +275,48 @@ ssh hawk.internal "ollama pull qwen2.5:3b && ollama pull nomic-embed-text"
 
 #### Workflow 1: Capture, Embed, Classify & Extract
 
-**Trigger:** n8n polls ntfy subscription endpoint (`GET ntfy.internal/sb-capture/json?poll=1&since=<last_id>`) on a schedule (every 30s), or uses Server-Sent Events for real-time.
+**ID:** `Sqk6V8PoUMyMDsQq`
+**Trigger:** Schedule — every 30 seconds
 
-Steps:
+**Node pipeline** (14 nodes):
 
-1. **HTTP Request node** — poll ntfy for new messages on `sb-capture` topic. Each message contains the raw thought text and an `id` field.
+1. **Schedule Trigger** (`Every 30s`) — fires every 30 seconds
+2. **HTTP Request** (`Poll ntfy sb-capture`) — `GET http://ntfy.self-hosted.svc.cluster.local/sb-capture/json?poll=1&since=30s` with `fullResponse: true` (response text lands in `.data`)
+3. **Code** (`Parse ntfy Messages`) — splits newline-delimited JSON, filters `event === 'message'`, extracts `{text, ntfy_id, timestamp, last_id}`. Returns `[]` if no messages (pipeline ends cleanly).
+4. **HTTP Request** (`Embed (Ollama)`) — POST to `http://hawk.internal:11434/api/embeddings` with `{"model": "nomic-embed-text", "prompt": "<text>"}`
+5. **PostgreSQL** (`RAG Context`) — pgvector similarity search for 5 most similar past entries. **`alwaysOutputData: true`** so the pipeline continues even when the log table is empty.
+6. **Code** (`Classify & Extract`) — builds the classification prompt (including RAG context summary) and calls Ollama directly via `this.helpers.httpRequest()`. Returns `{response: "..."}` with `pairedItem: {item: 0}` for item linking.
+7. **Code** (`Parse LLM Response`) — parses LLM JSON output, merges with upstream data (raw_text, ntfy_id, embedding), computes `needs_review = confidence < 0.7`
+8. **PostgreSQL** (`Insert Log`) — INSERT into `log` table, RETURNING `id, seq`
+9. **Switch** (`Bucket Switch`) — routes to the correct bucket INSERT based on `bucket` field
+10. **PostgreSQL** (`Insert People/Ideas/Projects/Admin`) — 4 parallel nodes, one per bucket
+11. **Code** (`Post Receipt to ntfy`) — posts structured JSON notification to ntfy root URL with proper `title`, `message`, `tags`, and `actions` (for low-confidence reviews)
 
-2. **HTTP Request node** (embed) — POST to Ollama `/api/embeddings`:
-   ```json
-   {"model": "nomic-embed-text", "prompt": "<message_text>"}
-   ```
+**Key implementation details:**
 
-3. **PostgreSQL node** (RAG context) — find 5 most similar past thoughts:
-   ```sql
-   SELECT l.bucket, l.confidence,
-          p.name, p.context,
-          i.concept,
-          pr.project_name, pr.next_action,
-          a.task
-   FROM log l
-   LEFT JOIN people p ON p.log_id = l.id
-   LEFT JOIN ideas i ON i.log_id = l.id
-   LEFT JOIN projects pr ON pr.log_id = l.id
-   LEFT JOIN admin a ON a.log_id = l.id
-   WHERE l.embedding IS NOT NULL
-   ORDER BY l.embedding <=> $1::vector
-   LIMIT 5;
-   ```
+- **Classify & Extract is a Code node, not HTTP Request.** Embedding RAG context JSON inside a template expression broke n8n's JSON validation. Using `this.helpers.httpRequest()` in a Code node avoids all expression/serialization issues.
+- **Post Receipt is a Code node, not HTTP Request.** Same reason — building structured ntfy JSON with dynamic action buttons is cleaner in code. Posts to ntfy root URL (not `/topic`) so ntfy parses the JSON body for `title`, `message`, `tags` fields.
+- **PostgreSQL queryReplacement uses single JSON parameter.** n8n's Postgres node splits `queryReplacement` values by comma, which breaks when values contain commas (raw text, embedding vectors). All INSERT nodes use `$1::jsonb` with `($1::jsonb)->>'field'` extraction to pass a single `JSON.stringify({...})` parameter. See "n8n Quirks" below.
+- **RAG Context has `alwaysOutputData: true`.** Without this, an empty query result (0 items) silently terminates the pipeline.
 
-4. **HTTP Request node** (classify + extract) — POST to Ollama `/api/generate`:
-   ```json
-   {
-     "model": "qwen2.5:3b",
-     "stream": false,
-     "format": "json",
-     "prompt": "..."
-   }
-   ```
+**Classification + extraction prompt** (same as originally planned — see below for reference):
 
-   **Classification + extraction prompt:**
-   ```
-   You are a thought classifier and extractor. Given a raw thought:
-   1. Classify it into exactly one bucket: people, ideas, projects, or admin.
-   2. Extract the structured fields for that bucket.
-   3. Rate your confidence from 0.0 to 1.0.
+```
+You are a thought classifier and extractor. Given a raw thought:
+1. Classify it into exactly one bucket: people, ideas, projects, or admin.
+2. Extract the structured fields for that bucket.
+3. Rate your confidence from 0.0 to 1.0.
 
-   Return JSON matching ONE of these schemas depending on the bucket:
+Return JSON matching ONE of these schemas depending on the bucket:
+[... people/ideas/projects/admin schemas ...]
 
-   If "people":
-   {"bucket": "people", "confidence": 0.0-1.0,
-    "name": "person's name",
-    "relationship": "how you know them (nullable)",
-    "context": "what happened or was discussed",
-    "follow_up": "next action regarding this person (nullable)"}
+Here are similar past thoughts for context:
+<RAG context JSON or "(no similar past entries)">
 
-   If "ideas":
-   {"bucket": "ideas", "confidence": 0.0-1.0,
-    "concept": "the core idea in one line",
-    "details": "elaboration or reasoning (nullable)",
-    "connections": "related ideas, projects, or people (nullable)"}
+New thought: "<message_text>"
+```
 
-   If "projects":
-   {"bucket": "projects", "confidence": 0.0-1.0,
-    "project_name": "which project",
-    "next_action": "the very next concrete step (nullable)",
-    "status": "active|blocked|someday",
-    "blockers": "what's in the way (nullable)"}
-
-   If "admin":
-   {"bucket": "admin", "confidence": 0.0-1.0,
-    "task": "what needs to be done",
-    "deadline": "when, if mentioned (nullable)",
-    "priority": "high|medium|low"}
-
-   Here are similar past thoughts for context:
-   <similar_entries_json>
-
-   New thought: "<message_text>"
-   ```
-
-5. **IF node** (bouncer) — check `confidence`:
-   - **>= 0.7**: auto-file (happy path)
-   - **< 0.7**: set `needs_review = TRUE`, publish to `sb-review` instead of `sb-digest`
-
-6. **PostgreSQL node** — INSERT into `log` table (raw_text, bucket, confidence, needs_review, embedding, source_post_id). Get the `log.id` back.
-
-7. **Switch node** — based on `bucket`, INSERT into the correct bucket table:
-   - `people` → INSERT INTO people (log_id, name, relationship, context, follow_up)
-   - `ideas` → INSERT INTO ideas (log_id, concept, details, connections)
-   - `projects` → INSERT INTO projects (log_id, project_name, next_action, status, blockers)
-   - `admin` → INSERT INTO admin (log_id, task, deadline, priority)
-
-8. **HTTP Request node** — publish receipt to ntfy:
-   - **High confidence** → POST to `ntfy.internal/sb-digest`:
-     ```
-     Title: #42 [projects] (94%)
-     Body: "Build second brain" — next: write deployment manifests
-     Tags: white_check_mark
-     ```
-   - **Low confidence** → POST to `ntfy.internal/sb-review` with action buttons:
-     ```
-     Title: #42 Needs review (42%)
-     Body: "Talk to Sam about the thing"
-     Tags: warning
-     Actions: http, People, <n8n-webhook>/sb-fix?id=42&bucket=people;
-              http, Ideas, <n8n-webhook>/sb-fix?id=42&bucket=ideas;
-              http, Projects, <n8n-webhook>/sb-fix?id=42&bucket=projects;
-              http, Admin, <n8n-webhook>/sb-fix?id=42&bucket=admin
-     ```
-
-   The receipt includes the log `seq` number and a human-readable summary of the extracted fields.
+**Bouncer behavior:** `needs_review = confidence < 0.7`. Receipts go to `sb-review` (with fix action buttons) or `sb-digest` (with summary).
 
 #### Workflow 2: Daily Morning Digest (uses Ollama)
 
@@ -503,17 +435,17 @@ Steps:
    - Created: `kubernetes/base/apps/ai/secondbrain-db-app.yaml`
    - Added to: `kubernetes/base/apps/ai/kustomization.yaml`
 
-4. **n8n workflows** — build the 4 workflows in n8n UI.
-   - Subscribe ntfy phone app to `sb-capture`, `sb-digest`, `sb-review`, `sb-daily`, `sb-weekly` topics
-   - Create PostgreSQL credential for secondbrain-16-db
-   - Build Workflow 1 (capture + embed + classify + extract + bouncer)
-   - Build Workflow 4 (fix handler webhook) — test with Workflow 1
-   - Build Workflow 2 (daily digest)
-   - Build Workflow 3 (weekly recap)
+4. **n8n workflows** — build the 4 workflows via n8n API. **DONE**
+   - Created PostgreSQL credential `SecondBrain PostgreSQL` for `secondbrain-16-db-rw.ai.svc.cluster.local`
+   - Built Workflow 1: `Sqk6V8PoUMyMDsQq` — Capture, Embed, Classify & Extract
+   - Built Workflow 4: `vs8PxIKu6zoF7Gwj` — Fix Handler (webhook)
+   - Built Workflow 2: `0B7L5ivez9AqpeXq` — Daily Morning Digest
+   - Built Workflow 3: `H06P7xS44qah9Rqp` — Weekly Sunday Recap
+   - All 4 workflows active; Workflow 1 verified end-to-end across all bucket types
 
 ## Files Created/Modified
 
-All infrastructure files are deployed. Only n8n workflows (built in the UI) remain.
+All infrastructure is deployed. n8n workflows are stored in n8n's database (not in git).
 
 ### Created:
 ```
@@ -551,14 +483,15 @@ kubernetes/base/apps/self-hosted/kustomization.yaml       — add ntfy-app.yaml
 1. **ntfy**: `curl -d "test" https://ntfy.internal/test` -> phone receives push notification **DONE**
 2. **Ollama on hawk**: `ssh hawk.internal "ollama list"` shows qwen2.5:3b and nomic-embed-text; `curl http://hawk.internal:11434/api/tags` responds from K8s pod network **DONE**
 3. **secondbrain-db**: `kubectl get cluster -n ai secondbrain-16-db` shows 3/3 ready; pgvector extension and all 5 tables present **DONE**
-4. **n8n workflows**:
-   - Publish "Had lunch with Sarah from the ML team, should follow up about the NPU project" to `sb-capture`
-     -> receipt on `sb-digest`: `#1 [people] (87%) Sarah — ML team, follow up re: NPU project`
-   - Publish "hmm maybe something about containers" to `sb-capture`
-     -> receipt on `sb-review` (low confidence) with 4 bucket action buttons
-   - Tap "Ideas" button on the review notification -> fix handler fires -> `Fixed #2 -> [ideas] (was: projects)`
-   - Trigger daily digest manually -> `sb-daily` notification with both entries
-   - Run weekly recap manually -> `sb-weekly` notification with Claude API recap
+4. **n8n workflows**: **DONE** (Workflow 1 verified, others active but untested end-to-end)
+   - Sent "Need to renew my driver's license before March 15th" -> `#1 [admin] (100%)` with task/deadline/priority extracted
+   - Sent "Had coffee with Jake yesterday, he mentioned wanting to collaborate..." (comma in text) -> `#2 [people] (100%)` with name/context/follow_up extracted
+   - Sent "I should look into building a mesh network for the backyard sensors, maybe using LoRa" -> `#3 [ideas] (100%)` with concept/details extracted
+   - Sent "The k3s cluster needs a RAM upgrade on raccoon02, it keeps OOMing" -> `#4 [admin] (100%)` with task/priority=high
+   - Sent "Talked to Maria about the garden redesign, she suggested using native plants" -> `#5 [people] (100%)`
+   - Sent "I want to try making sourdough bread this weekend" -> `#6 [ideas] (100%)`
+   - Receipts arrive on `sb-digest` with structured title/message/tags
+   - **Still to test**: low-confidence bouncer (needs_review flow), fix handler (Workflow 4), daily digest (Workflow 2), weekly recap (Workflow 3)
 
 ### End-to-end smoke test:
 
@@ -574,6 +507,24 @@ kubernetes/base/apps/self-hosted/kustomization.yaml       — add ntfy-app.yaml
    LIMIT 3;
    ```
 
+## n8n Quirks (Lessons Learned)
+
+These are bugs and workarounds discovered during Workflow 1 implementation. Document them here so future workflow edits don't reintroduce them.
+
+1. **`queryReplacement` splits by ALL commas.** n8n's Postgres node evaluates the `queryReplacement` expression as one string, then splits it by commas to produce positional parameters (`$1`, `$2`, ...). If any value contains a comma (raw text like "Had coffee with Jake**,** he mentioned..." or embedding vectors like `[0.02, 1.53, ...]`), the split misaligns all parameters. **Workaround:** Pass a single `JSON.stringify({...})` as `$1`, then extract fields in SQL with `($1::jsonb)->>'field_name'`. This avoids the comma problem entirely.
+
+2. **`alwaysOutputData` is required on Postgres nodes that may return 0 rows.** When a Postgres query returns no results, n8n produces 0 output items, which silently terminates the pipeline (downstream nodes never execute). Set `alwaysOutputData: true` on any Postgres node whose output feeds the main pipeline. The RAG Context node hit this when the log table was empty.
+
+3. **Code nodes must set `pairedItem` for downstream `$('NodeName').item` references.** When a Code node produces output items, n8n needs item-linking metadata to resolve expressions like `$('Parse ntfy Messages').item.json.text` in downstream nodes. Without `pairedItem: {item: 0}`, you get `ExpressionError: Paired item data for item from node ... is unavailable`.
+
+4. **HTTP Request `jsonBody` expressions can't embed JSON strings.** If a `jsonBody` expression includes `JSON.stringify(someObject)` inside a template string (e.g., for an LLM prompt), the resulting JSON may have unescaped quotes that fail validation with `JSON parameter needs to be valid JSON`. **Workaround:** Use a Code node with `this.helpers.httpRequest()` instead. This lets you build the request body in JavaScript where escaping is handled naturally.
+
+5. **ntfy structured JSON requires POST to root URL.** When POSTing to `ntfy.internal/topic-name`, ntfy treats the entire body as the message text. To use structured JSON fields (`title`, `message`, `tags`, `actions`), POST to the root URL `ntfy.internal/` with `topic` in the JSON body and `Content-Type: application/json`.
+
+6. **n8n API `active` is read-only on PUT.** To activate/deactivate workflows via API, use the dedicated `POST /workflows/{id}/activate` and `POST /workflows/{id}/deactivate` endpoints. The `active` field is silently ignored on PUT.
+
+7. **HTTP Request `fullResponse: true` puts data in `.data`, not `.body`.** When `fullResponse` is enabled, the response text is in `$json.data`, not `$json.body`. The statusCode and headers are at the top level.
+
 ## Known Limitations
 
 - **Fix button re-extracts**: Reclassifying deletes the old bucket row and re-runs extraction. If the model extracts poorly, manual SQL is needed.
@@ -583,6 +534,7 @@ kubernetes/base/apps/self-hosted/kustomization.yaml       — add ntfy-app.yaml
 - **hawk dependency**: If hawk is down, classification and daily digests stop (weekly recap still works via Claude API). hawk is always-on with auto-upgrade, so this is low risk.
 - **3B model extraction quality**: qwen2.5:3b may occasionally miss fields or hallucinate values. The bouncer catches low-confidence cases, but some extracted fields (e.g., `relationship`, `deadline`) may need manual correction. Tested: classification accuracy is good but bucket choice can be ambiguous (e.g., "ping Sarah" classified as admin vs people — the fix button handles this).
 - **ntfy message length**: ntfy notifications are limited to ~4096 bytes. Daily/weekly digests that exceed this will need truncation or a link to a full version.
+- **Weekly recap needs `ANTHROPIC_API_KEY`**: Workflow 3 references `$env.ANTHROPIC_API_KEY` which must be set in n8n's environment variables before the weekly recap will work.
 
 ## Future Enhancements (Out of Scope)
 
