@@ -17,6 +17,9 @@ spec:
       secretAccessKey:
         name: cnpg-garage-access-n8n
         key: aws-secret-access-key
+      region:
+        name: cnpg-garage-access-n8n
+        key: s3-region
     data:
       compression: bzip2
     wal:
