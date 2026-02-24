@@ -348,35 +348,24 @@ Originally planned for Claude API, but switched to Ollama to eliminate the API k
 
 #### Workflow 4: Fix Handler
 
+**ID:** `vs8PxIKu6zoF7Gwj`
 **Trigger:** n8n Webhook node — receives HTTP requests from ntfy action buttons.
 
 When a user taps a bucket button on a low-confidence receipt notification, ntfy sends an HTTP request to the n8n webhook with the log entry ID and the correct bucket as query parameters.
 
 **Webhook URL:** `https://n8n.internal/webhook/sb-fix?id=<log_id>&bucket=<new_bucket>`
 
-Steps:
+**Node pipeline** (12 nodes):
 
-1. **Webhook node** — receives `id` and `bucket` from ntfy action button click
-2. **PostgreSQL node** — get the log entry + raw_text by id
-3. **HTTP Request node** — POST to Ollama `/api/generate` with the raw_text and the **forced bucket**:
-   ```
-   Extract structured fields for the "<new_bucket>" bucket from this thought.
-   The bucket has already been decided — do not reclassify.
-
-   Return JSON matching the schema for <new_bucket>:
-   (... schema for that bucket only ...)
-
-   Thought: "<raw_text>"
-   ```
-4. **PostgreSQL node** — in a transaction:
-   - DELETE from old bucket table WHERE log_id = $1
-   - UPDATE log SET bucket = $2, needs_review = FALSE WHERE id = $1
-   - INSERT into new bucket table with extracted fields
-5. **HTTP Request node** — publish confirmation to `ntfy.internal/sb-digest`:
-   ```
-   Title: Fixed #42 -> [people] (was: ideas)
-   Tags: hammer_and_wrench
-   ```
+1. **Webhook** (`Fix Webhook`) — GET `/sb-fix`, reads `id` and `bucket` from query params. Uses `responseMode: responseNode` so the response is sent by the Respond OK node at the end.
+2. **PostgreSQL** (`Get Log Entry`) — `SELECT id, raw_text, bucket AS old_bucket FROM log WHERE id = $1`
+3. **Code** (`Re-Extract (Ollama)`) — builds a forced-bucket extraction prompt and calls Ollama via `this.helpers.httpRequest()`. Uses Code node (not HTTP Request) to safely embed raw_text in the prompt. Returns `{response: "..."}` with `pairedItem`.
+4. **Code** (`Parse Fix Response`) — parses LLM JSON, merges `log_id`, `new_bucket`, `old_bucket`
+5. **PostgreSQL** (`Update Log & Clear Old Bucket`) — CTE that DELETEs from all 4 bucket tables and UPDATEs `log.bucket` + `needs_review = false`. Uses `$1::jsonb` pattern.
+6. **Switch** (`New Bucket Switch`) — routes to the correct bucket INSERT
+7. **PostgreSQL** (`Insert People/Ideas/Projects/Admin (Fix)`) — 4 parallel nodes, one per bucket. All use `$1::jsonb` pattern.
+8. **Code** (`Notify Fix to ntfy`) — posts confirmation to ntfy root URL with `topic: 'sb-digest'`, title like `Fixed #6 -> [projects] (was: ideas)`, hammer_and_wrench tag
+9. **Respond to Webhook** (`Respond OK`) — returns `Fixed #<id> -> [<bucket>]` as plain text
 
 **Advantage over v2:** Instant — no 60s polling delay. The fix happens the moment the user taps the button.
 
@@ -404,7 +393,7 @@ Steps:
    - Built Workflow 4: `vs8PxIKu6zoF7Gwj` — Fix Handler (webhook)
    - Built Workflow 2: `0B7L5ivez9AqpeXq` — Daily Morning Digest
    - Built Workflow 3: `H06P7xS44qah9Rqp` — Weekly Sunday Recap
-   - Workflows 1, 2, 3 verified end-to-end; Workflow 4 (fix handler) active but untested
+   - All 4 workflows verified end-to-end
 
 ## Files Created/Modified
 
@@ -446,7 +435,7 @@ kubernetes/base/apps/self-hosted/kustomization.yaml       — add ntfy-app.yaml
 1. **ntfy**: `curl -d "test" https://ntfy.internal/test` -> phone receives push notification **DONE**
 2. **Ollama on hawk**: `ssh hawk.internal "ollama list"` shows qwen2.5:3b and nomic-embed-text; `curl http://hawk.internal:11434/api/tags` responds from K8s pod network **DONE**
 3. **secondbrain-db**: `kubectl get cluster -n ai secondbrain-16-db` shows 3/3 ready; pgvector extension and all 5 tables present **DONE**
-4. **n8n workflows**: **DONE** (Workflow 1 verified, others active but untested end-to-end)
+4. **n8n workflows**: **DONE** (all 4 workflows verified end-to-end)
    - Sent "Need to renew my driver's license before March 15th" -> `#1 [admin] (100%)` with task/deadline/priority extracted
    - Sent "Had coffee with Jake yesterday, he mentioned wanting to collaborate..." (comma in text) -> `#2 [people] (100%)` with name/context/follow_up extracted
    - Sent "I should look into building a mesh network for the backyard sensors, maybe using LoRa" -> `#3 [ideas] (100%)` with concept/details extracted
@@ -456,7 +445,8 @@ kubernetes/base/apps/self-hosted/kustomization.yaml       — add ntfy-app.yaml
    - Receipts arrive on `sb-digest` with structured title/message/tags
    - **Workflow 2 (Daily Digest)**: Triggered manually -> queried 6 entries -> Ollama generated a structured morning briefing -> posted to `sb-daily` -> marked all 6 entries `followed_up = TRUE`
    - **Workflow 3 (Weekly Recap)**: Triggered manually -> queried 6 entries -> Ollama generated a detailed weekly recap with themes, action items, and priorities -> posted to `sb-weekly`
-   - **Still to test**: low-confidence bouncer (needs_review flow), fix handler (Workflow 4)
+   - **Workflow 4 (Fix Handler)**: `curl 'https://n8n.internal/webhook/sb-fix?id=6&bucket=projects'` -> reclassified entry #6 from `ideas` to `projects` -> old ideas row deleted, new projects row created (`Make Sourdough Bread`, `next_action: Purchase ingredients...`) -> ntfy confirmation `Fixed #6 -> [projects] (was: ideas)`
+   - **Still to test**: low-confidence bouncer (needs_review flow via real low-confidence classification)
 
 ### End-to-end smoke test:
 
