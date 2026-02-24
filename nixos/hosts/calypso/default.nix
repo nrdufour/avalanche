@@ -17,6 +17,9 @@
 
     networking.hostName = "calypso";
 
+    # SecondBrain thought capture CLI
+    environment.systemPackages = [ pkgs.secondbrain ];
+
     # Allow SSH through firewall
     services.openssh.openFirewall = true;
 
