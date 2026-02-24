@@ -254,11 +254,11 @@
     "secondbrain": {
       "flake": false,
       "locked": {
-        "lastModified": 1771962415,
-        "narHash": "sha256-RmAV1Jz6ZLiBg0GpP3n/uE7Idy+mupp/SIdF6QsoUFY=",
+        "lastModified": 1771965422,
+        "narHash": "sha256-RAV5rt15moGGQBAUOgj+EMmkKv5vaN17mBmbGbKhLkU=",
         "ref": "refs/heads/main",
-        "rev": "115606286281d7b7c21004f8a884d8a9683edcdf",
-        "revCount": 9,
+        "rev": "637b709acdedac16ed19a9d5a3ef1aab5b9b26cb",
+        "revCount": 10,
         "type": "git",
         "url": "https://forge.internal/nemo/secondbrain.git"
       },
