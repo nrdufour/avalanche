@@ -18,6 +18,13 @@
     forgejo-runner-12 = final.callPackage ../pkgs/forgejo-runner-12 { };
   };
 
+  # SecondBrain thought capture service
+  secondbrain = final: prev: {
+    secondbrain = final.callPackage ../pkgs/secondbrain {
+      secondbrain-src = inputs.secondbrain;
+    };
+  };
+
   # Sentinel gateway management tool
   sentinel = final: prev: {
     sentinel = final.callPackage ../pkgs/sentinel {

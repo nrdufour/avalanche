@@ -51,6 +51,12 @@
       url = "git+https://forge.internal/nemo/sentinel.git";
       flake = false;  # Not a flake, just source
     };
+
+    # SecondBrain thought capture service
+    secondbrain = {
+      url = "git+https://forge.internal/nemo/secondbrain.git";
+      flake = false;
+    };
   };
 
   outputs = { self, nixpkgs, nixpkgs-unstable, sops-nix, ... }@inputs:

@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: secondbrain
+  namespace: ai
+  annotations:
+    cert-manager.io/cluster-issuer: ca-server-cluster-issuer
+    cert-manager.io/common-name: secondbrain.internal
+    gethomepage.dev/description: Thought Capture & Classification
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/group: AI
+    gethomepage.dev/icon: mdi-brain
+    gethomepage.dev/name: SecondBrain
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - secondbrain.internal
+      secretName: secondbrain-ing-cert
+  rules:
+    - host: secondbrain.internal
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: secondbrain
+                port:
+                  name: http

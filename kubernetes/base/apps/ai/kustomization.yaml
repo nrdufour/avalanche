@@ -4,4 +4,5 @@ kind: Kustomization
 resources:
   - n8n-app.yaml
   - ollama-app.yaml
+  - secondbrain-app.yaml
   - secondbrain-db-app.yaml

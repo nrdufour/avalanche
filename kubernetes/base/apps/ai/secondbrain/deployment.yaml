@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secondbrain
+  namespace: ai
+  labels:
+    app.kubernetes.io/name: secondbrain
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: secondbrain
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: secondbrain
+    spec:
+      containers:
+        - name: secondbrain
+          image: forge.internal/nemo/secondbrain:main
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: SB_DATABASE_HOST
+              value: "secondbrain-16-db-rw.ai.svc.cluster.local"
+            - name: SB_DATABASE_PORT
+              value: "5432"
+            - name: SB_DATABASE_NAME
+              value: "secondbrain"
+            - name: SB_DATABASE_SSLMODE
+              value: "require"
+            - name: SB_DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: secondbrain-16-db-app
+                  key: username
+            - name: SB_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: secondbrain-16-db-app
+                  key: password
+            - name: SB_OLLAMA_URL
+              value: "http://hawk.internal:11434"
+            - name: SB_NTFY_URL
+              value: "http://ntfy.self-hosted.svc.cluster.local"
+            - name: SB_NTFY_EXTERNAL_URL
+              value: "https://ntfy.internal"
+            - name: SB_SERVER_BASE_URL
+              value: "https://secondbrain.internal"
+            - name: SB_CONFIDENCE_THRESHOLD
+              value: "0.7"
+            - name: SB_DEFAULT_USER
+              value: "nemo"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 10

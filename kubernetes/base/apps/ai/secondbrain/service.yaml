@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: secondbrain
+  namespace: ai
+spec:
+  selector:
+    app.kubernetes.io/name: secondbrain
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
