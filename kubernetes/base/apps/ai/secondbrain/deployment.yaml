@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: secondbrain
-          image: forge.internal/nemo/secondbrain:main
+          image: forge.internal/nemo/secondbrain:latest
           ports:
             - containerPort: 8080
               name: http
