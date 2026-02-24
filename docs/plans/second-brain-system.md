@@ -287,7 +287,7 @@ ssh hawk.internal "ollama pull qwen2.5:3b && ollama pull nomic-embed-text"
 8. **PostgreSQL** (`Insert Log`) — INSERT into `log` table, RETURNING `id, seq`
 9. **Switch** (`Bucket Switch`) — routes to the correct bucket INSERT based on `bucket` field
 10. **PostgreSQL** (`Insert People/Ideas/Projects/Admin`) — 4 parallel nodes, one per bucket
-11. **Code** (`Post Receipt to ntfy`) — posts structured JSON notification to ntfy root URL with proper `title`, `message`, `tags`, and `actions` (for low-confidence reviews)
+11. **Code** (`Post Receipt to ntfy`) — posts structured JSON notification to ntfy root URL with proper `title`, `message`, `tags`, and `actions` (for low-confidence reviews). Action buttons show only the 3 alternative buckets (ntfy's max) — the current bucket is excluded.
 
 **Key implementation details:**
 
@@ -446,7 +446,7 @@ kubernetes/base/apps/self-hosted/kustomization.yaml       — add ntfy-app.yaml
    - **Workflow 2 (Daily Digest)**: Triggered manually -> queried 6 entries -> Ollama generated a structured morning briefing -> posted to `sb-daily` -> marked all 6 entries `followed_up = TRUE`
    - **Workflow 3 (Weekly Recap)**: Triggered manually -> queried 6 entries -> Ollama generated a detailed weekly recap with themes, action items, and priorities -> posted to `sb-weekly`
    - **Workflow 4 (Fix Handler)**: `curl 'https://n8n.internal/webhook/sb-fix?id=6&bucket=projects'` -> reclassified entry #6 from `ideas` to `projects` -> old ideas row deleted, new projects row created (`Make Sourdough Bread`, `next_action: Purchase ingredients...`) -> ntfy confirmation `Fixed #6 -> [projects] (was: ideas)`
-   - **Still to test**: low-confidence bouncer (needs_review flow via real low-confidence classification)
+   - **Bouncer flow (needs_review)**: Temporarily lowered confidence threshold to 0.95 -> sent "Planning a weekend trip, should probably check the car oil first" -> classified as `ideas` (80%) -> `needs_review = true` -> receipt posted to `sb-review` with 3 action buttons (People, Projects, Admin — current bucket excluded) -> tapped Admin -> WF4 reclassified to `admin` with `task: "Check car oil"` -> confirmation posted to `sb-digest`
 
 ### End-to-end smoke test:
 
@@ -482,6 +482,8 @@ These are bugs and workarounds discovered during Workflow 1 implementation. Docu
 
 8. **Cron schedule changes require deactivate/activate cycle.** After updating a workflow's cron expression via API PUT, the internal scheduler doesn't pick up the change. You must `POST /workflows/{id}/deactivate` then `POST /workflows/{id}/activate` for the new cron to take effect.
 
+9. **ntfy allows max 3 action buttons.** Sending more than 3 returns HTTP 400 (`only 3 actions allowed`). The fix receipt works around this by excluding the current bucket from the button list, leaving exactly 3 alternatives.
+
 ## Known Limitations
 
 - **Fix button re-extracts**: Reclassifying deletes the old bucket row and re-runs extraction. If the model extracts poorly, manual SQL is needed.
@@ -490,6 +492,7 @@ These are bugs and workarounds discovered during Workflow 1 implementation. Docu
 - **Ollama cold start**: First inference after model unload takes ~9s on hawk. The 5m keep-alive mitigates this for burst captures.
 - **hawk dependency**: If hawk is down, all LLM features stop (classification, daily digest, weekly recap). hawk is always-on with auto-upgrade, so this is low risk.
 - **3B model extraction quality**: qwen2.5:3b may occasionally miss fields or hallucinate values. The bouncer catches low-confidence cases, but some extracted fields (e.g., `relationship`, `deadline`) may need manual correction. Tested: classification accuracy is good but bucket choice can be ambiguous (e.g., "ping Sarah" classified as admin vs people — the fix button handles this).
+- **qwen2.5:3b is overconfident**: In testing, the model returned confidence 0.8-1.0 for every input including single-word messages like "stuff". The 0.7 bouncer threshold may rarely trigger in practice. Consider lowering the threshold or switching to a model that self-calibrates better.
 - **ntfy message length**: ntfy notifications are limited to ~4096 bytes. Daily/weekly digests that exceed this will need truncation or a link to a full version.
 
 ## Future Enhancements (Out of Scope)
