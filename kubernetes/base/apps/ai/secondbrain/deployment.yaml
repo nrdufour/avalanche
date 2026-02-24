@@ -52,6 +52,20 @@ spec:
               value: "0.7"
             - name: SB_DEFAULT_USER
               value: "nemo"
+            - name: SB_AUTH_ENABLED
+              value: "false"
+            - name: SB_AUTH_ISSUER
+              value: "https://auth.internal/oauth2/openid/secondbrain"
+            - name: SB_AUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: secondbrain-oidc
+                  key: client-id
+            - name: SB_AUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: secondbrain-oidc
+                  key: client-secret
           resources:
             requests:
               cpu: 50m
