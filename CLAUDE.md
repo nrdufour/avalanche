@@ -149,6 +149,35 @@ See `docs/README.md` for the full documentation index. Key areas:
 
 All administration is CLI-based via `kanidm` command on mysecrets.internal.
 
+### SecondBrain OAuth2 Client
+
+SecondBrain uses a **public OAuth2 client** with PKCE on Kanidm (no client_secret). This enables the CLI to use Authorization Code Flow with ephemeral localhost redirects.
+
+**Kanidm setup** (run on mysecrets.internal as idm_admin):
+```bash
+kanidm system oauth2 create-public secondbrain secondbrain https://secondbrain.internal
+kanidm system oauth2 enable-localhost-redirects secondbrain
+kanidm system oauth2 update-scope-map secondbrain idm_all_persons openid profile email
+```
+
+**Server config** (K8s deployment env vars):
+- `SB_AUTH_ENABLED=true`
+- `SB_AUTH_ISSUER=https://auth.internal/oauth2/openid/secondbrain`
+- `SB_AUTH_CLIENT_ID=secondbrain`
+
+**CLI config** (`~/.config/secondbrain/config.yaml`):
+```yaml
+server:
+  url: https://secondbrain.internal
+auth:
+  issuer: https://auth.internal/oauth2/openid/secondbrain
+  client_id: secondbrain
+```
+
+**Usage**: `sb login` opens browser to Kanidm, authenticates via PKCE, caches token at `~/.config/secondbrain/token.json`. All subsequent `sb` commands send the Bearer token automatically. API keys (`sb apikey create <name>`) are available for programmatic access via `X-API-Key` header.
+
+**Public routes** (no auth required): `/healthz`, `/readyz`, `/sb-fix`
+
 ## Important Patterns
 
 ### Adding a New NixOS Host
