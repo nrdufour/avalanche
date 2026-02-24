@@ -1,12 +1,13 @@
-# Second Brain System Plan (v2)
+# Second Brain System Plan (v3)
 
 ## Context
 
-Revision of the original second brain plan (Forgejo issue #100), incorporating:
+Revision of the second brain plan (Forgejo issue #100), incorporating:
 
 1. **Energy-efficient local AI**: Replace most Claude API calls with local Ollama inference (qwen2.5:3b on hawk). Add pgvector for semantic search (RAG). Keep Claude API only for the weekly recap.
 2. **GRAB system resilience patterns** ([Nate Jones](https://natesnewsletter.substack.com/p/grab-the-system-that-closes-open)): Confidence scoring (receipt), quality gate (bouncer), and fix button — the trust-building feedback loop that prevents second brain systems from dying.
 3. **Per-bucket structured extraction**: Each bucket has its own schema. The LLM doesn't just classify — it extracts the pertinent fields for that bucket type. A `log` table keeps the full raw record with capture time and sequence.
+4. **ntfy as capture conduit**: Mattermost was dropped (official image is amd64-only, incompatible with the all-ARM K8s cluster). ntfy handles both capture input and notification output — simpler, already deployed, and has native action buttons for the fix workflow.
 
 ## Architecture
 
@@ -25,8 +26,8 @@ Revision of the original second brain plan (Forgejo issue #100), incorporating:
                                               └─────────┼────────────────────┘
                                                         │
 ┌─────────────┐     ┌──────────────────┐     ┌──────────┼────────────────────────────────┐
-│ Phone/Desktop│────▶│ Mattermost       │────▶│ n8n (4 workflows)                         │
-│ (capture)    │     │ #capture channel │     │          │                                │
+│ Phone/Desktop│────▶│ ntfy             │────▶│ n8n (4 workflows)                         │
+│ (capture)    │     │ sb-capture topic │     │          │                                │
 └─────────────┘     └──────────────────┘     │  classify/embed/summarize                 │
                                               │          │     ┌────────────────────┐      │
                                               │          └────▶│ pgvector           │      │
@@ -40,13 +41,13 @@ Revision of the original second brain plan (Forgejo issue #100), incorporating:
                                                          │          │
                               ┌───────────────────────────┤          │
                               ▼                          ▼          ▼
-                     ┌────────────────┐   ┌─────────────────┐   ┌───────────────┐
-                     │ PostgreSQL     │   │ Mattermost      │   │ ntfy          │
-                     │ + pgvector     │   │ #digest channel  │   │ (push notify) │
-                     │                │   │ #review channel  │   │ daily/weekly  │
-                     │ log (master)   │   │ (receipts, fix)  │   └───────────────┘
-                     │ people         │   └─────────────────┘
-                     │ ideas          │
+                     ┌────────────────┐          ┌───────────────────────┐
+                     │ PostgreSQL     │          │ ntfy                  │
+                     │ + pgvector     │          │ sb-digest  (receipts) │
+                     │                │          │ sb-review  (low conf) │
+                     │ log (master)   │          │ sb-daily   (digest)   │
+                     │ people         │          │ sb-weekly  (recap)    │
+                     │ ideas          │          └───────────────────────┘
                      │ projects       │
                      │ admin          │
                      └────────────────┘
@@ -54,44 +55,26 @@ Revision of the original second brain plan (Forgejo issue #100), incorporating:
 
 ## What Changes vs Original Plan
 
-| Area | Original | Revised |
-|---|---|---|
-| Classification | Claude API | Ollama qwen2.5:3b (on hawk) |
-| Daily digest | Claude API | Ollama qwen2.5:3b (on hawk) |
-| Weekly recap | Claude API | Claude API (kept) |
-| Embeddings | Not planned | nomic-embed-text via Ollama |
-| Vector search | "Future enhancement" | Core — pgvector in secondbrain-db |
-| Context retrieval | Not planned | RAG — retrieve similar thoughts before classify |
-| Confidence scoring | Not planned | Core — JSON output includes confidence 0.0-1.0 |
-| Quality gate | Not planned | Core — low-confidence entries flagged for review |
-| Fix button | "Future enhancement" | Core — emoji reactions trigger reclassification |
-| DB schema | 1 flat table | 5 tables: log + 4 per-bucket with extracted fields |
-| Monthly API cost | ~$0.60 | ~$0.02 (weekly recap only) |
-| Workflows | 3 | 4 (added fix handler) |
+| Area | Original | v2 | v3 (current) |
+|---|---|---|---|
+| Capture conduit | Mattermost | Mattermost | **ntfy** (arm64 compatible) |
+| Classification | Claude API | Ollama qwen2.5:3b | Ollama qwen2.5:3b |
+| Daily digest | Claude API | Ollama qwen2.5:3b | Ollama qwen2.5:3b |
+| Weekly recap | Claude API | Claude API | Claude API |
+| Embeddings | Not planned | nomic-embed-text | nomic-embed-text |
+| Vector search | "Future enhancement" | pgvector | pgvector |
+| Confidence scoring | Not planned | Core | Core |
+| Quality gate | Not planned | Core | Core |
+| Fix button | "Future enhancement" | Emoji reactions | **ntfy action buttons** |
+| DB schema | 1 flat table | 5 tables | 5 tables |
+| Monthly API cost | ~$0.60 | ~$0.02 | ~$0.02 |
+| Workflows | 3 | 4 | 4 |
 
 ## Components
 
-### 1. Mattermost (Capture Conduit)
+### 1. ntfy (Capture Conduit + Notifications)
 
-Self-hosted team chat for capture and bot interaction.
-
-- Location: `kubernetes/base/apps/self-hosted/mattermost/`
-- Helm chart: `mattermost/mattermost-team-edition`
-- Database: CNPG `mattermost-16-db` (3 replicas, opi5+ affinity)
-- Storage: Longhorn PVC (VolSync backup)
-- Ingress: `mattermost.internal`
-- Namespace: `self-hosted`
-- Resources: ~512MB-1GB RAM, 200m-500m CPU
-
-**Post-deploy setup:**
-- Create bot account `secondbrain-bot`
-- Create team + channels: `#capture`, `#digest`, `#review`
-- Outgoing webhook on `#capture` -> n8n
-- Custom emoji for buckets: `:people:`, `:ideas:`, `:projects:`, `:admin:` (for fix button)
-
-### 2. ntfy (Push Notifications)
-
-Self-hosted push notification server.
+ntfy handles both sides: capture input (user publishes thoughts) and output (receipts, digests, fix buttons). Already deployed in step 1.
 
 - Location: `kubernetes/base/apps/self-hosted/ntfy/`
 - Image: `binwiederhier/ntfy`
@@ -99,9 +82,33 @@ Self-hosted push notification server.
 - Storage: 1Gi PVC (Longhorn, VolSync backup)
 - Ingress: `ntfy.internal`
 - Namespace: `self-hosted`
-- Topics: `secondbrain-daily`, `secondbrain-weekly`
 
-### 3. Second-Brain Database (CNPG PostgreSQL + pgvector)
+**Topics:**
+| Topic | Purpose | Direction |
+|---|---|---|
+| `sb-capture` | User posts raw thoughts | Input |
+| `sb-digest` | Receipts for high-confidence entries | Output |
+| `sb-review` | Low-confidence entries with fix buttons | Output |
+| `sb-daily` | Daily morning digest | Output |
+| `sb-weekly` | Weekly Sunday recap | Output |
+
+**Capture flow:** User sends a thought via the ntfy phone app (or `curl -d "thought" ntfy.internal/sb-capture`). n8n subscribes to `sb-capture` via ntfy's JSON subscription API (`/sb-capture/json`), processes the thought, and publishes the receipt back to `sb-digest` or `sb-review`.
+
+**Fix button flow:** Low-confidence receipts posted to `sb-review` include ntfy action buttons (one per bucket). Tapping a button sends an HTTP request to an n8n webhook with the log entry ID and the correct bucket. ntfy's [action buttons](https://docs.ntfy.sh/publish/#action-buttons) support `http` actions natively.
+
+Example receipt with fix buttons:
+```bash
+curl -H "Title: #42 Needs review (38%)" \
+     -H "Tags: warning" \
+     -H "Actions: http, People, https://n8n.internal/webhook/sb-fix?id=42&bucket=people; \
+                  http, Ideas, https://n8n.internal/webhook/sb-fix?id=42&bucket=ideas; \
+                  http, Projects, https://n8n.internal/webhook/sb-fix?id=42&bucket=projects; \
+                  http, Admin, https://n8n.internal/webhook/sb-fix?id=42&bucket=admin" \
+     -d "Talk to Sam about the thing" \
+     ntfy.internal/sb-review
+```
+
+### 2. Second-Brain Database (CNPG PostgreSQL + pgvector)
 
 Dedicated PostgreSQL cluster with per-bucket structured tables. The `log` table is the master record of every capture. Each bucket table stores only the fields pertinent to that bucket type, linked back to the log entry.
 
@@ -124,7 +131,7 @@ CREATE TABLE log (
     confidence      REAL NOT NULL DEFAULT 0.0,     -- classification confidence 0.0-1.0
     needs_review    BOOLEAN DEFAULT FALSE,         -- bouncer flag
     embedding       vector(768),                   -- nomic-embed-text vector
-    source_post_id  VARCHAR(100),                  -- Mattermost post ID (for fix button)
+    source_post_id  VARCHAR(100),                  -- ntfy message ID (for deduplication)
     created_at      TIMESTAMPTZ DEFAULT NOW(),     -- capture timestamp
     followed_up     BOOLEAN DEFAULT FALSE,
     follow_up_at    TIMESTAMPTZ
@@ -218,7 +225,7 @@ CREATE TABLE admin (
 
 **ArgoCD app:** `secondbrain-db-app.yaml` in `kubernetes/base/apps/ai/`
 
-### 4. Ollama on hawk (NixOS Service)
+### 3. Ollama on hawk (NixOS Service)
 
 Ollama runs on hawk (Beelink SER5 Max, AMD Ryzen 7 6800U, 24GB RAM) as a NixOS service, **not** in the K8s cluster. Testing showed qwen2.5:3b runs at ~7s/thought on hawk vs ~8min on the Orange Pi ARM nodes — a 65x speedup that makes the system practical.
 
@@ -258,7 +265,7 @@ ssh hawk.internal "ollama pull qwen2.5:3b && ollama pull nomic-embed-text"
 
 **Endpoint from n8n:** `http://hawk.internal:11434` (via Tailscale DNS, accessible from K8s pods).
 
-### 5. n8n Workflows (The Glue)
+### 4. n8n Workflows (The Glue)
 
 4 workflows. LLM calls go to Ollama (local) except the weekly recap.
 
@@ -268,11 +275,11 @@ ssh hawk.internal "ollama pull qwen2.5:3b && ollama pull nomic-embed-text"
 
 #### Workflow 1: Capture, Embed, Classify & Extract
 
-**Trigger:** Mattermost outgoing webhook (message in `#capture`)
+**Trigger:** n8n polls ntfy subscription endpoint (`GET ntfy.internal/sb-capture/json?poll=1&since=<last_id>`) on a schedule (every 30s), or uses Server-Sent Events for real-time.
 
 Steps:
 
-1. **Webhook node** — receives Mattermost payload (text, post_id, timestamp)
+1. **HTTP Request node** — poll ntfy for new messages on `sb-capture` topic. Each message contains the raw thought text and an `id` field.
 
 2. **HTTP Request node** (embed) — POST to Ollama `/api/embeddings`:
    ```json
@@ -349,7 +356,7 @@ Steps:
 
 5. **IF node** (bouncer) — check `confidence`:
    - **>= 0.7**: auto-file (happy path)
-   - **< 0.7**: set `needs_review = TRUE`, post to `#review` instead of `#digest`
+   - **< 0.7**: set `needs_review = TRUE`, publish to `sb-review` instead of `sb-digest`
 
 6. **PostgreSQL node** — INSERT into `log` table (raw_text, bucket, confidence, needs_review, embedding, source_post_id). Get the `log.id` back.
 
@@ -359,9 +366,23 @@ Steps:
    - `projects` → INSERT INTO projects (log_id, project_name, next_action, status, blockers)
    - `admin` → INSERT INTO admin (log_id, task, deadline, priority)
 
-8. **Mattermost node** — post receipt to `#digest` or `#review`:
-   - High confidence: `#42 [projects] (94%) "Build second brain" — next: write deployment manifests`
-   - Low confidence: `#42 Needs review (42%) "Talk to Sam about the thing" — :people: :ideas: :projects: :admin:`
+8. **HTTP Request node** — publish receipt to ntfy:
+   - **High confidence** → POST to `ntfy.internal/sb-digest`:
+     ```
+     Title: #42 [projects] (94%)
+     Body: "Build second brain" — next: write deployment manifests
+     Tags: white_check_mark
+     ```
+   - **Low confidence** → POST to `ntfy.internal/sb-review` with action buttons:
+     ```
+     Title: #42 Needs review (42%)
+     Body: "Talk to Sam about the thing"
+     Tags: warning
+     Actions: http, People, <n8n-webhook>/sb-fix?id=42&bucket=people;
+              http, Ideas, <n8n-webhook>/sb-fix?id=42&bucket=ideas;
+              http, Projects, <n8n-webhook>/sb-fix?id=42&bucket=projects;
+              http, Admin, <n8n-webhook>/sb-fix?id=42&bucket=admin
+     ```
 
    The receipt includes the log `seq` number and a human-readable summary of the extracted fields.
 
@@ -400,9 +421,8 @@ Steps:
 
    <entries JSON>
    ```
-5. **HTTP Request node** — POST to `ntfy.internal/secondbrain-daily` (priority: 3)
-6. **Mattermost node** — post full digest to `#digest`
-7. **PostgreSQL node** — UPDATE log SET `followed_up = TRUE, follow_up_at = NOW()`
+5. **HTTP Request node** — POST to `ntfy.internal/sb-daily` (priority: 3, title: "Morning Briefing")
+6. **PostgreSQL node** — UPDATE log SET `followed_up = TRUE, follow_up_at = NOW()`
 
 #### Workflow 3: Weekly Sunday Recap (Claude API)
 
@@ -429,23 +449,21 @@ Steps:
 
    <entries JSON>
    ```
-5. **HTTP Request node** — POST to `ntfy.internal/secondbrain-weekly` (priority: 4)
-6. **Mattermost node** — post full recap to `#digest`
+5. **HTTP Request node** — POST to `ntfy.internal/sb-weekly` (priority: 4, title: "Weekly Recap")
 
 #### Workflow 4: Fix Handler
 
-**Trigger:** Cron — every 60 seconds (polls Mattermost API for new emoji reactions)
+**Trigger:** n8n Webhook node — receives HTTP requests from ntfy action buttons.
 
-Mattermost outgoing webhooks don't fire on emoji reactions. This workflow polls for bucket emoji reactions on receipt messages.
+When a user taps a bucket button on a low-confidence receipt notification, ntfy sends an HTTP request to the n8n webhook with the log entry ID and the correct bucket as query parameters.
+
+**Webhook URL:** `https://n8n.internal/webhook/sb-fix?id=<log_id>&bucket=<new_bucket>`
 
 Steps:
 
-1. **Schedule Trigger node** — every 60s
-2. **HTTP Request node** — GET recent posts with reactions from `#review` and `#digest` via Mattermost API
-3. **IF node** — filter for bucket emoji reactions (`:people:`, `:ideas:`, `:projects:`, `:admin:`)
-4. **Code node** — extract log `seq` from the post text, map emoji to new bucket name
-5. **PostgreSQL node** — get the log entry + raw_text by seq number
-6. **HTTP Request node** — POST to Ollama `/api/generate` with the raw_text and the **forced bucket**:
+1. **Webhook node** — receives `id` and `bucket` from ntfy action button click
+2. **PostgreSQL node** — get the log entry + raw_text by id
+3. **HTTP Request node** — POST to Ollama `/api/generate` with the raw_text and the **forced bucket**:
    ```
    Extract structured fields for the "<new_bucket>" bucket from this thought.
    The bucket has already been decided — do not reclassify.
@@ -455,49 +473,49 @@ Steps:
 
    Thought: "<raw_text>"
    ```
-7. **PostgreSQL node** — in a transaction:
+4. **PostgreSQL node** — in a transaction:
    - DELETE from old bucket table WHERE log_id = $1
    - UPDATE log SET bucket = $2, needs_review = FALSE WHERE id = $1
    - INSERT into new bucket table with extracted fields
-8. **Mattermost node** — reply in thread: `Fixed #42 -> [people] (was: ideas)`
+5. **HTTP Request node** — publish confirmation to `ntfy.internal/sb-digest`:
+   ```
+   Title: Fixed #42 -> [people] (was: ideas)
+   Tags: hammer_and_wrench
+   ```
 
-**Note:** Polling every 60s is simple and reliable. A future improvement could use Mattermost's WebSocket API for instant reactions.
+**Advantage over v2:** Instant — no 60s polling delay. The fix happens the moment the user taps the button.
 
 ## Deployment Order
 
-1. **ntfy** — simplest, no dependencies. Test push notifications to phone.
-   - Create: `kubernetes/base/apps/self-hosted/ntfy/` (deployment, service, ingress, kustomization)
-   - Create: `kubernetes/base/apps/self-hosted/ntfy-app.yaml`
-   - Add to: `kubernetes/base/apps/self-hosted/kustomization.yaml`
+1. **ntfy** — simplest, no dependencies. Test push notifications to phone. **DONE**
+   - Created: `kubernetes/base/apps/self-hosted/ntfy/` (deployment, service, ingress, kustomization)
+   - Created: `kubernetes/base/apps/self-hosted/ntfy-app.yaml`
+   - Added to: `kubernetes/base/apps/self-hosted/kustomization.yaml`
 
-2. **Ollama on hawk** — deploy NixOS service, pull models.
-   - Create: `nixos/hosts/hawk/ollama.nix`
-   - Modify: `nixos/hosts/hawk/default.nix` (add import)
-   - Deploy: `just nix deploy hawk`
-   - Pull models: `ssh hawk.internal "ollama pull qwen2.5:3b && ollama pull nomic-embed-text"`
+2. **Ollama on hawk** — deploy NixOS service, pull models. **DONE**
+   - Created: `nixos/hosts/hawk/ollama.nix`
+   - Modified: `nixos/hosts/hawk/default.nix` (add import)
+   - Deployed: `just nix deploy hawk`
+   - Models pulled: qwen2.5:3b, nomic-embed-text
 
-3. **secondbrain-db** — CNPG cluster with pgvector + full schema.
-   - Create: `kubernetes/base/apps/ai/secondbrain-db/` (full db/ subdirectory)
-   - Create: `kubernetes/base/apps/ai/secondbrain-db-app.yaml`
-   - Add to: `kubernetes/base/apps/ai/kustomization.yaml`
-   - Create Bitwarden items for Garage S3 access (or reuse existing key)
+3. **secondbrain-db** — CNPG cluster with pgvector + full schema. **DONE**
+   - Created: `kubernetes/base/apps/ai/secondbrain-db/` (full db/ subdirectory)
+   - Created: `kubernetes/base/apps/ai/secondbrain-db-app.yaml`
+   - Added to: `kubernetes/base/apps/ai/kustomization.yaml`
 
-4. **Mattermost** — deploy, create bot, channels, webhooks, custom emoji.
-   - Create: `kubernetes/base/apps/self-hosted/mattermost/` (helm values, db, ingress)
-   - Create: `kubernetes/base/apps/self-hosted/mattermost-app.yaml`
-   - Add to: `kubernetes/base/apps/self-hosted/kustomization.yaml`
-   - Manual post-deploy: bot account, channels, webhooks, emoji
-
-5. **n8n workflows** — build the 4 workflows in n8n UI.
+4. **n8n workflows** — build the 4 workflows in n8n UI.
+   - Subscribe ntfy phone app to `sb-capture`, `sb-digest`, `sb-review`, `sb-daily`, `sb-weekly` topics
    - Create PostgreSQL credential for secondbrain-16-db
    - Build Workflow 1 (capture + embed + classify + extract + bouncer)
-   - Build Workflow 4 (fix handler) — test with Workflow 1
+   - Build Workflow 4 (fix handler webhook) — test with Workflow 1
    - Build Workflow 2 (daily digest)
    - Build Workflow 3 (weekly recap)
 
-## Files to Create/Modify
+## Files Created/Modified
 
-### New files:
+All infrastructure files are deployed. Only n8n workflows (built in the UI) remain.
+
+### Created:
 ```
 nixos/hosts/hawk/ollama.nix                              — Ollama NixOS service config
 
@@ -517,53 +535,36 @@ kubernetes/base/apps/ai/secondbrain-db/
   db/kustomization.yaml
   kustomization.yaml
 kubernetes/base/apps/ai/secondbrain-db-app.yaml
-
-kubernetes/base/apps/self-hosted/mattermost/
-  (helm values, db cluster, ingress — TBD during implementation)
-kubernetes/base/apps/self-hosted/mattermost-app.yaml
 ```
 
-### Modified files:
+### Modified:
 ```
 nixos/hosts/hawk/default.nix                             — add ./ollama.nix import
 kubernetes/base/apps/ai/kustomization.yaml               — add secondbrain-db-app.yaml
-kubernetes/base/apps/self-hosted/kustomization.yaml       — add ntfy-app.yaml, mattermost-app.yaml
-```
-
-### Key pattern files to copy from:
-```
-nixos/personalities/development/ai.nix                   — Ollama NixOS service pattern (calypso/CUDA)
-kubernetes/base/apps/ai/n8n/db/                          — CNPG cluster + Barman backup pattern
-kubernetes/base/apps/ai/n8n-app.yaml                     — multi-source ArgoCD app with VolSync
-kubernetes/base/apps/self-hosted/kanboard/kustomization.yaml — simple VolSync app pattern
-kubernetes/base/apps/self-hosted/homebox/                 — simple deployment pattern
+kubernetes/base/apps/self-hosted/kustomization.yaml       — add ntfy-app.yaml
 ```
 
 ## Verification
 
 ### After each deployment step:
 
-1. **ntfy**: `curl -d "test" https://ntfy.internal/test` -> phone receives push notification
-2. **Ollama on hawk**: `ssh hawk.internal "ollama list"` shows qwen2.5:3b and nomic-embed-text; `curl http://hawk.internal:11434/api/tags` responds from K8s pod network
-3. **secondbrain-db**:
-   - `kubectl get cluster -n ai secondbrain-16-db` shows 3/3 ready
-   - Connect and verify: `SELECT extname FROM pg_extension WHERE extname = 'vector'` returns a row
-   - Verify all 5 tables exist: `\dt` shows log, people, ideas, projects, admin
-4. **Mattermost**: browse to `mattermost.internal`, verify #capture, #digest, #review channels
-5. **n8n workflows**:
-   - Post "Had lunch with Sarah from the ML team, should follow up about the NPU project" in #capture
-     -> receipt in #digest: `#1 [people] (87%) Sarah — ML team, follow up re: NPU project`
-   - Post "hmm maybe something about containers" in #capture
-     -> receipt in #review (low confidence): `#2 Needs review (38%) — :people: :ideas: :projects: :admin:`
-   - React with `:ideas:` on the review post -> fix handler fires -> `Fixed #2 -> [ideas] (was: projects)`
-   - Trigger daily digest manually -> includes both entries with extracted details
-   - Run weekly recap manually -> Claude API produces structured recap
+1. **ntfy**: `curl -d "test" https://ntfy.internal/test` -> phone receives push notification **DONE**
+2. **Ollama on hawk**: `ssh hawk.internal "ollama list"` shows qwen2.5:3b and nomic-embed-text; `curl http://hawk.internal:11434/api/tags` responds from K8s pod network **DONE**
+3. **secondbrain-db**: `kubectl get cluster -n ai secondbrain-16-db` shows 3/3 ready; pgvector extension and all 5 tables present **DONE**
+4. **n8n workflows**:
+   - Publish "Had lunch with Sarah from the ML team, should follow up about the NPU project" to `sb-capture`
+     -> receipt on `sb-digest`: `#1 [people] (87%) Sarah — ML team, follow up re: NPU project`
+   - Publish "hmm maybe something about containers" to `sb-capture`
+     -> receipt on `sb-review` (low confidence) with 4 bucket action buttons
+   - Tap "Ideas" button on the review notification -> fix handler fires -> `Fixed #2 -> [ideas] (was: projects)`
+   - Trigger daily digest manually -> `sb-daily` notification with both entries
+   - Run weekly recap manually -> `sb-weekly` notification with Claude API recap
 
 ### End-to-end smoke test:
 
-1. Post 5 thoughts covering all 4 buckets
-2. Verify receipts show correct extracted fields per bucket
-3. Post 1 ambiguous thought -> lands in #review -> fix it with emoji
+1. Publish 5 thoughts to `sb-capture` covering all 4 buckets
+2. Verify `sb-digest` receipts show correct extracted fields per bucket
+3. Publish 1 ambiguous thought -> lands on `sb-review` -> fix it with action button
 4. Verify DB: each bucket table has the correct rows with extracted fields
 5. Query pgvector similarity:
    ```sql
@@ -575,20 +576,19 @@ kubernetes/base/apps/self-hosted/homebox/                 — simple deployment 
 
 ## Known Limitations
 
-- **Mattermost reaction polling**: 60s delay between emoji reaction and fix. Could improve with WebSocket listener later.
 - **Fix button re-extracts**: Reclassifying deletes the old bucket row and re-runs extraction. If the model extracts poorly, manual SQL is needed.
 - **IVFFlat index accuracy**: With few entries (<100), results may be imprecise. Skip the index until ~500 entries, or use exact search (remove the index, `<=>` still works).
 - **nomic-embed-text is English-focused**: Multilingual thoughts may embed poorly.
 - **Ollama cold start**: First inference after model unload takes ~9s on hawk. The 5m keep-alive mitigates this for burst captures.
 - **hawk dependency**: If hawk is down, classification and daily digests stop (weekly recap still works via Claude API). hawk is always-on with auto-upgrade, so this is low risk.
 - **3B model extraction quality**: qwen2.5:3b may occasionally miss fields or hallucinate values. The bouncer catches low-confidence cases, but some extracted fields (e.g., `relationship`, `deadline`) may need manual correction. Tested: classification accuracy is good but bucket choice can be ambiguous (e.g., "ping Sarah" classified as admin vs people — the fix button handles this).
+- **ntfy message length**: ntfy notifications are limited to ~4096 bytes. Daily/weekly digests that exceed this will need truncation or a link to a full version.
 
 ## Future Enhancements (Out of Scope)
 
 - Kanboard integration (auto-create cards for `projects` bucket items)
 - Wiki.js integration (auto-create pages for `ideas` bucket)
-- Mattermost WebSocket listener for instant fix reactions
 - Semantic search UI (web page to query "thoughts like X")
 - Multi-model routing (use NPU TFLite for embedding instead of Ollama)
 - Spaced repetition (resurface old ideas on a schedule)
-- Per-bucket views in Mattermost (slash commands like `/people` to list recent entries)
+- Chat-based capture UI (if a proper arm64-compatible chat platform emerges)
