@@ -14,6 +14,9 @@ spec:
       targetRevision: 6.6.92
       helm:
         valuesObject:
+          image:
+            repository: ghcr.io/supersunho/docker-mattermost/mattermost
+            tag: v11.4.0-team
           mysql:
             enabled: false
           externalDB:
