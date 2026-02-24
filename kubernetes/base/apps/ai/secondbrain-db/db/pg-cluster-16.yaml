@@ -40,62 +40,44 @@ spec:
       owner: secondbrain
       postInitSQL:
         - CREATE EXTENSION IF NOT EXISTS vector
-        - |
+      postInitApplicationSQL:
+        - >-
           CREATE TABLE log (
-              id              SERIAL PRIMARY KEY,
-              seq             SERIAL,
-              raw_text        TEXT NOT NULL,
-              bucket          VARCHAR(20) NOT NULL CHECK (bucket IN ('people', 'ideas', 'projects', 'admin')),
-              confidence      REAL NOT NULL DEFAULT 0.0,
-              needs_review    BOOLEAN DEFAULT FALSE,
-              embedding       vector(768),
-              source_post_id  VARCHAR(100),
-              created_at      TIMESTAMPTZ DEFAULT NOW(),
-              followed_up     BOOLEAN DEFAULT FALSE,
-              follow_up_at    TIMESTAMPTZ
-          )
+          id SERIAL PRIMARY KEY, seq SERIAL, raw_text TEXT NOT NULL,
+          bucket VARCHAR(20) NOT NULL CHECK (bucket IN ('people','ideas','projects','admin')),
+          confidence REAL NOT NULL DEFAULT 0.0, needs_review BOOLEAN DEFAULT FALSE,
+          embedding vector(768), source_post_id VARCHAR(100),
+          created_at TIMESTAMPTZ DEFAULT NOW(), followed_up BOOLEAN DEFAULT FALSE,
+          follow_up_at TIMESTAMPTZ)
         - CREATE INDEX idx_log_bucket ON log(bucket)
         - CREATE INDEX idx_log_created ON log(created_at)
         - CREATE INDEX idx_log_followup ON log(followed_up, bucket)
         - CREATE INDEX idx_log_review ON log(needs_review) WHERE needs_review = TRUE
         - CREATE INDEX idx_log_embedding ON log USING ivfflat (embedding vector_cosine_ops) WITH (lists = 20)
-        - |
+        - >-
           CREATE TABLE people (
-              id              SERIAL PRIMARY KEY,
-              log_id          INTEGER NOT NULL REFERENCES log(id) ON DELETE CASCADE,
-              name            TEXT NOT NULL,
-              relationship    TEXT,
-              context         TEXT,
-              follow_up       TEXT,
-              UNIQUE(log_id)
-          )
-        - |
+          id SERIAL PRIMARY KEY,
+          log_id INTEGER NOT NULL REFERENCES log(id) ON DELETE CASCADE,
+          name TEXT NOT NULL, relationship TEXT, context TEXT, follow_up TEXT,
+          UNIQUE(log_id))
+        - >-
           CREATE TABLE ideas (
-              id              SERIAL PRIMARY KEY,
-              log_id          INTEGER NOT NULL REFERENCES log(id) ON DELETE CASCADE,
-              concept         TEXT NOT NULL,
-              details         TEXT,
-              connections     TEXT,
-              UNIQUE(log_id)
-          )
-        - |
+          id SERIAL PRIMARY KEY,
+          log_id INTEGER NOT NULL REFERENCES log(id) ON DELETE CASCADE,
+          concept TEXT NOT NULL, details TEXT, connections TEXT,
+          UNIQUE(log_id))
+        - >-
           CREATE TABLE projects (
-              id              SERIAL PRIMARY KEY,
-              log_id          INTEGER NOT NULL REFERENCES log(id) ON DELETE CASCADE,
-              project_name    TEXT NOT NULL,
-              next_action     TEXT,
-              status          VARCHAR(20) DEFAULT 'active'
-                              CHECK (status IN ('active', 'blocked', 'someday', 'done')),
-              blockers        TEXT,
-              UNIQUE(log_id)
-          )
-        - |
+          id SERIAL PRIMARY KEY,
+          log_id INTEGER NOT NULL REFERENCES log(id) ON DELETE CASCADE,
+          project_name TEXT NOT NULL, next_action TEXT,
+          status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active','blocked','someday','done')),
+          blockers TEXT,
+          UNIQUE(log_id))
+        - >-
           CREATE TABLE admin (
-              id              SERIAL PRIMARY KEY,
-              log_id          INTEGER NOT NULL REFERENCES log(id) ON DELETE CASCADE,
-              task            TEXT NOT NULL,
-              deadline        TEXT,
-              priority        VARCHAR(10) DEFAULT 'medium'
-                              CHECK (priority IN ('high', 'medium', 'low')),
-              UNIQUE(log_id)
-          )
+          id SERIAL PRIMARY KEY,
+          log_id INTEGER NOT NULL REFERENCES log(id) ON DELETE CASCADE,
+          task TEXT NOT NULL, deadline TEXT,
+          priority VARCHAR(10) DEFAULT 'medium' CHECK (priority IN ('high','medium','low')),
+          UNIQUE(log_id))
