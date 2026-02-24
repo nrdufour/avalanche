@@ -4,7 +4,7 @@
 
 Revision of the second brain plan (Forgejo issue #100), incorporating:
 
-1. **Energy-efficient local AI**: Replace most Claude API calls with local Ollama inference (qwen2.5:3b on hawk). Add pgvector for semantic search (RAG). Keep Claude API only for the weekly recap.
+1. **Energy-efficient local AI**: Replace all Claude API calls with local Ollama inference (qwen2.5:3b on hawk). Add pgvector for semantic search (RAG). Zero ongoing API cost.
 2. **GRAB system resilience patterns** ([Nate Jones](https://natesnewsletter.substack.com/p/grab-the-system-that-closes-open)): Confidence scoring (receipt), quality gate (bouncer), and fix button — the trust-building feedback loop that prevents second brain systems from dying.
 3. **Per-bucket structured extraction**: Each bucket has its own schema. The LLM doesn't just classify — it extracts the pertinent fields for that bucket type. A `log` table keeps the full raw record with capture time and sequence.
 4. **ntfy as capture conduit**: Mattermost was dropped (official image is amd64-only, incompatible with the all-ARM K8s cluster). ntfy handles both capture input and notification output — simpler, already deployed, and has native action buttons for the fix workflow.
@@ -34,9 +34,6 @@ Revision of the second brain plan (Forgejo issue #100), incorporating:
                                               │                │ (semantic search)  │      │
                                               │                └────────────────────┘      │
                                               │                                           │
-                                              │  ┌─────────────┐                          │
-                                              │  │ Claude API  │  (weekly recap only)     │
-                                              │  └─────────────┘                          │
                                               └──────────┬──────────┬─────────────────────┘
                                                          │          │
                               ┌───────────────────────────┤          │
@@ -60,14 +57,14 @@ Revision of the second brain plan (Forgejo issue #100), incorporating:
 | Capture conduit | Mattermost | Mattermost | **ntfy** (arm64 compatible) |
 | Classification | Claude API | Ollama qwen2.5:3b | Ollama qwen2.5:3b |
 | Daily digest | Claude API | Ollama qwen2.5:3b | Ollama qwen2.5:3b |
-| Weekly recap | Claude API | Claude API | Claude API |
+| Weekly recap | Claude API | Claude API | **Ollama qwen2.5:3b** |
 | Embeddings | Not planned | nomic-embed-text | nomic-embed-text |
 | Vector search | "Future enhancement" | pgvector | pgvector |
 | Confidence scoring | Not planned | Core | Core |
 | Quality gate | Not planned | Core | Core |
 | Fix button | "Future enhancement" | Emoji reactions | **ntfy action buttons** |
 | DB schema | 1 flat table | 5 tables | 5 tables |
-| Monthly API cost | ~$0.60 | ~$0.02 | ~$0.02 |
+| Monthly API cost | ~$0.60 | ~$0.02 | **$0.00** |
 | Workflows | 3 | 4 | 4 |
 
 ## Components
@@ -267,7 +264,7 @@ ssh hawk.internal "ollama pull qwen2.5:3b && ollama pull nomic-embed-text"
 
 ### 4. n8n Workflows (The Glue)
 
-4 workflows. LLM calls go to Ollama (local) except the weekly recap.
+4 workflows. All LLM calls go to Ollama on hawk — zero external API dependencies.
 
 **Service endpoints:**
 - Ollama: `http://hawk.internal:11434`
@@ -320,68 +317,34 @@ New thought: "<message_text>"
 
 #### Workflow 2: Daily Morning Digest (uses Ollama)
 
-**Trigger:** Cron — every day at 7:00 AM
+**ID:** `0B7L5ivez9AqpeXq`
+**Trigger:** Cron — every day at 7:00 AM UTC
 
-Steps:
+**Node pipeline** (7 nodes):
 
-1. **Schedule Trigger node**
-2. **PostgreSQL node** — query unfollowed-up entries from last 24h with extracted fields:
-   ```sql
-   SELECT l.id, l.seq, l.bucket, l.confidence, l.needs_review, l.created_at,
-          p.name, p.context, p.follow_up,
-          i.concept, i.details,
-          pr.project_name, pr.next_action, pr.status, pr.blockers,
-          a.task, a.deadline, a.priority
-   FROM log l
-   LEFT JOIN people p ON p.log_id = l.id
-   LEFT JOIN ideas i ON i.log_id = l.id
-   LEFT JOIN projects pr ON pr.log_id = l.id
-   LEFT JOIN admin a ON a.log_id = l.id
-   WHERE l.followed_up = FALSE
-     AND l.created_at >= NOW() - INTERVAL '24 hours'
-   ORDER BY l.bucket, l.created_at;
-   ```
-3. **IF node** — skip if no entries
-4. **HTTP Request node** — POST to Ollama `/api/generate` (qwen2.5:3b):
-   ```
-   Here are yesterday's captured thoughts, organized by bucket with extracted details.
-   Write a brief morning briefing (5-10 lines) highlighting:
-   - Action items from 'projects' (include next actions) and 'admin' (include deadlines)
-   - Notable people to follow up with (include the follow-up action)
-   - Interesting ideas worth revisiting
-   - Items needing review (low confidence, marked with *)
+1. **Schedule Trigger** (`Every Day 7am`) — cron `0 7 * * *`
+2. **PostgreSQL** (`Query Today's Entries`) — query unfollowed-up entries from last 24h with LEFT JOINs across all bucket tables. If 0 rows returned, pipeline stops silently (correct — no digest when nothing to digest).
+3. **IF** (`Has Entries?`) — guard: `$input.all().length > 0`
+4. **Code** (`Prepare Entries`) — collects all query results into `JSON.stringify(entries)` and `count`
+5. **Code** (`Summarize (Ollama)`) — builds the briefing prompt and calls Ollama via `this.helpers.httpRequest()`. Uses Code node (not HTTP Request) to avoid JSON interpolation issues with entries containing quotes.
+6. **Code** (`Post to ntfy sb-daily`) — posts structured JSON to ntfy root URL with `topic: 'sb-daily'`, priority 3, sunrise tag
+7. **PostgreSQL** (`Mark Followed Up`) — `UPDATE log SET followed_up = TRUE, follow_up_at = NOW()` for all entries in the 24h window
 
-   <entries JSON>
-   ```
-5. **HTTP Request node** — POST to `ntfy.internal/sb-daily` (priority: 3, title: "Morning Briefing")
-6. **PostgreSQL node** — UPDATE log SET `followed_up = TRUE, follow_up_at = NOW()`
+#### Workflow 3: Weekly Sunday Recap (uses Ollama)
 
-#### Workflow 3: Weekly Sunday Recap (Claude API)
+**ID:** `H06P7xS44qah9Rqp`
+**Trigger:** Cron — every Sunday at 10:00 AM UTC
 
-**Trigger:** Cron — every Sunday at 10:00 AM
+Originally planned for Claude API, but switched to Ollama to eliminate the API key dependency. qwen2.5:3b handles the weekly recap well — tested with 6 entries producing a structured recap with themes, action items, and priorities.
 
-This stays on Claude API — synthesizing weekly patterns requires more reasoning than a 3B model handles well.
+**Node pipeline** (6 nodes):
 
-Steps:
-
-1. **Schedule Trigger node**
-2. **PostgreSQL node** — query all entries from past 7 days (same JOIN query as daily, but `INTERVAL '7 days'`)
-3. **IF node** — skip if no entries
-4. **Anthropic node** (Claude Haiku or Sonnet):
-   ```
-   Here are all captured thoughts from this week, organized by bucket with
-   their extracted details.
-
-   Write a weekly recap (15-20 lines) that:
-   - Summarizes themes and patterns across the week
-   - Lists unresolved project next-actions and admin tasks with deadlines
-   - Notes recurring people and suggests follow-ups
-   - Flags any items that were low-confidence and may need attention
-   - Suggests 2-3 priorities for next week
-
-   <entries JSON>
-   ```
-5. **HTTP Request node** — POST to `ntfy.internal/sb-weekly` (priority: 4, title: "Weekly Recap")
+1. **Schedule Trigger** (`Every Sunday 10am`) — cron `0 10 * * 0`
+2. **PostgreSQL** (`Query Week's Entries`) — same LEFT JOIN query as WF2 but with `INTERVAL '7 days'` and no `followed_up` filter (includes all entries regardless of daily digest status)
+3. **IF** (`Has Entries?`) — guard: `$input.all().length > 0`
+4. **Code** (`Prepare Entries`) — collects all query results into `JSON.stringify(entries)` and `count`
+5. **Code** (`Weekly Recap (Ollama)`) — builds the recap prompt and calls Ollama via `this.helpers.httpRequest()`. Prompt asks for themes, unresolved actions, recurring people, low-confidence flags, and next-week priorities. Returns `{recap: response.response}`.
+6. **Code** (`Post to ntfy sb-weekly`) — posts structured JSON to ntfy root URL with `topic: 'sb-weekly'`, priority 4, calendar tag
 
 #### Workflow 4: Fix Handler
 
@@ -441,7 +404,7 @@ Steps:
    - Built Workflow 4: `vs8PxIKu6zoF7Gwj` — Fix Handler (webhook)
    - Built Workflow 2: `0B7L5ivez9AqpeXq` — Daily Morning Digest
    - Built Workflow 3: `H06P7xS44qah9Rqp` — Weekly Sunday Recap
-   - All 4 workflows active; Workflow 1 verified end-to-end across all bucket types
+   - Workflows 1, 2, 3 verified end-to-end; Workflow 4 (fix handler) active but untested
 
 ## Files Created/Modified
 
@@ -491,7 +454,9 @@ kubernetes/base/apps/self-hosted/kustomization.yaml       — add ntfy-app.yaml
    - Sent "Talked to Maria about the garden redesign, she suggested using native plants" -> `#5 [people] (100%)`
    - Sent "I want to try making sourdough bread this weekend" -> `#6 [ideas] (100%)`
    - Receipts arrive on `sb-digest` with structured title/message/tags
-   - **Still to test**: low-confidence bouncer (needs_review flow), fix handler (Workflow 4), daily digest (Workflow 2), weekly recap (Workflow 3)
+   - **Workflow 2 (Daily Digest)**: Triggered manually -> queried 6 entries -> Ollama generated a structured morning briefing -> posted to `sb-daily` -> marked all 6 entries `followed_up = TRUE`
+   - **Workflow 3 (Weekly Recap)**: Triggered manually -> queried 6 entries -> Ollama generated a detailed weekly recap with themes, action items, and priorities -> posted to `sb-weekly`
+   - **Still to test**: low-confidence bouncer (needs_review flow), fix handler (Workflow 4)
 
 ### End-to-end smoke test:
 
@@ -525,16 +490,17 @@ These are bugs and workarounds discovered during Workflow 1 implementation. Docu
 
 7. **HTTP Request `fullResponse: true` puts data in `.data`, not `.body`.** When `fullResponse` is enabled, the response text is in `$json.data`, not `$json.body`. The statusCode and headers are at the top level.
 
+8. **Cron schedule changes require deactivate/activate cycle.** After updating a workflow's cron expression via API PUT, the internal scheduler doesn't pick up the change. You must `POST /workflows/{id}/deactivate` then `POST /workflows/{id}/activate` for the new cron to take effect.
+
 ## Known Limitations
 
 - **Fix button re-extracts**: Reclassifying deletes the old bucket row and re-runs extraction. If the model extracts poorly, manual SQL is needed.
 - **IVFFlat index accuracy**: With few entries (<100), results may be imprecise. Skip the index until ~500 entries, or use exact search (remove the index, `<=>` still works).
 - **nomic-embed-text is English-focused**: Multilingual thoughts may embed poorly.
 - **Ollama cold start**: First inference after model unload takes ~9s on hawk. The 5m keep-alive mitigates this for burst captures.
-- **hawk dependency**: If hawk is down, classification and daily digests stop (weekly recap still works via Claude API). hawk is always-on with auto-upgrade, so this is low risk.
+- **hawk dependency**: If hawk is down, all LLM features stop (classification, daily digest, weekly recap). hawk is always-on with auto-upgrade, so this is low risk.
 - **3B model extraction quality**: qwen2.5:3b may occasionally miss fields or hallucinate values. The bouncer catches low-confidence cases, but some extracted fields (e.g., `relationship`, `deadline`) may need manual correction. Tested: classification accuracy is good but bucket choice can be ambiguous (e.g., "ping Sarah" classified as admin vs people — the fix button handles this).
 - **ntfy message length**: ntfy notifications are limited to ~4096 bytes. Daily/weekly digests that exceed this will need truncation or a link to a full version.
-- **Weekly recap needs `ANTHROPIC_API_KEY`**: Workflow 3 references `$env.ANTHROPIC_API_KEY` which must be set in n8n's environment variables before the weekly recap will work.
 
 ## Future Enhancements (Out of Scope)
 
