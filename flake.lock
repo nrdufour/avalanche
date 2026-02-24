@@ -245,9 +245,26 @@
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-unstable": "nixpkgs-unstable",
         "nur": "nur",
+        "secondbrain": "secondbrain",
         "sentinel": "sentinel",
         "sops-nix": "sops-nix",
         "whisper-dictation": "whisper-dictation"
+      }
+    },
+    "secondbrain": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1771949166,
+        "narHash": "sha256-CFpffLXqtfcvdgiP5caDFE3Jw2osQa13AsHFdnI819w=",
+        "ref": "refs/heads/main",
+        "rev": "281150bec88436cb42886984796fea219b2534d4",
+        "revCount": 4,
+        "type": "git",
+        "url": "https://forge.internal/nemo/secondbrain.git"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://forge.internal/nemo/secondbrain.git"
       }
     },
     "sentinel": {
