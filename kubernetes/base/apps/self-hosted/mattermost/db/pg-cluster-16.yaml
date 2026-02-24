@@ -1,0 +1,41 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: mattermost-16-db
+spec:
+  instances: 3
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.4-27
+  primaryUpdateStrategy: unsupervised
+
+  enableSuperuserAccess: true
+  enablePDB: true
+
+  affinity:
+    nodeSelector:
+      opi.feature.node.kubernetes.io/5plus: "true"
+    podAntiAffinityType: required
+
+  failoverDelay: 60
+  switchoverDelay: 60
+  startDelay: 60
+  stopDelay: 30
+  smartShutdownTimeout: 60
+
+  storage:
+    size: 5Gi
+    storageClass: openebs-hostpath
+
+  backup:
+    target: "prefer-standby"
+
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: mattermost-backup-store
+        serverName: mattermost-16-v1
+
+  bootstrap:
+    initdb:
+      database: mattermost
+      owner: mattermost

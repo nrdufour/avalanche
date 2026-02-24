@@ -13,3 +13,4 @@ resources:
   - miniflux-app.yaml
   - homebox-app.yaml
   - ntfy-app.yaml
+  - mattermost-app.yaml

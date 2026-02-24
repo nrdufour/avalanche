@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - db
+components:
+  - ../../../components/volsync-v2
+patches:
+  # !! DISASTER RECOVERY WARNING !!
+  # This patch PREVENTS restore-from-backup on a fresh cluster.
+  # If rebuilding the cluster, REMOVE this patch so the PVC is created
+  # with dataSourceRef and VolSync restores data from S3 automatically.
+  # Re-add it after the restore is complete.
+  - target:
+      kind: PersistentVolumeClaim
+      name: .*
+    patch: |
+      - op: remove
+        path: /spec/dataSourceRef
