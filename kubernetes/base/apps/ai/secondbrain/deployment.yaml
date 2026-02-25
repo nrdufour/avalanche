@@ -58,6 +58,12 @@ spec:
               value: "https://auth.internal/oauth2/openid/secondbrain"
             - name: SB_AUTH_CLIENT_ID
               value: "secondbrain"
+            - name: SB_AUTH_CA_CERT
+              value: "/etc/ssl/custom/ca.crt"
+          volumeMounts:
+            - name: ca-cert
+              mountPath: /etc/ssl/custom
+              readOnly: true
           resources:
             requests:
               cpu: 50m
@@ -77,3 +83,7 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 30
             timeoutSeconds: 10
+      volumes:
+        - name: ca-cert
+          configMap:
+            name: secondbrain-ca
