@@ -5,7 +5,7 @@ metadata:
   namespace: irc
 data:
   marmithon.conf: |
-    server = "open.ircnet.io:6667"
+    server = "irc.nlnog.net:6667"
     nick = "Marmithon"
     ssl = false
     channels = ["#souk"]
