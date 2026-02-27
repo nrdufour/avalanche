@@ -34,7 +34,7 @@ spec:
                       - opi03
       containers:
         - name: frigate
-          image: ghcr.io/blakeblackshear/frigate:0.16.4
+          image: ghcr.io/blakeblackshear/frigate:0.17.0
           ports:
             - name: http
               containerPort: 8971
