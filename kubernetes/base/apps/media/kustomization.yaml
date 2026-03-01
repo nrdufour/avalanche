@@ -10,3 +10,4 @@ resources:
   - nzbget-app.yaml
   - radarr-app.yaml
   - sonarr-app.yaml
+  - ytptube-app.yaml
