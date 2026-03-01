@@ -113,6 +113,8 @@ spec:
               value: "off"
             - name: DNS_ADDRESS
               value: "1.1.1.1"
+            - name: WIREGUARD_MTU
+              value: "1280"
           envFrom:
             - secretRef:
                 name: ytptube-vpn
