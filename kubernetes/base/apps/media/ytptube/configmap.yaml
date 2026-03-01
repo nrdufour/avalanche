@@ -7,3 +7,6 @@ metadata:
 data:
   ytdlp.cli: |
     --xff FR
+    --retries 3
+    --fragment-retries 10
+    --socket-timeout 30
