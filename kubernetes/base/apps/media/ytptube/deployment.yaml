@@ -20,6 +20,10 @@ spec:
     spec:
       nodeSelector:
         opi.feature.node.kubernetes.io/5plus: "true"
+      dnsPolicy: None
+      dnsConfig:
+        nameservers:
+          - 127.0.0.1
 
       containers:
         # Main YTPTube container
@@ -106,7 +110,9 @@ spec:
             - name: HEALTH_SERVER_ADDRESS
               value: "0.0.0.0:9999"
             - name: DOT
-              value: "on"
+              value: "off"
+            - name: DNS_ADDRESS
+              value: "1.1.1.1"
           envFrom:
             - secretRef:
                 name: ytptube-vpn
