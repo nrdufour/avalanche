@@ -70,10 +70,10 @@ spec:
           startupProbe:
             tcpSocket:
               port: 8081
-            initialDelaySeconds: 0
+            initialDelaySeconds: 45
             periodSeconds: 5
             timeoutSeconds: 5
-            failureThreshold: 30
+            failureThreshold: 60
           resources:
             requests:
               cpu: 100m
