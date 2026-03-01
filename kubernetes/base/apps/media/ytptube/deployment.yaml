@@ -25,6 +25,9 @@ spec:
         # Main YTPTube container
         - name: ytptube
           image: ghcr.io/arabcoders/ytptube:latest
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
           command:
             - /bin/sh
             - -c
