@@ -38,7 +38,7 @@ spec:
                 sleep 5
               done
               echo "VPN is ready! Starting YTPTube..."
-              exec /entrypoint.sh
+              exec /entrypoint.sh /opt/python/bin/python /app/app/main.py
           ports:
             - name: http
               containerPort: 8081
