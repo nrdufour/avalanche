@@ -30,9 +30,14 @@ data:
 
     record:
       enabled: true
-      retain:
-        days: 4
-        mode: motion
+      alerts:
+        retain:
+          days: 4
+          mode: motion
+      detections:
+        retain:
+          days: 4
+          mode: motion
 
     objects:
       track:
@@ -78,9 +83,14 @@ data:
             default: 14
         record:
           enabled: true
-          retain:
-            days: 4
-            mode: motion
+          alerts:
+            retain:
+              days: 4
+              mode: motion
+          detections:
+            retain:
+              days: 4
+              mode: motion
         objects:
           track:
             - person
