@@ -49,6 +49,12 @@ spec:
               value: "nicolas"
             - name: SB_AUTH_ENABLED
               value: "true"
+            - name: SB_AUTH_ISSUER
+              value: "https://auth.internal/oauth2/openid/secondbrain"
+            - name: SB_AUTH_CLIENT_ID
+              value: "secondbrain"
+            - name: SB_AUTH_CA_CERT
+              value: "/etc/ssl/custom/ca.crt"
             - name: SB_DIGEST_WEEKLY_CRON
               value: "0 10 * * 0"
             - name: SB_DIGEST_TIMEZONE
@@ -91,3 +97,11 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 30
             timeoutSeconds: 10
+          volumeMounts:
+            - name: ca-cert
+              mountPath: /etc/ssl/custom
+              readOnly: true
+      volumes:
+        - name: ca-cert
+          configMap:
+            name: secondbrain-ca
