@@ -49,8 +49,6 @@ spec:
               value: "https://ntfy.internal"
             - name: SB_SERVER_BASE_URL
               value: "https://secondbrain.internal"
-            - name: SB_CONFIDENCE_THRESHOLD
-              value: "0.7"
             - name: SB_DEFAULT_USER
               value: "nemo"
             - name: SB_AUTH_ENABLED
