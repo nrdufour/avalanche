@@ -49,8 +49,8 @@ spec:
               value: "https://ntfy.internal"
             - name: SB_SERVER_BASE_URL
               value: "https://secondbrain.internal"
-            - name: SB_DEFAULT_USER
-              value: "nemo"
+            - name: SB_OWNER
+              value: "nicolas"
             - name: SB_AUTH_ENABLED
               value: "true"
             - name: SB_AUTH_ISSUER
