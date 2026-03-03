@@ -1,0 +1,95 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: synapse
+  namespace: self-hosted
+  labels:
+    app.kubernetes.io/name: synapse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: synapse
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: synapse
+    spec:
+      containers:
+        - name: synapse
+          image: ghcr.io/element-hq/synapse:v1.148.0
+          ports:
+            - containerPort: 8008
+              name: http
+          env:
+            - name: SYNAPSE_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: synapse-16-db-app
+                  key: username
+            - name: SYNAPSE_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: synapse-16-db-app
+                  key: password
+            - name: SYNAPSE_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: synapse-oidc
+                  key: client-secret
+            - name: SYNAPSE_REGISTRATION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: synapse-secrets
+                  key: REGISTRATION_SECRET
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /_synapse/client/versions
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /_synapse/client/versions
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          volumeMounts:
+            - name: homeserver-config
+              mountPath: /data/homeserver.yaml
+              subPath: homeserver.yaml
+            - name: log-config
+              mountPath: /data/log.config
+              subPath: log.config
+            - name: ca-cert
+              mountPath: /etc/ssl/custom
+              readOnly: true
+            - name: signing-key
+              mountPath: /data/signing.key
+              subPath: SIGNING_KEY
+              readOnly: true
+            - name: matrix
+              mountPath: /data/media_store
+      volumes:
+        - name: homeserver-config
+          configMap:
+            name: synapse-homeserver
+        - name: log-config
+          configMap:
+            name: synapse-log-config
+        - name: ca-cert
+          configMap:
+            name: synapse-ca
+        - name: signing-key
+          secret:
+            secretName: synapse-secrets
+        - name: matrix
+          persistentVolumeClaim:
+            claimName: matrix

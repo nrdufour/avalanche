@@ -1,0 +1,19 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: element-web-config
+  namespace: self-hosted
+data:
+  config.json: |
+    {
+      "default_server_config": {
+        "m.homeserver": {
+          "base_url": "https://matrix.internal",
+          "server_name": "matrix.internal"
+        }
+      },
+      "disable_custom_urls": true,
+      "disable_guests": true,
+      "default_theme": "dark"
+    }
