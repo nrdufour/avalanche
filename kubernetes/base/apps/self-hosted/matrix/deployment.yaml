@@ -65,6 +65,8 @@ spec:
               value: "0"
             - name: GID
               value: "0"
+            - name: SSL_CERT_FILE
+              value: "/etc/ssl/custom/ca.crt"
           ports:
             - containerPort: 8008
               name: http
