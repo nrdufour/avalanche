@@ -78,13 +78,13 @@ spec:
               memory: 1Gi
           livenessProbe:
             httpGet:
-              path: /_synapse/client/versions
+              path: /_matrix/client/versions
               port: http
             initialDelaySeconds: 30
             periodSeconds: 30
           readinessProbe:
             httpGet:
-              path: /_synapse/client/versions
+              path: /_matrix/client/versions
               port: http
             initialDelaySeconds: 15
             periodSeconds: 10
