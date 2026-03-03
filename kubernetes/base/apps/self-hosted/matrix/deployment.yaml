@@ -16,12 +16,10 @@ spec:
       labels:
         app.kubernetes.io/name: synapse
     spec:
-      containers:
-        - name: synapse
+      initContainers:
+        - name: render-config
           image: ghcr.io/element-hq/synapse:v1.148.0
-          ports:
-            - containerPort: 8008
-              name: http
+          command: ["sh", "-c", "envsubst < /config-template/homeserver.yaml > /data/homeserver.yaml"]
           env:
             - name: SYNAPSE_DB_USER
               valueFrom:
@@ -43,6 +41,18 @@ spec:
                 secretKeyRef:
                   name: synapse-secrets
                   key: REGISTRATION_SECRET
+          volumeMounts:
+            - name: homeserver-config
+              mountPath: /config-template
+              readOnly: true
+            - name: rendered-config
+              mountPath: /data
+      containers:
+        - name: synapse
+          image: ghcr.io/element-hq/synapse:v1.148.0
+          ports:
+            - containerPort: 8008
+              name: http
           resources:
             requests:
               cpu: 250m
@@ -62,7 +72,7 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 10
           volumeMounts:
-            - name: homeserver-config
+            - name: rendered-config
               mountPath: /data/homeserver.yaml
               subPath: homeserver.yaml
             - name: log-config
@@ -81,6 +91,8 @@ spec:
         - name: homeserver-config
           configMap:
             name: synapse-homeserver
+        - name: rendered-config
+          emptyDir: {}
         - name: log-config
           configMap:
             name: synapse-log-config
