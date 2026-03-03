@@ -6,3 +6,4 @@ resources:
   - service.yaml
   - ingress.yaml
   - ca-configmap.yaml
+  - oidc-external-secret.yaml

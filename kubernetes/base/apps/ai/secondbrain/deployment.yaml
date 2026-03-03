@@ -52,7 +52,15 @@ spec:
             - name: SB_AUTH_ISSUER
               value: "https://auth.internal/oauth2/openid/secondbrain"
             - name: SB_AUTH_CLIENT_ID
-              value: "secondbrain"
+              valueFrom:
+                secretKeyRef:
+                  name: secondbrain-oidc
+                  key: client-id
+            - name: SB_AUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: secondbrain-oidc
+                  key: client-secret
             - name: SB_AUTH_CA_CERT
               value: "/etc/ssl/custom/ca.crt"
             - name: SB_DIGEST_WEEKLY_CRON
