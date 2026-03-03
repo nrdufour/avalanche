@@ -55,5 +55,7 @@ data:
     enable_registration: false
     registration_shared_secret: "%(SYNAPSE_REGISTRATION_SECRET)s"
 
+    report_stats: false
+
     signing_key_path: "/data/signing.key"
     log_config: "/data/log.config"

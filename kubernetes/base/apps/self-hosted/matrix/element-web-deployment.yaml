@@ -19,6 +19,9 @@ spec:
       containers:
         - name: element-web
           image: vectorim/element-web:v1.12.11
+          env:
+            - name: NGINX_ENVSUBST_FILTER
+              value: "ELEMENT_WEB_APP_"
           ports:
             - containerPort: 80
               name: http
