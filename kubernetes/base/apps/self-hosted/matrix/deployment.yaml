@@ -60,6 +60,11 @@ spec:
       containers:
         - name: synapse
           image: ghcr.io/element-hq/synapse:v1.148.0
+          env:
+            - name: UID
+              value: "0"
+            - name: GID
+              value: "0"
           ports:
             - containerPort: 8008
               name: http
