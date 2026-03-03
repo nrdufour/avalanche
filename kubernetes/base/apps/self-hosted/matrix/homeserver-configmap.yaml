@@ -19,8 +19,8 @@ data:
     database:
       name: psycopg2
       args:
-        user: "$${SYNAPSE_DB_USER}"
-        password: "$${SYNAPSE_DB_PASSWORD}"
+        user: "__SYNAPSE_DB_USER__"
+        password: "__SYNAPSE_DB_PASSWORD__"
         dbname: synapse
         host: synapse-16-db-rw.self-hosted.svc.cluster.local
         port: 5432
@@ -36,7 +36,7 @@ data:
         discover: true
         issuer: "https://auth.internal/oauth2/openid/synapse"
         client_id: "synapse"
-        client_secret: "$${SYNAPSE_OIDC_CLIENT_SECRET}"
+        client_secret: "__SYNAPSE_OIDC_CLIENT_SECRET__"
         scopes: ["openid", "profile", "email"]
         skip_verification: true
         user_mapping_provider:
@@ -63,7 +63,7 @@ data:
       - "fc00::/7"
 
     enable_registration: false
-    registration_shared_secret: "$${SYNAPSE_REGISTRATION_SECRET}"
+    registration_shared_secret: "__SYNAPSE_REGISTRATION_SECRET__"
 
     report_stats: false
 

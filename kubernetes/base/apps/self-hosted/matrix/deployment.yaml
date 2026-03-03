@@ -27,7 +27,7 @@ spec:
               with open("/config-template/homeserver.yaml") as f:
                   config = f.read()
               for key in ("SYNAPSE_DB_USER", "SYNAPSE_DB_PASSWORD", "SYNAPSE_OIDC_CLIENT_SECRET", "SYNAPSE_REGISTRATION_SECRET"):
-                  config = config.replace("${" + key + "}", os.environ[key])
+                  config = config.replace("__" + key + "__", os.environ[key])
               with open("/data/homeserver.yaml", "w") as f:
                   f.write(config)
           env:
