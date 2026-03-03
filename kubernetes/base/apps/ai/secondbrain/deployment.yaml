@@ -43,26 +43,35 @@ spec:
                   key: password
             - name: SB_OLLAMA_URL
               value: "http://hawk.internal:11434"
-            - name: SB_NTFY_URL
-              value: "http://ntfy.self-hosted.svc.cluster.local"
-            - name: SB_NTFY_EXTERNAL_URL
-              value: "https://ntfy.internal"
             - name: SB_SERVER_BASE_URL
               value: "https://secondbrain.internal"
             - name: SB_OWNER
               value: "nicolas"
             - name: SB_AUTH_ENABLED
               value: "true"
-            - name: SB_AUTH_ISSUER
-              value: "https://auth.internal/oauth2/openid/secondbrain"
-            - name: SB_AUTH_CLIENT_ID
-              value: "secondbrain"
-            - name: SB_AUTH_CA_CERT
-              value: "/etc/ssl/custom/ca.crt"
-          volumeMounts:
-            - name: ca-cert
-              mountPath: /etc/ssl/custom
-              readOnly: true
+            - name: SB_DIGEST_WEEKLY_CRON
+              value: "0 10 * * 0"
+            - name: SB_DIGEST_TIMEZONE
+              value: "America/New_York"
+            # Email digest — uncomment and fill in when SMTP is ready
+            # - name: SB_DIGEST_EMAIL
+            #   value: "you@example.com"
+            # - name: SB_EMAIL_SMTP_HOST
+            #   value: "smtp.example.com"
+            # - name: SB_EMAIL_SMTP_PORT
+            #   value: "587"
+            # - name: SB_EMAIL_USERNAME
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: secondbrain-smtp
+            #       key: username
+            # - name: SB_EMAIL_PASSWORD
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: secondbrain-smtp
+            #       key: password
+            # - name: SB_EMAIL_FROM
+            #   value: "secondbrain@example.com"
           resources:
             requests:
               cpu: 50m
@@ -82,7 +91,3 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 30
             timeoutSeconds: 10
-      volumes:
-        - name: ca-cert
-          configMap:
-            name: secondbrain-ca
