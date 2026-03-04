@@ -94,14 +94,20 @@ curl -k -o /dev/null -w '%{http_code}' https://element.internal
 
 ### Promote Admin User
 
-After your first OIDC login through Element, promote yourself to Synapse admin:
+After your first OIDC login through Element, promote yourself to Synapse admin directly in the database (the admin API requires an existing admin, so the first admin must be set via SQL):
 
 ```bash
-# Get an access token (visible in Element: Settings → Help & About → Access Token)
-curl -k -X PUT "https://matrix.internal/_synapse/admin/v1/users/@nicolas:matrix.internal" \
-  -H "Authorization: Bearer <your-access-token>" \
-  -H "Content-Type: application/json" \
-  -d '{"admin": true}'
+kubectl -n self-hosted exec synapse-16-db-1 -c postgres -- \
+  psql -U postgres -d synapse -c \
+  "UPDATE users SET admin = 1 WHERE name = '@nicolas:matrix.internal';"
+```
+
+To verify it worked:
+
+```bash
+kubectl -n self-hosted exec synapse-16-db-1 -c postgres -- \
+  psql -U postgres -d synapse -c \
+  "SELECT name, admin FROM users;"
 ```
 
 ### Register Bot Accounts (Optional)
