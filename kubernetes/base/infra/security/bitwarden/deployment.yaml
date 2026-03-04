@@ -56,15 +56,12 @@ spec:
             - name: private-ca
               mountPath: /private-ca
           livenessProbe:
-            exec:
-              command:
-                - curl
-                - -XPOST
-                - http://127.0.0.1:8087/sync
+            tcpSocket:
+              port: 8087
             initialDelaySeconds: 20
             failureThreshold: 3
-            timeoutSeconds: 10
-            periodSeconds: 120
+            timeoutSeconds: 1
+            periodSeconds: 30
           readinessProbe:
             tcpSocket:
               port: 8087
@@ -79,3 +76,20 @@ spec:
             failureThreshold: 30
             timeoutSeconds: 1
             periodSeconds: 5
+        - name: sync
+          image: curlimages/curl:8.12.1
+          command:
+            - /bin/sh
+            - -c
+            - |
+              sleep 30
+              while true; do
+                curl -s -XPOST http://127.0.0.1:8087/sync || true
+                sleep 30
+              done
+          resources:
+            requests:
+              cpu: 1m
+              memory: 16Mi
+            limits:
+              memory: 32Mi
