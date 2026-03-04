@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ircnet-healthcheck-config
+  namespace: irc
+data:
+  config.toml: |
+    probeIntervalSeconds = 300
+    probeTimeoutSeconds = 10
+    historyWindowHours = 24
+
+    metricsEnabled = true
+    metricsPort = "9090"
+    apiPort = "8080"
+
+    [[servers]]
+    host = "open.ircnet.net"
+    port = 6667
+    ssl = false
+
+    [[servers]]
+    host = "ssl.ircnet.ovh"
+    port = 6697
+    ssl = true
+
+    [[servers]]
+    host = "hostsailor.ssl.ircnet.io"
+    port = 6697
+    ssl = true
+
+    [[servers]]
+    host = "openirc.snt.utwente.nl"
+    port = 6667
+    ssl = false
+
+    [[servers]]
+    host = "irc.atw-inter.net"
+    port = 6697
+    ssl = true
+
+    [[servers]]
+    host = "irc.fu-berlin.de"
+    port = 6667
+    ssl = false
+
+    [[servers]]
+    host = "irc.uni-erlangen.de"
+    port = 6697
+    ssl = true
