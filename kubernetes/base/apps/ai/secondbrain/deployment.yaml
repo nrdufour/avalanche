@@ -84,6 +84,13 @@ spec:
                   key: as_token
             - name: SB_MATRIX_USER_ID
               value: "@secondbrain-bot:matrix.internal"
+            - name: SB_CLAUDE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: secondbrain-claude
+                  key: api_key
+            - name: SB_CLAUDE_MODEL
+              value: "claude-haiku-4-5-20251001"
           resources:
             requests:
               cpu: 50m

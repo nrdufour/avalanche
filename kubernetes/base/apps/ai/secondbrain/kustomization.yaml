@@ -8,3 +8,4 @@ resources:
   - ca-configmap.yaml
   - oidc-external-secret.yaml
   - matrix-external-secret.yaml
+  - claude-external-secret.yaml
