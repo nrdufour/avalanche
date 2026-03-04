@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: synapse-appservice-secondbrain
+  namespace: self-hosted
+data:
+  secondbrain.yaml: |
+    id: secondbrain
+    as_token: "__SECONDBRAIN_AS_TOKEN__"
+    hs_token: "__SECONDBRAIN_HS_TOKEN__"
+    url: null
+    sender_localpart: secondbrain-bot
+    namespaces:
+      users: []
+      aliases: []
+      rooms: []

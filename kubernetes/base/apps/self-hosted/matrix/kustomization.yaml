@@ -13,6 +13,8 @@ resources:
   - element-web-configmap.yaml
   - oidc-external-secret.yaml
   - secrets-external-secret.yaml
+  - appservice-secondbrain-configmap.yaml
+  - appservice-secondbrain-external-secret.yaml
   - ca-configmap.yaml
   - db
   # Note: PVC is managed by volsync-v2 component

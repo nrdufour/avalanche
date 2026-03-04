@@ -32,6 +32,14 @@ spec:
                   config = config.replace("__" + key + "__", os.environ[key])
               with open("/data/homeserver.yaml", "w") as f:
                   f.write(config)
+              # Render appservice registrations
+              os.makedirs("/data/appservices", exist_ok=True)
+              with open("/appservice-templates/secondbrain.yaml") as f:
+                  appservice = f.read()
+              for key in ("SECONDBRAIN_AS_TOKEN", "SECONDBRAIN_HS_TOKEN"):
+                  appservice = appservice.replace("__" + key + "__", os.environ[key])
+              with open("/data/appservices/secondbrain.yaml", "w") as f:
+                  f.write(appservice)
           env:
             - name: SYNAPSE_DB_USER
               valueFrom:
@@ -53,9 +61,22 @@ spec:
                 secretKeyRef:
                   name: synapse-secrets
                   key: REGISTRATION_SECRET
+            - name: SECONDBRAIN_AS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: synapse-appservice-secondbrain
+                  key: AS_TOKEN
+            - name: SECONDBRAIN_HS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: synapse-appservice-secondbrain
+                  key: HS_TOKEN
           volumeMounts:
             - name: homeserver-config
               mountPath: /config-template
+              readOnly: true
+            - name: appservice-secondbrain-template
+              mountPath: /appservice-templates
               readOnly: true
             - name: rendered-config
               mountPath: /data
@@ -104,6 +125,9 @@ spec:
               mountPath: /data/signing.key
               subPath: SIGNING_KEY
               readOnly: true
+            - name: rendered-config
+              mountPath: /data/appservices
+              subPath: appservices
             - name: matrix
               mountPath: /data/media_store
       volumes:
@@ -112,6 +136,9 @@ spec:
             name: synapse-homeserver
         - name: rendered-config
           emptyDir: {}
+        - name: appservice-secondbrain-template
+          configMap:
+            name: synapse-appservice-secondbrain
         - name: log-config
           configMap:
             name: synapse-log-config

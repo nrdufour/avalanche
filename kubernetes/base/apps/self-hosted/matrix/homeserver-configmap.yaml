@@ -68,5 +68,8 @@ data:
 
     report_stats: false
 
+    app_service_config_files:
+      - /data/appservices/secondbrain.yaml
+
     signing_key_path: "/data/signing.key"
     log_config: "/data/log.config"
