@@ -11,6 +11,7 @@ metadata:
     gethomepage.dev/group: AI
     gethomepage.dev/icon: mdi-brain
     gethomepage.dev/name: SecondBrain
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "180"
 spec:
   ingressClassName: nginx
   tls:
