@@ -47,3 +47,28 @@ data:
     host = "irc.uni-erlangen.de"
     port = 6697
     ssl = true
+
+    [[servers]]
+    host = "ssl.irc.atw-inter.net"
+    port = 6697
+    ssl = true
+
+    [[servers]]
+    host = "irc.us.ircnet.net"
+    port = 6697
+    ssl = true
+
+    [[servers]]
+    host = "eu.ircnet.net"
+    port = 6667
+    ssl = false
+
+    [[servers]]
+    host = "random.ircd.de"
+    port = 6667
+    ssl = false
+
+    [[servers]]
+    host = "irc.portlane.se"
+    port = 6667
+    ssl = false
