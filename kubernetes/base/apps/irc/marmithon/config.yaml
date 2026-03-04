@@ -5,9 +5,9 @@ metadata:
   namespace: irc
 data:
   marmithon.conf: |
-    server = "openirc.snt.utwente.nl:6667"
+    server = "ssl.ircnet.ovh:6697"
     nick = "Marmithon"
-    ssl = false
+    ssl = true
     channels = ["#souk"]
 
     # Identd server configuration (RFC 1413)
