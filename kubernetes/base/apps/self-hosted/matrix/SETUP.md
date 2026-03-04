@@ -125,6 +125,10 @@ Synapse does **not** support environment variable interpolation in `homeserver.y
 
 The `__VAR__` placeholder format (e.g. `__SYNAPSE_DB_PASSWORD__`) is deliberate — the CMP `kustomize-envsubst` plugin processes all manifests including ConfigMaps, so `${VAR}` and `$${VAR}` syntax both get mangled by `envsubst`. The double-underscore format is invisible to `envsubst`.
 
+### x_forwarded for Reverse Proxy
+
+Synapse's listener must have `x_forwarded: true` when behind a TLS-terminating reverse proxy (nginx ingress). Without it, Synapse sees all requests as HTTP and redirects to HTTPS, causing an infinite redirect loop on SSO login. The setting makes Synapse trust the `X-Forwarded-Proto` header from nginx.
+
 ### SSL_CERT_FILE for OIDC Discovery
 
 Synapse's Twisted HTTP client needs `SSL_CERT_FILE=/etc/ssl/custom/ca.crt` to trust the Ptinem Root CA when connecting to `auth.internal` for OIDC metadata discovery. The `skip_verification` config option only affects OIDC token verification, not the underlying TLS connection.
