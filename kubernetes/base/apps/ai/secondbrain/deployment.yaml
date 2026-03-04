@@ -43,6 +43,10 @@ spec:
                   key: password
             - name: SB_OLLAMA_URL
               value: "http://hawk.internal:11434"
+            - name: SB_OLLAMA_CLASSIFY_MODEL
+              value: "qwen3:4b"
+            - name: SB_OLLAMA_TIMEOUT
+              value: "120s"
             - name: SB_SERVER_BASE_URL
               value: "https://secondbrain.internal"
             - name: SB_OWNER
