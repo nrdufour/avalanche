@@ -10,6 +10,9 @@ data:
     ssl = true
     channels = ["#souk"]
 
+    # Dynamic server discovery (falls back to static server above)
+    serverDiscoveryURL = "http://ircnet-healthcheck.irc.svc.cluster.local:8080/best?ssl=true"
+
     # Identd server configuration (RFC 1413)
     identdEnabled = true
     identdPort = "113"
