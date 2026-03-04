@@ -13,6 +13,7 @@ data:
     listeners:
       - port: 8008
         type: http
+        x_forwarded: true
         resources:
           - names: [client]
 
