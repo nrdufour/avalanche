@@ -46,7 +46,7 @@ spec:
             - name: SB_OLLAMA_CLASSIFY_MODEL
               value: "qwen3:4b"
             - name: SB_OLLAMA_TIMEOUT
-              value: "120s"
+              value: "300s"
             - name: SB_SERVER_BASE_URL
               value: "https://secondbrain.internal"
             - name: SB_OWNER
