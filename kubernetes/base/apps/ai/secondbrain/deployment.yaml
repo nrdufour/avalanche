@@ -67,25 +67,19 @@ spec:
               value: "0 10 * * 0"
             - name: SB_DIGEST_TIMEZONE
               value: "America/New_York"
-            # Email digest — uncomment and fill in when SMTP is ready
-            # - name: SB_DIGEST_EMAIL
-            #   value: "you@example.com"
-            # - name: SB_EMAIL_SMTP_HOST
-            #   value: "smtp.example.com"
-            # - name: SB_EMAIL_SMTP_PORT
-            #   value: "587"
-            # - name: SB_EMAIL_USERNAME
-            #   valueFrom:
-            #     secretKeyRef:
-            #       name: secondbrain-smtp
-            #       key: username
-            # - name: SB_EMAIL_PASSWORD
-            #   valueFrom:
-            #     secretKeyRef:
-            #       name: secondbrain-smtp
-            #       key: password
-            # - name: SB_EMAIL_FROM
-            #   value: "secondbrain@example.com"
+            - name: SSL_CERT_FILE
+              value: "/etc/ssl/custom/ca.crt"
+            - name: SB_MATRIX_HOMESERVER
+              value: "https://matrix.internal"
+            - name: SB_MATRIX_ROOM_ID
+              value: "!IYEdnXXPLynxcJxJhO:matrix.internal"
+            - name: SB_MATRIX_AS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: secondbrain-matrix
+                  key: as_token
+            - name: SB_MATRIX_USER_ID
+              value: "@secondbrain-bot:matrix.internal"
           resources:
             requests:
               cpu: 50m

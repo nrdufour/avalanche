@@ -7,3 +7,4 @@ resources:
   - ingress.yaml
   - ca-configmap.yaml
   - oidc-external-secret.yaml
+  - matrix-external-secret.yaml
