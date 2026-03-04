@@ -1,0 +1,13 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: element-web
+  namespace: self-hosted
+spec:
+  selector:
+    app.kubernetes.io/name: element-web
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: http

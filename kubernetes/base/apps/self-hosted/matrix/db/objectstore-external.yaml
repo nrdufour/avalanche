@@ -1,0 +1,27 @@
+---
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: synapse-external-store
+spec:
+  configuration:
+    destinationPath: s3://cloudnative-pg/
+    endpointURL: https://s3.garage.internal
+    endpointCA:
+      name: cnpg-garage-access-synapse
+      key: tls.crt
+    s3Credentials:
+      accessKeyId:
+        name: cnpg-garage-access-synapse
+        key: aws-access-key-id
+      secretAccessKey:
+        name: cnpg-garage-access-synapse
+        key: aws-secret-access-key
+      region:
+        name: cnpg-garage-access-synapse
+        key: s3-region
+    data:
+      compression: bzip2
+    wal:
+      compression: bzip2
+      maxParallel: 8

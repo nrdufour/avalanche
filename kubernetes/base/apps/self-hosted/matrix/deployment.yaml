@@ -1,0 +1,126 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: synapse
+  namespace: self-hosted
+  labels:
+    app.kubernetes.io/name: synapse
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: synapse
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: synapse
+    spec:
+      initContainers:
+        - name: render-config
+          image: ghcr.io/element-hq/synapse:v1.148.0
+          command:
+            - python3
+            - -c
+            - |
+              import os
+              with open("/config-template/homeserver.yaml") as f:
+                  config = f.read()
+              for key in ("SYNAPSE_DB_USER", "SYNAPSE_DB_PASSWORD", "SYNAPSE_OIDC_CLIENT_SECRET", "SYNAPSE_REGISTRATION_SECRET"):
+                  config = config.replace("__" + key + "__", os.environ[key])
+              with open("/data/homeserver.yaml", "w") as f:
+                  f.write(config)
+          env:
+            - name: SYNAPSE_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: synapse-16-db-app
+                  key: username
+            - name: SYNAPSE_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: synapse-16-db-app
+                  key: password
+            - name: SYNAPSE_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: synapse-oidc
+                  key: client-secret
+            - name: SYNAPSE_REGISTRATION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: synapse-secrets
+                  key: REGISTRATION_SECRET
+          volumeMounts:
+            - name: homeserver-config
+              mountPath: /config-template
+              readOnly: true
+            - name: rendered-config
+              mountPath: /data
+      containers:
+        - name: synapse
+          image: ghcr.io/element-hq/synapse:v1.148.0
+          env:
+            - name: UID
+              value: "0"
+            - name: GID
+              value: "0"
+            - name: SSL_CERT_FILE
+              value: "/etc/ssl/custom/ca.crt"
+          ports:
+            - containerPort: 8008
+              name: http
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /_matrix/client/versions
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /_matrix/client/versions
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          volumeMounts:
+            - name: rendered-config
+              mountPath: /data/homeserver.yaml
+              subPath: homeserver.yaml
+            - name: log-config
+              mountPath: /data/log.config
+              subPath: log.config
+            - name: ca-cert
+              mountPath: /etc/ssl/custom
+              readOnly: true
+            - name: signing-key
+              mountPath: /data/signing.key
+              subPath: SIGNING_KEY
+              readOnly: true
+            - name: matrix
+              mountPath: /data/media_store
+      volumes:
+        - name: homeserver-config
+          configMap:
+            name: synapse-homeserver
+        - name: rendered-config
+          emptyDir: {}
+        - name: log-config
+          configMap:
+            name: synapse-log-config
+        - name: ca-cert
+          configMap:
+            name: synapse-ca
+        - name: signing-key
+          secret:
+            secretName: synapse-secrets
+        - name: matrix
+          persistentVolumeClaim:
+            claimName: matrix

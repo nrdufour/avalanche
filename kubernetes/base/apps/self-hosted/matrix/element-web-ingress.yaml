@@ -1,0 +1,31 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: element-web
+  namespace: self-hosted
+  annotations:
+    cert-manager.io/cluster-issuer: ca-server-cluster-issuer
+    cert-manager.io/common-name: element.internal
+    gethomepage.dev/description: Matrix Web Client
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/group: Self-Hosted
+    gethomepage.dev/icon: sh-element
+    gethomepage.dev/name: Element
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - element.internal
+      secretName: element-web-ing-cert
+  rules:
+    - host: element.internal
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: element-web
+                port:
+                  name: http

@@ -1,0 +1,13 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: synapse
+  namespace: self-hosted
+spec:
+  selector:
+    app.kubernetes.io/name: synapse
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: http
