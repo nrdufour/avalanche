@@ -25,7 +25,7 @@ controllers:
           # repository: docker.io/allangood/rtlamr2mqtt
           # tag: 2025.6.6
           repository: forge.internal/nemo/rtlamr2mqtt
-          tag: fix
+          tag: latest
         securityContext:
           privileged: true
         resources:
