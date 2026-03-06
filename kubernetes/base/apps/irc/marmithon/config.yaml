@@ -6,7 +6,7 @@ metadata:
 data:
   marmithon.conf: |
     server = "hostsailor.ssl.ircnet.io:6697"
-    nick = "Marmithon"
+    nick = "ZeBot"
     ssl = true
     channels = ["#souk"]
 
