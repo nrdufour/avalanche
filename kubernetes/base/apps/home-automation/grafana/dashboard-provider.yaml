@@ -11,7 +11,7 @@ data:
         orgId: 1
         folder: ""
         type: file
-        disableDeletion: false
+        disableDeletion: true
         updateIntervalSeconds: 30
         allowUiUpdates: true
         options:
