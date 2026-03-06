@@ -24,6 +24,7 @@
     environment.systemPackages = with pkgs; [
         secondbrain
         # Wayland utilities for niri
+        xwayland-satellite
         waybar
         fuzzel
         mako
