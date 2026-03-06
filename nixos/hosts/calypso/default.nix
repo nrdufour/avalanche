@@ -17,8 +17,21 @@
 
     networking.hostName = "calypso";
 
+    # Niri scrollable-tiling Wayland compositor (available as GDM session)
+    programs.niri.enable = true;
+
     # SecondBrain thought capture CLI
-    environment.systemPackages = [ pkgs.secondbrain ];
+    environment.systemPackages = with pkgs; [
+        secondbrain
+        # Wayland utilities for niri
+        waybar
+        fuzzel
+        mako
+        swaylock
+    ];
+
+    # Enable swaylock to authenticate via PAM
+    security.pam.services.swaylock = {};
 
     # Allow SSH through firewall
     services.openssh.openFirewall = true;
