@@ -24,6 +24,9 @@
           { name = "ns1"; ip = "10.1.0.53"; }
           # Gateway alias
           { name = "router"; ip = "10.0.0.1"; }
+          # Bee cluster
+          { name = "bee01"; ip = "10.2.0.10"; }
+          { name = "bee02"; ip = "10.2.0.11"; }
         ];
 
         nsRecords = [
