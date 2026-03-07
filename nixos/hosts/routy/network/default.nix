@@ -126,7 +126,7 @@
       internalInterfaces = [
         "lan0"
         "lab0"
-        "lan1"
+        "lab1"
         # "lan0.20"
         # "lan0.50"
         # "lan0.100"
