@@ -43,7 +43,7 @@
           { name = "vaultwarden"; target = "mysecrets.internal."; }
           # Forgejo & apps (hawk host)
           { name = "forge"; target = "hawk.internal."; }
-          { name = "scorekit"; target = "hawk.internal."; }
+          { name = "scorekit"; target = "bee01.internal."; }
           # Metrics (possum host)
           { name = "vm"; target = "possum.internal."; }
           # Media services (cardinal host)
