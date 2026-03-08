@@ -5,7 +5,7 @@
       ./hardware-configuration.nix
       ./secrets.nix
       ./forgejo
-      ./scorekit.nix
+      # ./scorekit.nix
       ./ollama.nix
     ];
 
