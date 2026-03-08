@@ -523,20 +523,13 @@ in
     };
     users.groups.sentinel = { };
 
-    # Watch for Kea control socket and trigger ACL setup when it appears
-    systemd.paths.sentinel-kea-acl = mkIf (cfg.collectors.kea.controlSocket != "") {
-      description = "Watch for Kea control socket";
-      wantedBy = [ "multi-user.target" ];
-      pathConfig = {
-        PathExists = cfg.collectors.kea.controlSocket;
-        Unit = "sentinel-kea-acl.service";
-      };
-    };
-
-    # Grant sentinel access to Kea control socket via ACL
+    # Re-apply ACLs on the Kea control socket after every Kea (re)start.
+    # The socket is recreated each time Kea starts (DynamicUser), so ACLs are lost.
     systemd.services.sentinel-kea-acl = mkIf (cfg.collectors.kea.controlSocket != "") {
       description = "Set ACL for Sentinel to access Kea control socket";
+      wantedBy = [ "kea-dhcp4-server.service" ];
       after = [ "kea-dhcp4-server.service" ];
+      partOf = [ "kea-dhcp4-server.service" ];
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
