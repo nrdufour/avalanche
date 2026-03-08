@@ -263,7 +263,7 @@ in
             option-data = [
               {
                 name = "routers";
-                data = "10.1.0.1";
+                data = "10.2.0.1";
               }
             ] ++ commonDhcpOptions;
             reservations = [];
