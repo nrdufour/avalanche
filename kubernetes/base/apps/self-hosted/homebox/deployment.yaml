@@ -23,7 +23,7 @@ spec:
         fsGroup: 65532
       containers:
         - name: homebox
-          image: ghcr.io/sysadminsmedia/homebox:0.24.1-rootless
+          image: ghcr.io/sysadminsmedia/homebox:0.24.2-rootless
           ports:
             - name: http
               containerPort: 7745
