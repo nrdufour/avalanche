@@ -54,7 +54,12 @@ data:
     ssl = true
 
     [[servers]]
-    host = "irc.us.ircnet.net"
+    host = "us.ssl.ircnet.io"
+    port = 6697
+    ssl = true
+
+    [[servers]]
+    host = "ssl.ircnet.io"
     port = 6697
     ssl = true
 
