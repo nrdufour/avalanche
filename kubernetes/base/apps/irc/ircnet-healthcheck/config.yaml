@@ -54,12 +54,7 @@ data:
     ssl = true
 
     [[servers]]
-    host = "us.ssl.ircnet.io"
-    port = 6697
-    ssl = true
-
-    [[servers]]
-    host = "ssl.ircnet.io"
+    host = "irc.us.ircnet.net"
     port = 6697
     ssl = true
 
@@ -75,5 +70,55 @@ data:
 
     [[servers]]
     host = "irc.portlane.se"
+    port = 6667
+    ssl = false
+
+    [[servers]]
+    host = "ircnet.clue.be"
+    port = 6667
+    ssl = false
+
+    [[servers]]
+    host = "irc.spadhausen.com"
+    port = 6667
+    ssl = false
+
+    [[servers]]
+    host = "tngnet.ircnet.io"
+    port = 6667
+    ssl = false
+
+    [[servers]]
+    host = "irc.nlnog.net"
+    port = 6667
+    ssl = false
+
+    [[servers]]
+    host = "hostsailor.ircnet.nl"
+    port = 6697
+    ssl = true
+
+    [[servers]]
+    host = "ircnet.tngnet.nl"
+    port = 6697
+    ssl = true
+
+    [[servers]]
+    host = "ircnet.hostsailor.com"
+    port = 6667
+    ssl = false
+
+    [[servers]]
+    host = "irc.swepipe.net"
+    port = 6667
+    ssl = false
+
+    [[servers]]
+    host = "irc.psychz.net"
+    port = 6667
+    ssl = false
+
+    [[servers]]
+    host = "ircnet.tempest.net"
     port = 6667
     ssl = false
