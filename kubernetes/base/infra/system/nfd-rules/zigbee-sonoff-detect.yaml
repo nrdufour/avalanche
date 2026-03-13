@@ -13,7 +13,7 @@ spec:
           matchExpressions:
             vendor:
               op: In
-              values: ["10c4"]    # adjust if yours is 1a86
+              value: ["10c4"]    # adjust if yours is 1a86
             device:
               op: In
-              values: ["ea60"]    # adjust accordingly
+              value: ["ea60"]    # adjust accordingly
