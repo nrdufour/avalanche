@@ -10,3 +10,4 @@ resources:
   - ./raspberry4-detect.yaml
   - ./apc-usb-detect.yaml
   - ./homeseer-g8-device.yaml
+  - ./zigbee-sonoff-detect.yaml

@@ -1,0 +1,19 @@
+apiVersion: nfd.k8s-sigs.io/v1alpha1
+kind: NodeFeatureRule
+metadata:
+  name: zigbee-dongle
+  namespace: node-feature-discovery
+spec:
+  rules:
+    - name: sonoff-zigbee-dongle
+      labels:
+        zigbee.feature.node.kubernetes.io/sonoff: "true"
+      matchFeatures:
+        - feature: usb.device
+          matchExpressions:
+            vendor:
+              op: In
+              values: ["10c4"]    # adjust if yours is 1a86
+            device:
+              op: In
+              values: ["ea60"]    # adjust accordingly
