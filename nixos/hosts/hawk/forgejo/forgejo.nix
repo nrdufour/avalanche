@@ -1,4 +1,5 @@
 {
+  lib,
   pkgs,
   config,
   ...
@@ -38,8 +39,11 @@ in
   services.forgejo = {
     enable = true;
     stateDir = "/srv/forgejo";
+    # ExecStart overridden below to add --skip-package-data
+    # (the NixOS module doesn't expose skip flags)
     dump = {
       enable = true;
+      age = "15d";
     };
 
     package = pkgs.unstable.forgejo;
@@ -102,6 +106,13 @@ in
   #   mode = "400";
   #   owner = "forgejo";
   # };
+
+  # Override the dump service to skip package data (container images).
+  # The NixOS module doesn't expose --skip-package-data, so we patch ExecStart.
+  # This reduces dump size from ~30GB to a few GB.
+  systemd.services.forgejo-dump.serviceConfig.ExecStart = let
+    exe = lib.getExe cfg.package;
+  in lib.mkForce "${exe} dump --type ${cfg.dump.type} --skip-package-data";
 
   # Set global git config for forgejo user (persists across rebuilds)
   # These settings apply to git processes spawned by Forgejo (e.g., git-upload-pack for clones)

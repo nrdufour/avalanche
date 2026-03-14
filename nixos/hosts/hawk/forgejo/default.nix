@@ -8,5 +8,6 @@
     ./forgejo-runner.nix
     ./forgejo-rclone.nix
     ./forgejo-restic-remote.nix
+    ./forgejo-container-cleanup.nix
   ];
 }
