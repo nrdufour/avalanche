@@ -129,8 +129,8 @@
           # Infrastructure services (from snowpea)
 
 
-          mysecrets = mkNixosConfig {
-            hostname = "mysecrets";
+          lobster = mkNixosConfig {
+            hostname = "lobster";
             system = "aarch64-linux";
             hardwareModules = [
               "${nixpkgs}/nixos/modules/installer/sd-card/sd-image-aarch64.nix"

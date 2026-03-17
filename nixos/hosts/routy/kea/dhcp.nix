@@ -229,7 +229,7 @@ in
                 hw-address = "78:55:36:04:eb:af";
               }
               {
-                hostname = "mysecrets";
+                hostname = "lobster";
                 ip-address = "10.1.0.99";
                 hw-address = "d8:3a:dd:17:1e:1b";
                 option-data = [

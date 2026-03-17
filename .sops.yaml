@@ -2,7 +2,7 @@
 keys:
   - &admin-ndufour-2022 age1tmrr00pnj6gpc4pfp3wzvyjt66tfhudwj2kn84skt24qvwzlcsusrvrypj
   - &admin-ndufour-2023 age1n535rsu7hlyjg0p46y6du9nl0j7ldsfcmy9x9a24kxs6tuh8dgks2engp2
-  - &server-mysecrets age14hltxzv2tpzutpcjr7lreet5rzcufgcx0rd3syz48v9gdkpaa45s4cfktj
+  - &server-lobster age14hltxzv2tpzutpcjr7lreet5rzcufgcx0rd3syz48v9gdkpaa45s4cfktj
   - &server-raccoon00 age1lpvr9au8fhrwhjyhfjcnhk2qq3tnple2rsc4yu7a7zl7nmz3tswqu8suaf
   - &server-raccoon01 age1w3h0pnv5fc7mwt3s0zcjj2nv9lgksptjewd6rm6dxupz6y4rraksc5w5ef
   - &server-raccoon02 age17tvysh6j960q87wwfwcjfnsj44kjpg8rpa7v8kjkly7ypfxnxefqd3p339
@@ -44,12 +44,12 @@ creation_rules:
         - *server-possum
         - *server-cardinal
         - *server-hawk
-  - path_regex: secrets/mysecrets/[^/]+\.(yaml|json|env|ini)$
+  - path_regex: secrets/lobster/[^/]+\.(yaml|json|env|ini)$
     key_groups:
       - age:
         - *admin-ndufour-2022
         - *admin-ndufour-2023
-        - *server-mysecrets
+        - *server-lobster
   - path_regex: secrets/k3s-worker/[^/]+\.(yaml|json|env|ini)$
     key_groups:
       - age:

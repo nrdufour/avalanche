@@ -28,13 +28,13 @@
       };
   };
 
-  networking.hostName = "mysecrets";
+  networking.hostName = "lobster";
 
   networking.firewall = {
     enable = false;
   };
 
-  sops.defaultSopsFile = ../../../secrets/mysecrets/secrets.sops.yaml;
+  sops.defaultSopsFile = ../../../secrets/lobster/secrets.sops.yaml;
 
   system.autoUpgrade = {
     enable = false;
