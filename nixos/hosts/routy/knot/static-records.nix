@@ -39,7 +39,7 @@
           { name = "adguard"; target = "router.internal."; }
           { name = "sentinel"; target = "router.internal."; }
           # Identity & secrets (mysecrets host)
-          { name = "auth"; target = "mysecrets.internal."; }
+          { name = "auth"; target = "hawk.internal."; }
           { name = "ca"; target = "hawk.internal."; }
           { name = "vaultwarden"; target = "mysecrets.internal."; }
           # Forgejo & apps (hawk host)
