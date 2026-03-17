@@ -31,7 +31,7 @@
   networking.hostName = "mysecrets";
 
   networking.firewall = {
-    enable = false
+    enable = false;
   };
 
   sops.defaultSopsFile = ../../../secrets/mysecrets/secrets.sops.yaml;
