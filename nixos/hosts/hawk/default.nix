@@ -4,9 +4,11 @@
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
       ./secrets.nix
+      ./postgresql.nix
       ./forgejo
       ./step-ca
       ./kanidm
+      ./vaultwarden
       # ./scorekit.nix
       ./ollama.nix
     ];
