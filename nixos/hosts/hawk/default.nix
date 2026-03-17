@@ -6,6 +6,7 @@
       ./secrets.nix
       ./forgejo
       ./step-ca
+      ./kanidm
       # ./scorekit.nix
       ./ollama.nix
     ];
