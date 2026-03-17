@@ -1,10 +1,10 @@
 { pkgs, ... }: {
 
   imports = [
-    ./step-ca
-    ./vaultwarden
-    ./kanidm
-    ./tailscale.nix
+    # ./step-ca
+    # ./vaultwarden
+    # ./kanidm
+    # ./tailscale.nix
     # ./knot-dns
   ];
 
@@ -31,9 +31,7 @@
   networking.hostName = "mysecrets";
 
   networking.firewall = {
-    enable = true;
-    allowedTCPPorts = [ 80 443 53 ];
-    allowedUDPPorts = [ 53 ];
+    enable = false
   };
 
   sops.defaultSopsFile = ../../../secrets/mysecrets/secrets.sops.yaml;
