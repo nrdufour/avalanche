@@ -45,6 +45,7 @@
         "address": "${config.services.step-ca.address}:${toString config.services.step-ca.port}",
         "insecureAddress": "",
         "dnsNames": [
+          "ca.internal",
           "mysecrets.internal",
           "mysecrets.home.arpa",
           "192.168.20.99"
