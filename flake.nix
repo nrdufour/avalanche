@@ -128,18 +128,6 @@
         {
           # Infrastructure services (from snowpea)
 
-          # eagle — powered down, Forgejo migrated to hawk
-          # eagle = mkNixosConfig {
-          #   hostname = "eagle";
-          #   system = "aarch64-linux";
-          #   hardwareModules = [
-          #     "${nixpkgs}/nixos/modules/installer/sd-card/sd-image-aarch64.nix"
-          #     ./nixos/profiles/hw-rpi4.nix
-          #   ];
-          #   profileModules = [
-          #     ./nixos/profiles/role-server.nix
-          #   ];
-          # };
 
           mysecrets = mkNixosConfig {
             hostname = "mysecrets";

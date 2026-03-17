@@ -38,11 +38,10 @@
           # Gateway services
           { name = "adguard"; target = "router.internal."; }
           { name = "sentinel"; target = "router.internal."; }
-          # Identity & secrets (mysecrets host)
+          # Infrastructure services (hawk host)
           { name = "auth"; target = "hawk.internal."; }
           { name = "ca"; target = "hawk.internal."; }
           { name = "vaultwarden"; target = "hawk.internal."; }
-          # Forgejo & apps (hawk host)
           { name = "forge"; target = "hawk.internal."; }
           { name = "scorekit"; target = "bee01.internal."; }
           # Metrics (possum host)
