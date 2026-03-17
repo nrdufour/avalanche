@@ -42,7 +42,7 @@ Project plans, upgrade plans, and implementation proposals for future work.
 
 - [Cilium CNI Migration Plan](plans/cilium-cni-migration-plan.md) - Migrating K3s cluster from Flannel to Cilium CNI
 - [Forgejo Runner Upgrade Plan](plans/forgejo-runner-upgrade-plan.md) - Upgrading Forgejo Actions runners to latest version
-- [mysecrets to hawk Migration Plan](plans/mysecrets-to-hawk-migration-plan.md) - Migrating identity infrastructure (step-ca, Kanidm, Vaultwarden) from mysecrets to hawk
+- [mysecrets to hawk Migration Plan](plans/mysecrets-to-hawk-migration-plan.md) - ✅ Identity infrastructure (step-ca, Kanidm, Vaultwarden) migrated from mysecrets to hawk (2026-03-17)
 
 ## Troubleshooting
 
@@ -100,7 +100,7 @@ Deprecated or superseded documentation kept for historical reference.
 - [Network Migration Plan](architecture/network/network-architecture-migration.md) - Current major infrastructure change
 
 ### Latest Updates
-- mysecrets to hawk Migration Plan - 2026-02-01 (identity infrastructure migration)
+- mysecrets to hawk Migration Complete - 2026-03-17 (step-ca, Kanidm, Vaultwarden now on hawk)
 - Docker Distributed Builds Guide - 2025-12-30 (multi-architecture builds using remote builders)
 - Nix Distributed Builds Guide - 2025-12-30 (build sharing and caching across hosts)
 - Cilium CNI Migration Plan - 2025-12-27 (migrating K3s from Flannel to Cilium)

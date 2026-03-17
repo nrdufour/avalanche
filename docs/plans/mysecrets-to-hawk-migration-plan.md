@@ -2,8 +2,8 @@
 
 **Created:** 2026-02-01
 **Revised:** 2026-02-08
-**Status:** 📋 Planning
-**Target Date:** TBD
+**Status:** ✅ Complete
+**Completed:** 2026-03-17
 
 ## Progress Tracking
 
@@ -11,11 +11,10 @@
 |-------|--------|------|-------|
 | Feasibility analysis | ✅ Complete | 2026-02-01 | All services portable, YubiKey is critical blocker |
 | Plan document | ✅ Complete | 2026-02-08 | Revised: service-by-service with ca.internal |
-| Phase 0: ca.internal CNAME | ⏳ Pending | - | DNS alias + fleet-wide ACME URL update |
-| Phase 1: step-ca migration | ⏳ Pending | - | YubiKey relocation, config, deploy |
-| Phase 2: Kanidm migration | ⏳ Pending | - | Config, data transfer, deploy |
-| Phase 3: Vaultwarden migration | ⏳ Pending | - | PostgreSQL merge, data transfer, deploy |
-| Phase 4: Cleanup | ⏳ Pending | - | Decommission mysecrets, clean up eagle/beacon |
+| Phase 1: step-ca + ca.internal | ✅ Complete | 2026-03-17 | Merged Phase 0 into Phase 1; ca.internal CNAME + YubiKey relocation + deploy |
+| Phase 2: Kanidm migration | ✅ Complete | 2026-03-17 | Config, data transfer, deploy, auth.internal CNAME flip |
+| Phase 3: Vaultwarden migration | ✅ Complete | 2026-03-17 | Shared PostgreSQL config, DB dump/import, vaultwarden.internal CNAME flip |
+| Phase 4: Cleanup | ✅ Complete | 2026-03-17 | eagle removed from repo, mysecrets idle (pending repurpose), auto-upgrade disabled |
 
 ---
 

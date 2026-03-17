@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Avalanche is a unified infrastructure-as-code monorepo managing 15 NixOS hosts (ARM SBCs, x86 servers, and workstations) plus a Kubernetes cluster using GitOps. This consolidates configurations from previously separate repositories (snowy, snowpea, home-ops).
+Avalanche is a unified infrastructure-as-code monorepo managing 14 NixOS hosts (ARM SBCs, x86 servers, and workstations) plus a Kubernetes cluster using GitOps. This consolidates configurations from previously separate repositories (snowy, snowpea, home-ops).
 
 ## Architecture
 
@@ -115,13 +115,14 @@ Web-based gateway management dashboard for routy (network services, DHCP, firewa
 
 ## Infrastructure Details
 
-### NixOS Hosts (15 active)
+### NixOS Hosts (14 active)
 - **Workstation**: calypso (ASUS ROG Strix)
-- **Infrastructure**: mysecrets (step-ca, Vaultwarden, Kanidm), hawk (Forgejo, CI/CD), possum (Minio S3, Samba, NFS, ZFS)
+- **Infrastructure**: hawk (Forgejo, CI/CD, step-ca, Kanidm, Vaultwarden), possum (Minio S3, Samba, NFS, ZFS)
 - **x86 Servers**: routy (main gateway), cardinal
 - **K3s Controllers**: opi01-03 (Orange Pi 5 Plus, aarch64, **NPU-enabled**)
 - **K3s Workers**: raccoon00-05 (Raspberry Pi 4, aarch64)
-- **Decommissioned**: eagle (Forgejo migrated to hawk), beacon (nix-serve, powered down)
+- **Idle**: mysecrets (Raspberry Pi 4, services migrated to hawk, pending repurpose)
+- **Powered down**: beacon (nix-serve)
 - **Archive**: sparrow01 (Raspberry Pi 3, reference config only, no flake entry)
 
 ### Key Technologies
@@ -143,17 +144,17 @@ See `docs/README.md` for the full documentation index. Key areas:
 
 ## Identity Management (Kanidm)
 
-- **Location**: mysecrets host at `https://auth.internal`
+- **Location**: hawk host at `https://auth.internal`
 - **Admin accounts**: `admin` (basic), `idm_admin` (full identity management)
 - **Documentation**: `docs/guides/identity/kanidm-user-management.md`
 
-All administration is CLI-based via `kanidm` command on mysecrets.internal.
+All administration is CLI-based via `kanidm` command on hawk.internal.
 
 ### SecondBrain OAuth2 Client
 
 SecondBrain uses a **public OAuth2 client** with PKCE on Kanidm (no client_secret). This enables the CLI to use Authorization Code Flow with ephemeral localhost redirects.
 
-**Kanidm setup** (run on mysecrets.internal as idm_admin):
+**Kanidm setup** (run on hawk.internal as idm_admin):
 ```bash
 kanidm system oauth2 create-public secondbrain secondbrain https://secondbrain.internal
 kanidm system oauth2 enable-localhost-redirects secondbrain
