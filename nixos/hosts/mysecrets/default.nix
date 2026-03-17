@@ -39,10 +39,7 @@
   sops.defaultSopsFile = ../../../secrets/mysecrets/secrets.sops.yaml;
 
   system.autoUpgrade = {
-    enable = true;
-    allowReboot = true;
-    dates = "02:00";
-    flake = "git+https://forge.internal/nemo/avalanche.git";
+    enable = false;
   };
   
 }
