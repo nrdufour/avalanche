@@ -44,8 +44,9 @@
           { name = "vaultwarden"; target = "hawk.internal."; }
           { name = "forge"; target = "hawk.internal."; }
           { name = "scorekit"; target = "bee01.internal."; }
-          # Metrics (possum host)
+          # Metrics + logs (possum host)
           { name = "vm"; target = "possum.internal."; }
+          { name = "vl"; target = "possum.internal."; }
           # Media services (cardinal host)
           { name = "jellyfin"; target = "cardinal.internal."; }
           { name = "jellyfin-tv"; target = "cardinal.internal."; }

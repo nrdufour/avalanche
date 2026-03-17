@@ -1,6 +1,7 @@
-{ 
+{
   pkgs,
   config,
+  lib,
   ...
 }: {
   # imports = [
@@ -47,7 +48,22 @@
     options = [ "bind" ];
   };
 
+  services.victorialogs = {
+    enable = true;
+  };
+
+  # DynamicUser=true (the module default) can't migrate the StateDirectory when it's
+  # a bind mount (different device). Override to match how victoriametrics is run.
+  systemd.services.victorialogs.serviceConfig.DynamicUser = lib.mkForce false;
+
+  # Store VictoriaLogs data on the SSD rather than the SD card
+  fileSystems."/var/lib/victorialogs" = {
+    device = "/data/victorialogs";
+    options = [ "bind" ];
+  };
+
   security.acme.certs."vm.internal" = { };
+  security.acme.certs."vl.internal" = { };
 
   services.nginx = {
     enable = true;
@@ -60,6 +76,12 @@
       forceSSL = true;
       enableACME = true;
       locations."/".proxyPass = "http://localhost:8428";
+    };
+
+    virtualHosts."vl.internal" = {
+      forceSSL = true;
+      enableACME = true;
+      locations."/".proxyPass = "http://localhost:9428";
     };
   };
 

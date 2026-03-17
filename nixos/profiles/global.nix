@@ -43,6 +43,8 @@ with lib;
       wheelNeedsPassword = false;
     };
     ## END TODO
+
+    mySystem.services.logging.enable = true;
   };
 
 }
