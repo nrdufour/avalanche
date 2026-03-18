@@ -1,5 +1,5 @@
 image:
-  repository: cr.fluentbit.io/fluent/fluent-bit
+  repository: ghcr.io/fluent/fluent-bit
   tag: 4.2.3
 
 config:
