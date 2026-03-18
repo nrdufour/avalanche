@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fluent-bit
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - path: kubernetes/base/infra/observability/fluent-bit
+      repoURL: https://forge.internal/nemo/avalanche.git
+      targetRevision: HEAD
+      ref: values
+    - chart: fluent-bit
+      repoURL: https://fluent.github.io/helm-charts
+      targetRevision: 0.56.0
+      helm:
+        releaseName: fluent-bit
+        valueFiles:
+          - $values/kubernetes/base/infra/observability/fluent-bit/helm-values.yaml
+  destination:
+    namespace: observability
+    name: 'in-cluster'
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

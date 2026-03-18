@@ -20,6 +20,7 @@ resources:
   - system/snapshot-controller-app.yaml
   - system/volsync-app.yaml
   - observability/kube-prometheus-stack-app.yaml
+  - observability/fluent-bit-app.yaml
   - kube-system/metrics-server.yaml
   - longhorn-system/longhorn-app.yaml
   - network/coredns-custom-app.yaml
