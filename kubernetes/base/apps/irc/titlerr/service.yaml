@@ -1,0 +1,12 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: titlerr
+spec:
+  selector:
+    app: titlerr
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: http
