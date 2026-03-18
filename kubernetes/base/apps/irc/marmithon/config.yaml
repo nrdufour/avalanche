@@ -18,6 +18,9 @@ data:
     identdPort = "113"
     identdUsername = "marmithon"
 
+    # Titlerr URL title extraction service
+    titlerURL = "http://titlerr.irc:8080"
+
     # Prometheus metrics server
     metricsEnabled = true
     metricsPort = "9090"
