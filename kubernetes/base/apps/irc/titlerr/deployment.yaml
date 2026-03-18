@@ -17,6 +17,8 @@ spec:
       labels:
         app: titlerr
     spec:
+      nodeSelector:
+        opi.feature.node.kubernetes.io/5plus: "true"
       containers:
         - name: titlerr
           image: forge.internal/nemo/titlerr:latest
