@@ -44,6 +44,7 @@
           { name = "vaultwarden"; target = "hawk.internal."; }
           { name = "forge"; target = "hawk.internal."; }
           { name = "scorekit"; target = "bee01.internal."; }
+          { name = "staging.scorekit"; target = "bee01.internal."; }
           # Metrics + logs (possum host)
           { name = "vm"; target = "possum.internal."; }
           { name = "vl"; target = "possum.internal."; }
