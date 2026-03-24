@@ -6,6 +6,10 @@
   # Kanidm secrets
   sops.secrets = {
     kanidm_admin_password = { };
+    # TODO: uncomment when withSecretProvisioning catches up to domain version 14
+    # kanidm_idm_admin_password = { };
+    # Bitwarden item: 4b07c753-4773-4ff0-9fea-8fc18768958c (field: client_secret)
+    # kanidm_oauth2_synapse_secret = { };
   };
 
   # Kanidm identity management server
@@ -13,6 +17,45 @@
     enableServer = true;
 
     package = pkgs.kanidm_1_9;
+
+    # Declarative provisioning of groups and OAuth2 clients
+    provision = {
+      enable = true;
+      # idm_admin password is auto-recovered on each restart
+      # TODO: pin with idmAdminPasswordFile when withSecretProvisioning supports domain version 14
+
+      groups.idm_all_persons = { };
+
+      systems.oauth2 = {
+        # SecondBrain — public client (PKCE, no secret)
+        # Bitwarden item: b306f1c3-21ab-4fbf-bcca-5dcfcf11fc11
+        secondbrain = {
+          displayName = "secondbrain";
+          public = true;
+          originUrl = "https://secondbrain.internal/oauth/callback";
+          originLanding = "https://secondbrain.internal/";
+          enableLocalhostRedirects = true;
+          scopeMaps.idm_all_persons = [ "openid" "profile" "email" ];
+        };
+
+        # Matrix Synapse — confidential client
+        # Bitwarden item: 4b07c753-4773-4ff0-9fea-8fc18768958c
+        synapse = {
+          displayName = "Matrix Synapse";
+          originUrl = "https://matrix.internal/_synapse/client/oidc/callback";
+          originLanding = "https://matrix.internal/";
+          imageFile = ./icons/matrix.png;
+          # TODO: pin secret with basicSecretFile when withSecretProvisioning supports domain version 14
+          # basicSecretFile = config.sops.secrets.kanidm_oauth2_synapse_secret.path;
+          scopeMaps.idm_all_persons = [ "openid" "profile" "email" ];
+        };
+      };
+    };
+
+    # CLI client configuration (avoids "uri missing" error)
+    clientSettings = {
+      uri = "https://auth.internal";
+    };
 
     serverSettings = {
       # Domain for user identities (users will be user@auth.internal)
