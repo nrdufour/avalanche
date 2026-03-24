@@ -2,7 +2,7 @@
 let
   forgejoUrl = "https://forge.internal";
   owner = "nemo";
-  keepVersions = 5;
+  keepVersions = 10;
 
   cleanupScript = pkgs.writeShellScript "forgejo-container-cleanup" ''
     set -euo pipefail
