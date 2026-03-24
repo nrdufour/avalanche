@@ -1,7 +1,7 @@
 { config, pkgs, lib, ... }:
 {
   # Make kanidm tools available system-wide (same version as server)
-  environment.systemPackages = [ pkgs.kanidm_1_8 ];
+  environment.systemPackages = [ pkgs.kanidm_1_9 ];
 
   # Kanidm secrets
   sops.secrets = {
@@ -12,8 +12,7 @@
   services.kanidm = {
     enableServer = true;
 
-    # Pin package version for stateVersion 23.11
-    package = pkgs.kanidm_1_8;
+    package = pkgs.kanidm_1_9;
 
     serverSettings = {
       # Domain for user identities (users will be user@auth.internal)
