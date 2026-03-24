@@ -92,6 +92,9 @@
 
     # From custom module
     settingsFile = config.sops.templates."smallstep-config.json".path;
+
+    # Use knot DNS directly for ACME DNS-01 challenge validation
+    resolver = "10.0.0.53:53";
   };
 
 }

@@ -96,6 +96,14 @@ in
           The directory in which the step-ca user will be created.
         '';
       };
+      resolver = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        example = "10.0.0.53:53";
+        description = lib.mdDoc ''
+          DNS resolver address for ACME DNS-01 challenge validation.
+        '';
+      };
     };
   };
 
@@ -155,7 +163,8 @@ in
 
           ExecStart = [
             "" # override upstream
-            "${cfg.package}/bin/step-ca ${configFile} --password-file \${CREDENTIALS_DIRECTORY}/intermediate_password"
+            ("${cfg.package}/bin/step-ca ${configFile} --password-file \${CREDENTIALS_DIRECTORY}/intermediate_password"
+              + lib.optionalString (cfg.resolver != null) " --resolver ${cfg.resolver}")
           ];
 
           # ProtectProc = "invisible"; # not supported by upstream yet
