@@ -1,11 +1,5 @@
 { config, pkgs, lib, ... }: {
 
-  disabledModules = [ "services/security/step-ca.nix" ];
-
-  imports = [
-    ../../../modules/step-ca.nix
-  ];
-
   # Using a yubikey to store the keypairs
   environment.systemPackages = with pkgs; [
     yubikey-manager
@@ -29,6 +23,9 @@
       text = lib.readFile ./resources/intermediate_ca.crt;
       user = "step-ca";
     };
+
+    # Override upstream-generated ca.json with sops template (contains YubiKey PIN)
+    "smallstep/ca.json".source = lib.mkForce config.sops.templates."smallstep-config.json".path;
   };
 
   sops.templates."smallstep-config.json" = {
@@ -53,7 +50,7 @@
         },
         "db": {
           "type": "badgerv2",
-          "dataSource": "${config.services.step-ca.userDir}",
+          "dataSource": "/var/lib/step-ca",
           "badgerFileLoadingMode": ""
         },
         "authority": {
@@ -89,12 +86,13 @@
     address = "0.0.0.0";
     port = 8443;
     openFirewall = true;
-
-    # From custom module
-    settingsFile = config.sops.templates."smallstep-config.json".path;
-
-    # Use knot DNS directly for ACME DNS-01 challenge validation
-    resolver = "10.0.0.53:53";
+    settings = { }; # overridden by sops template via environment.etc
   };
+
+  # Use knot DNS directly for ACME DNS-01 challenge validation
+  systemd.services.step-ca.serviceConfig.ExecStart = lib.mkForce [
+    "" # override upstream
+    "${pkgs.step-ca}/bin/step-ca /etc/smallstep/ca.json --password-file \${CREDENTIALS_DIRECTORY}/intermediate_password --resolver 10.0.0.53:53"
+  ];
 
 }
