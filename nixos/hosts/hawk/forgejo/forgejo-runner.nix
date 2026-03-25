@@ -98,6 +98,7 @@
           gitFull
           gnused
           nodejs_24
+          openssh
           wget
           docker
           gnutar
@@ -162,6 +163,7 @@
           gitFull
           gnused
           nodejs_24
+          openssh
           wget
           docker
           gnutar
