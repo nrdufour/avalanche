@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: ntfy
-          image: binwiederhier/ntfy:v2.19.2
+          image: binwiederhier/ntfy:v2.20.0
           args: ["serve"]
           ports:
             - name: http
