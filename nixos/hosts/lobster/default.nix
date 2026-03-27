@@ -1,6 +1,7 @@
 { ... }: {
   imports = [
     ./tailscale.nix
+    ./openclaw
   ];
 
   fileSystems = {
