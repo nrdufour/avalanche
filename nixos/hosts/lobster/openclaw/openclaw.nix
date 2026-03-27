@@ -140,7 +140,7 @@ in
   # --- Container ---
 
   virtualisation.oci-containers.containers.openclaw = {
-    image = "ghcr.io/openclaw/openclaw:v2026.3.24";
+    image = "ghcr.io/openclaw/openclaw:2026.3.1";
 
     ports = [ "127.0.0.1:18789:18789" ];
 
