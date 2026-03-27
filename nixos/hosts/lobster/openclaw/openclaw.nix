@@ -15,7 +15,7 @@ let
   #
   # Secrets flow:
   #   sops secrets -> sops template (openclaw.env) -> podman --env-file
-  #   Config references secrets via { fromEnv: "VAR_NAME" }
+  #   Config references secrets via ${ENV_VAR} string interpolation
   #
   # Channel setup:
   #   Matrix is NOT pre-configured here. After deployment, run the setup
@@ -29,30 +29,15 @@ let
       port = 18789;
       auth = {
         mode = "token";
-        token = { fromEnv = "OPENCLAW_GATEWAY_TOKEN"; };
-        rateLimit = {
-          maxAttempts = 10;
-          windowMs = 60000;
-          lockoutMs = 300000;
-        };
-      };
-      tls = {
-        enabled = false; # TLS terminated at nginx
-      };
-      controlUi = {
-        enabled = true;
-        dangerouslyDisableDeviceAuth = false;
-        dangerouslyAllowHostHeaderOriginFallback = false;
+        token = "\${OPENCLAW_GATEWAY_TOKEN}";
       };
     };
 
     agents = {
       defaults = {
-        defaultProvider = "anthropic";
-        # Sandbox is off because the container itself provides isolation.
-        # The container runs with: --read-only --cap-drop=ALL --memory=2g
-        # --pids-limit=512 --security-opt=no-new-privileges
-        # Running Docker-in-Docker on a Pi 4 is not practical.
+        model = {
+          primary = "anthropic/claude-sonnet-4-5";
+        };
         sandbox = { mode = "off"; };
       };
       list = [
