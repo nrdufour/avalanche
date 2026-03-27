@@ -52,9 +52,9 @@
       # The firewall restricts external access to ports 80/443 only.
       "--network=host"
 
-      # Security hardening
+      # Security hardening (no --read-only: OpenClaw needs to npm-install
+      # plugin deps into /app/extensions/*/node_modules at runtime)
       "--cap-drop=ALL"
-      "--read-only"
       "--security-opt=no-new-privileges"
 
       # Resource limits (Pi 4 with 8GB - reserve headroom for host)
@@ -62,11 +62,6 @@
       "--memory-swap=3g"
       "--cpus=2"
       "--pids-limit=512"
-
-      # Writable tmpfs for transient data
-      "--tmpfs=/tmp:rw,noexec,nosuid,size=256m"
-      "--tmpfs=/var/tmp:rw,noexec,nosuid,size=64m"
-      "--tmpfs=/home/node/.npm:rw,size=128m"
     ];
   };
 
