@@ -1,80 +1,10 @@
 { config, pkgs, lib, ... }:
 
-let
-  # Hardened OpenClaw configuration
-  #
-  # Security posture:
-  #   - Gateway binds to 0.0.0.0 inside the container, but port mapping
-  #     restricts host access to 127.0.0.1:18789 only
-  #   - Token auth required (injected via OPENCLAW_GATEWAY_TOKEN env var)
-  #   - Sandbox mode off because the container itself is the isolation boundary
-  #     (read-only rootfs, cap-drop ALL, memory/pid limits)
-  #   - Tool execution denied (messaging profile, no exec, workspace-only fs)
-  #   - Plugin allowlist restricts to matrix, irc, anthropic, ollama, memory-core
-  #   - Logging redacts sensitive tool output
-  #
-  # Secrets flow:
-  #   sops secrets -> sops template (openclaw.env) -> podman --env-file
-  #   Config references secrets via ${ENV_VAR} string interpolation
-  #
-  # Channel setup:
-  #   Matrix is NOT pre-configured here. After deployment, run the setup
-  #   wizard via the web UI or:
-  #     podman exec -it openclaw openclaw channels setup matrix
-  #
-  openclawConfig = pkgs.writeText "openclaw.json" (builtins.toJSON {
-    gateway = {
-      mode = "local";
-      bind = "0.0.0.0"; # host restricts access via port mapping (127.0.0.1:18789)
-      port = 18789;
-      auth = {
-        mode = "token";
-        token = "\${OPENCLAW_GATEWAY_TOKEN}";
-      };
-    };
-
-    agents = {
-      defaults = {
-        model = {
-          primary = "anthropic/claude-sonnet-4-5";
-        };
-        sandbox = { mode = "off"; };
-      };
-      list = [
-        {
-          id = "floyd";
-          name = "Floyd";
-        }
-      ];
-    };
-
-    tools = {
-      profile = "messaging";
-      fs = { workspaceOnly = true; };
-      exec = {
-        security = "deny";
-        ask = "always";
-      };
-      elevated = { enabled = false; };
-    };
-
-    plugins = {
-      enabled = true;
-      allow = [
-        "matrix"
-        "irc"
-        "memory-core"
-      ];
-    };
-
-    logging = {
-      level = "info";
-      redactSensitive = "tools";
-    };
-  });
-in
 {
   # --- Secrets ---
+  # Secrets are injected via env file; the config at
+  # /srv/openclaw/config/openclaw.json references them via
+  # ${ENV_VAR} string interpolation.
 
   sops.secrets = {
     openclaw_gateway_token = { };
@@ -98,34 +28,10 @@ in
     "d /srv/backups/openclaw 0700 1000 1000 -"
   ];
 
-  # --- Initial config seeding ---
-  # Copies the Nix-generated config on first boot.
-  # After that, the config is writable (setup wizards, web UI edits).
-  # To reset: delete /srv/openclaw/openclaw.json and restart.
-
-  systemd.services.openclaw-init = {
-    description = "Initialize OpenClaw configuration";
-    wantedBy = [ "multi-user.target" ];
-    before = [ "podman-openclaw.service" ];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-    };
-    script = ''
-      if [ ! -f /srv/openclaw/openclaw.json ]; then
-        cp ${openclawConfig} /srv/openclaw/openclaw.json
-        chown 1000:1000 /srv/openclaw/openclaw.json
-        chmod 600 /srv/openclaw/openclaw.json
-      fi
-    '';
-  };
-
   # --- Container ---
 
   virtualisation.oci-containers.containers.openclaw = {
     image = "ghcr.io/openclaw/openclaw:2026.3.1";
-
-    ports = [ "127.0.0.1:18789:18789" ];
 
     volumes = [
       "/srv/openclaw:/home/node/.openclaw"
@@ -141,6 +47,11 @@ in
     ];
 
     extraOptions = [
+      # Host networking: OpenClaw's "lan" bind mode resolves to 127.0.0.1,
+      # which only works if the container shares the host network namespace.
+      # The firewall restricts external access to ports 80/443 only.
+      "--network=host"
+
       # Security hardening
       "--cap-drop=ALL"
       "--read-only"
@@ -155,9 +66,6 @@ in
       # Writable tmpfs for transient data
       "--tmpfs=/tmp:rw,noexec,nosuid,size=256m"
       "--tmpfs=/var/tmp:rw,noexec,nosuid,size=64m"
-
-      # DNS: use routy for .internal domain resolution
-      "--dns=10.0.0.1"
     ];
   };
 
