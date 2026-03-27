@@ -66,6 +66,7 @@
       # Writable tmpfs for transient data
       "--tmpfs=/tmp:rw,noexec,nosuid,size=256m"
       "--tmpfs=/var/tmp:rw,noexec,nosuid,size=64m"
+      "--tmpfs=/home/node/.npm:rw,size=128m"
     ];
   };
 
