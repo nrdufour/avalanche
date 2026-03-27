@@ -65,11 +65,14 @@
       "/srv/openclaw:/home/node/.openclaw"
       # Persist bundled matrix plugin deps across container recreates
       "/srv/openclaw/matrix-plugin-deps:/app/extensions/matrix/node_modules"
+      # Trust internal step-ca root CA for matrix.internal TLS
+      "/etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro"
     ];
 
     environment = {
       TZ = "America/New_York";
       NODE_ENV = "production";
+      NODE_EXTRA_CA_CERTS = "/etc/ssl/certs/ca-certificates.crt";
     };
 
     environmentFiles = [
