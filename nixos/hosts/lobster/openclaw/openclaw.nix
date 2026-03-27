@@ -26,7 +26,35 @@
   systemd.tmpfiles.rules = [
     "d /srv/openclaw 0700 1000 1000 -"
     "d /srv/backups/openclaw 0700 1000 1000 -"
+    "d /srv/openclaw/matrix-plugin-deps 0755 1000 1000 -"
   ];
+
+  # --- Install bundled matrix plugin deps (persisted to /srv) ---
+
+  systemd.services.openclaw-matrix-deps = {
+    description = "Install OpenClaw matrix plugin dependencies";
+    wantedBy = [ "multi-user.target" ];
+    before = [ "podman-openclaw.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    path = [ pkgs.podman ];
+    script = ''
+      # Skip if deps already installed
+      if [ -d /srv/openclaw/matrix-plugin-deps/@vector-im ]; then
+        echo "Matrix plugin deps already installed, skipping"
+        exit 0
+      fi
+      echo "Installing matrix plugin deps into /srv/openclaw/matrix-plugin-deps..."
+      # Run a temporary container to npm install into the mounted volume
+      podman run --rm \
+        -v /srv/openclaw/matrix-plugin-deps:/app/extensions/matrix/node_modules \
+        --network=host \
+        ghcr.io/openclaw/openclaw:2026.3.1 \
+        sh -c "cd /app/extensions/matrix && npm install --production"
+    '';
+  };
 
   # --- Container ---
 
@@ -35,6 +63,8 @@
 
     volumes = [
       "/srv/openclaw:/home/node/.openclaw"
+      # Persist bundled matrix plugin deps across container recreates
+      "/srv/openclaw/matrix-plugin-deps:/app/extensions/matrix/node_modules"
     ];
 
     environment = {
