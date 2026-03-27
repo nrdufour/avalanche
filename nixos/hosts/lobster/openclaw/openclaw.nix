@@ -25,7 +25,7 @@ let
   openclawConfig = pkgs.writeText "openclaw.json" (builtins.toJSON {
     gateway = {
       mode = "local";
-      bind = "lan"; # 0.0.0.0 inside container; host restricts via port mapping
+      bind = "0.0.0.0"; # host restricts access via port mapping (127.0.0.1:18789)
       port = 18789;
       auth = {
         mode = "token";
@@ -63,8 +63,6 @@ let
       allow = [
         "matrix"
         "irc"
-        "anthropic"
-        "ollama"
         "memory-core"
       ];
     };
