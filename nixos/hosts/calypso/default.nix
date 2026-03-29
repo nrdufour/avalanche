@@ -29,6 +29,9 @@
         fuzzel
         mako
         swaylock
+        # Daily productivity
+        libreoffice
+        hledger
     ];
 
     # Enable swaylock to authenticate via PAM
