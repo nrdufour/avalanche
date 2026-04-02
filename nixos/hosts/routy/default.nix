@@ -16,7 +16,7 @@
       ./vpn-egress.nix
       ./android16-fix.nix
       ./sentinel.nix
-      ./fixup-run-private.nix
+      ./disable-dynamic-user.nix
     ];
 
   networking.domain = "internal";

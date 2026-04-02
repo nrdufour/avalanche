@@ -523,8 +523,10 @@ in
     };
     users.groups.sentinel = { };
 
-    # Re-apply ACLs on the Kea control socket after every Kea (re)start.
-    # The socket is recreated each time Kea starts (DynamicUser), so ACLs are lost.
+    # Re-apply ACL on the Kea control socket after every Kea (re)start.
+    # The socket is recreated each time Kea starts, so ACLs are lost.
+    # Sentinel has group kea membership for directory access (RuntimeDirectoryMode=0750),
+    # but the socket itself is created with kea's UMask=0077 (mode 0600), so it needs an ACL.
     systemd.services.sentinel-kea-acl = mkIf (cfg.collectors.kea.controlSocket != "") {
       description = "Set ACL for Sentinel to access Kea control socket";
       wantedBy = [ "kea-dhcp4-server.service" ];
@@ -534,17 +536,13 @@ in
         Type = "oneshot";
         RemainAfterExit = true;
         ExecStart = let
-          socketDir = builtins.dirOf cfg.collectors.kea.controlSocket;
           socketFile = cfg.collectors.kea.controlSocket;
         in pkgs.writeShellScript "sentinel-kea-acl" ''
-          # /run/kea is a symlink to /run/private/kea (DynamicUser)
-          # Grant traverse permission on /run/private for sentinel
-          ${pkgs.acl}/bin/setfacl -m u:sentinel:x /run/private
-
-          # Grant traverse permission on socket directory
-          ${pkgs.acl}/bin/setfacl -m u:sentinel:rx ${socketDir}
-
-          # Grant read/write access to the control socket
+          # Wait for kea to create the control socket (up to 10s)
+          for i in $(seq 1 20); do
+            [ -S "${socketFile}" ] && break
+            sleep 0.5
+          done
           ${pkgs.acl}/bin/setfacl -m u:sentinel:rw ${socketFile}
         '';
       };
