@@ -44,6 +44,10 @@ with lib;
     };
     ## END TODO
 
+    # Use the Python rewrite of nixos-rebuild. Fixes list-generations showing
+    # "Unknown" kernel versions (bash version looks in the wrong store path).
+    system.rebuild.enableNg = true;
+
     mySystem.services.logging.enable = true;
   };
 
