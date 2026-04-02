@@ -10,7 +10,7 @@ pkgs.mkShell {
     statix
     nixfmt-rfc-style
     fd
-    nixos-rebuild
+
 
     # Kubernetes tools
     kubectl
