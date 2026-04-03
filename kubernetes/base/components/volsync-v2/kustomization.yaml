@@ -27,7 +27,7 @@
 #           - name: VOLSYNC_CACHE_CAPACITY
 #             value: 2Gi
 #           - name: VOLSYNC_SCHEDULE
-#             value: "0 * * * *"
+#             value: "0 * * * *"  # Pick a UNIQUE minute offset - see README.md Schedule Staggering
 #           - name: VOLSYNC_UID
 #             value: "1000"
 #           - name: VOLSYNC_GID

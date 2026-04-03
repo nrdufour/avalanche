@@ -267,6 +267,8 @@ Reusable Kustomize component for backup/restore at `kubernetes/base/components/v
 
 **Optional env vars:** `VOLSYNC_STORAGECLASS` (default: longhorn), `VOLSYNC_ACCESSMODE` (default: ReadWriteOnce), `VOLSYNC_CACHE_CAPACITY` (default: 2Gi), `VOLSYNC_SCHEDULE` (default: "0 * * * *"), `VOLSYNC_UID`/`VOLSYNC_GID` (default: 1000)
 
+**CRITICAL: Stagger backup schedules.** Each app must use a unique minute offset for `VOLSYNC_SCHEDULE`. Concurrent snapshot clones saturate Longhorn's replica rebuild capacity, causing mover pods to get permanently stuck. See the schedule assignment table in `kubernetes/base/components/volsync-v2/README.md`.
+
 **Minimal app kustomization.yaml:**
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1

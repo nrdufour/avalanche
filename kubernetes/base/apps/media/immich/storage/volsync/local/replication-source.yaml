@@ -7,7 +7,8 @@ metadata:
 spec:
   sourcePVC: immich-cache
   trigger:
-    schedule: "0 * * * *"  # Hourly backups
+    # Staggered to avoid concurrent Longhorn snapshot clones (see volsync-v2 README)
+    schedule: "25 * * * *"
   restic:
     copyMethod: Snapshot
     pruneIntervalDays: 7

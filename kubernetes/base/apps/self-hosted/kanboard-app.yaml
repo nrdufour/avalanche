@@ -28,7 +28,8 @@ spec:
         - name: VOLSYNC_CACHE_CAPACITY
           value: "2Gi"
         - name: VOLSYNC_SCHEDULE
-          value: "0 */6 * * *"
+          # Staggered to avoid concurrent Longhorn snapshot clones (see volsync-v2 README)
+          value: "51 */6 * * *"
         - name: VOLSYNC_UID
           value: "100"
         - name: VOLSYNC_GID

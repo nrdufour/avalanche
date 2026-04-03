@@ -146,6 +146,40 @@ spec:
 | `VOLSYNC_UID` | Mover container UID | `1000` | No |
 | `VOLSYNC_GID` | Mover container GID | `1000` | No |
 
+## Schedule Staggering
+
+**IMPORTANT: When adding a new app with VolSync, pick a unique minute offset for its schedule.**
+
+VolSync's `copyMethod: Snapshot` requires Longhorn to clone a volume from a VolumeSnapshot and
+rebuild 3 replicas before the mover pod can attach. Each clone takes 2-5 minutes. When multiple
+backups fire simultaneously, the concurrent replica rebuilds saturate Longhorn's per-node rebuild
+limit (`concurrent-replica-rebuild-per-node-limit: 5`), causing clones to time out or fault.
+The mover pod then gets stuck in `ContainerCreating` with `FailedAttachVolume` indefinitely.
+
+To prevent this, **stagger schedules so no more than 2-3 backups run concurrently**. Use a unique
+minute offset for each app (3-5 minute gaps between apps).
+
+### Current Schedule Assignments
+
+| Minute | Frequency | App |
+|--------|-----------|-----|
+| `:00` | Hourly | home-assistant |
+| `:05` | Hourly | influxdb2 |
+| `:10` | Hourly | mqtt |
+| `:15` | Hourly | matrix |
+| `:20` | Hourly | ntfy |
+| `:25` | Hourly | immich-cache |
+| `:30` | Every 6h | esphome |
+| `:33` | Every 6h | grafana |
+| `:36` | Every 6h | zwave |
+| `:39` | Every 6h | thelounge |
+| `:42` | Every 6h | archivebox |
+| `:45` | Every 6h | seerr |
+| `:48` | Every 6h | homebox |
+| `:51` | Every 6h | kanboard |
+
+**Next available slot: `:54` (every 6h) or `:27` (hourly).**
+
 ## Bitwarden Secret Structure
 
 The Bitwarden item (referenced by `VOLSYNC_BITWARDEN_KEY`) should have these custom fields:
