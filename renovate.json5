@@ -150,7 +150,7 @@
       description: 'Skip code-server 4.113.0 (broken arm64 image ships x86-64 node binary)',
       matchDatasources: ['docker'],
       matchPackageNames: ['ghcr.io/coder/code-server'],
-      allowedVersions: '!=4.113.0',
+      allowedVersions: '!/^4\\.113\\.0$/',
     },
     {
       description: 'Disable major updates for CNPG clusters (requires backup/restore migration)',
