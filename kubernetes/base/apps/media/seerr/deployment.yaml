@@ -1,0 +1,56 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: seerr
+  labels:
+    app: seerr
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: seerr
+  template:
+    metadata:
+      labels:
+        app: seerr
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: seerr
+          image: seerr/seerr:v3.1.0
+          ports:
+            - containerPort: 5055
+              name: http
+              protocol: TCP
+          env:
+            - name: TZ
+              value: "America/New_York"
+          volumeMounts:
+            - mountPath: /app/config
+              name: seerr
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+      volumes:
+        - name: seerr
+          persistentVolumeClaim:
+            claimName: seerr

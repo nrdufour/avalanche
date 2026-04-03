@@ -9,5 +9,6 @@ resources:
   - qbittorrent-app.yaml
   - nzbget-app.yaml
   - radarr-app.yaml
+  - seerr-app.yaml
   - sonarr-app.yaml
   - ytptube-app.yaml

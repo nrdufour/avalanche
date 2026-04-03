@@ -1,0 +1,32 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: seerr-ingress
+  namespace: media
+  annotations:
+    gethomepage.dev/description: Media request management
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/group: Media
+    gethomepage.dev/icon: overseerr.png
+    gethomepage.dev/name: Seerr
+    gethomepage.dev/pod-selector: "app=seerr"
+    cert-manager.io/cluster-issuer: ca-server-cluster-issuer
+    cert-manager.io/common-name: seerr.internal
+spec:
+  tls:
+    - hosts:
+      - seerr.internal
+      secretName: seerr-ing-cert
+  ingressClassName: nginx
+  rules:
+  - host: seerr.internal
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: seerr
+            port:
+              number: 5055
