@@ -29,9 +29,14 @@ spec:
           env:
             - name: TZ
               value: "America/New_York"
+            - name: NODE_EXTRA_CA_CERTS
+              value: /etc/ssl/custom/ca.crt
           volumeMounts:
             - mountPath: /app/config
               name: seerr
+            - mountPath: /etc/ssl/custom
+              name: ca-cert
+              readOnly: true
           livenessProbe:
             httpGet:
               path: /
@@ -54,3 +59,6 @@ spec:
         - name: seerr
           persistentVolumeClaim:
             claimName: seerr
+        - name: ca-cert
+          configMap:
+            name: seerr-ca

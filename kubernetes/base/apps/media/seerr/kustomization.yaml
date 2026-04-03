@@ -6,6 +6,7 @@ resources:
   - deployment.yaml
   - service.yaml
   - ingress.yaml
+  - ca-configmap.yaml
   # Note: PVC is managed by volsync-v2 component
 components:
   - ../../../components/volsync-v2
