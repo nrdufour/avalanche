@@ -33,7 +33,7 @@ spec:
           volumeMounts:
             - mountPath: "/config"
               name: ha-storage
-        - image: ghcr.io/coder/code-server:4.113.1
+        - image: ghcr.io/coder/code-server:4.114.0
           name: code-server
           securityContext:
             runAsUser: 0
