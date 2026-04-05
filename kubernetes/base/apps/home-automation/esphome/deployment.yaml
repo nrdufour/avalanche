@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: esphome
+  namespace: home-automation
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: esphome
+  template:
+    metadata:
+      labels:
+        app: esphome
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: main
+          image: ghcr.io/esphome/esphome:2025.12.2
+          env:
+            - name: ESPHOME_DASHBOARD_USE_PING
+              value: "true"
+          resources:
+            requests:
+              cpu: 5m
+              memory: 1374M
+            limits:
+              memory: 2048M
+          volumeMounts:
+            - name: config
+              mountPath: config
+            - name: esphome-cache
+              mountPath: /config/.esphome
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: esphome
+        - name: esphome-cache
+          emptyDir: {}
