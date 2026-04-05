@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: rtl433
+  name: rtlamr2mqtt
   namespace: home-automation
 spec:
   replicas: 1
@@ -10,31 +10,16 @@ spec:
     type: Recreate
   selector:
     matchLabels:
-      app: rtl433
+      app: rtlamr2mqtt
   template:
     metadata:
       labels:
-        app: rtl433
+        app: rtlamr2mqtt
     spec:
       enableServiceLinks: false
       containers:
         - name: main
-          image: docker.io/hertzg/rtl_433:25.12
-          args:
-            - "-Ccustomary"
-            - "-Mtime:unix:usec:utc"
-            - "-Mlevel"
-            - "-Mprotocol"
-            - "-Mstats:2:300"
-            - "-R40"
-            - "-R41"
-            - "-Finflux://influxdb2.internal:8086/api/v2/write?org=nemoworld&bucket=rtl433_sensors,token=$(INFLUXDB2_TOKEN)"
-            - "-Finflux://possum.internal:8428/write?db=rtl433_sensors"
-            - "-Fmqtt://mqtt.internal,retain=0,events=rtl_433[/model][/channel][/id]"
-            - "-Flog"
-          envFrom:
-            - secretRef:
-                name: rtl433-secret
+          image: forge.internal/nemo/rtlamr2mqtt:6d60a6e-1774025524
           securityContext:
             privileged: true
           resources:
@@ -43,6 +28,15 @@ spec:
               memory: 64Mi
             limits:
               memory: 256Mi
+          volumeMounts:
+            - name: config-file
+              mountPath: /etc/rtlamr2mqtt.yaml
+              subPath: rtlamr2mqtt.yaml
+              readOnly: true
+      volumes:
+        - name: config-file
+          secret:
+            secretName: rtlamr2mqtt-config
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -60,4 +54,4 @@ spec:
                   - key: "app"
                     operator: "In"
                     values:
-                      - "rtlamr2mqtt"
+                      - "rtl433"
