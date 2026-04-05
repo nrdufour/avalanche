@@ -27,6 +27,13 @@
     # SSH and all other ports are accessible via Tailscale (trustedInterfaces in tailscale.nix)
   };
 
+  mySystem.networking.staticIP = {
+    enable = true;
+    mac = "d8:3a:dd:17:1e:1b";
+    address = "10.1.0.99/24";
+    dns = [ "10.0.0.1" ];
+  };
+
   sops.defaultSopsFile = ../../../secrets/lobster/secrets.sops.yaml;
 
   # Agent runner tools

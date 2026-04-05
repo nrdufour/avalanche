@@ -42,6 +42,12 @@
     };
   };
 
+  mySystem.networking.staticIP = {
+    enable = true;
+    mac = "78:55:36:04:eb:af";
+    address = "10.1.0.91/24";
+  };
+
   zramSwap = {
     enable = true;
     algorithm = "zstd";

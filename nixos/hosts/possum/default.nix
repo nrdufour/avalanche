@@ -37,6 +37,12 @@
     };
   };
 
+  mySystem.networking.staticIP = {
+    enable = true;
+    mac = "dc:a6:32:f9:22:5f";
+    address = "10.1.0.60/24";
+  };
+
   services.victoriametrics = {
     enable = true;
     retentionPeriod = "10y";

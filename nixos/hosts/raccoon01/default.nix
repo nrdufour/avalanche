@@ -2,6 +2,12 @@
 
   networking.hostName = "raccoon01";
 
+  mySystem.networking.staticIP = {
+    enable = true;
+    mac = "dc:a6:32:f9:0b:0d";
+    address = "10.1.0.31/24";
+  };
+
   fileSystems = {
     "/" =
       {

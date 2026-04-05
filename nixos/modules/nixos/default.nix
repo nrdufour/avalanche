@@ -1,6 +1,7 @@
 { lib, config, ... }: {
 
   imports = [
+    ./networking
     ./security
     ./services
     ./system
