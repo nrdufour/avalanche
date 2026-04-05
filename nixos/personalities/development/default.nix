@@ -43,9 +43,10 @@
         btop
         jq
 
-        # Because you know ... python and go
+        # Because you know ... python and go and js
         go
         go-tools
+        nodejs_24
 
         (pkgs.python3.withPackages (python-pkgs: [
             # select Python packages here
