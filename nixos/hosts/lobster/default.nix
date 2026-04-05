@@ -1,7 +1,6 @@
-{ ... }: {
+{ inputs, pkgs, config, ... }: {
   imports = [
     ./tailscale.nix
-    ./openclaw
   ];
 
   fileSystems = {
@@ -25,13 +24,18 @@
 
   networking.firewall = {
     enable = true;
-    allowedTCPPorts = [ 80 443 ];
     # SSH and all other ports are accessible via Tailscale (trustedInterfaces in tailscale.nix)
   };
 
   sops.defaultSopsFile = ../../../secrets/lobster/secrets.sops.yaml;
 
+  # Agent runner tools
+  environment.systemPackages = [
+    inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.claude-code
+    inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.oh-my-opencode
+  ];
+
   # Log shipping enabled via global.nix
-  # Auto-upgrade disabled — lobster is a testing machine
+  # Auto-upgrade disabled — lobster is a testing/agent-runner machine
   system.autoUpgrade.enable = false;
 }

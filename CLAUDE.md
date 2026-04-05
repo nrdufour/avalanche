@@ -121,7 +121,7 @@ Web-based gateway management dashboard for routy (network services, DHCP, firewa
 - **x86 Servers**: routy (main gateway), cardinal
 - **K3s Controllers**: opi01-03 (Orange Pi 5 Plus, aarch64, **NPU-enabled**)
 - **K3s Workers**: raccoon00-05 (Raspberry Pi 4, aarch64)
-- **Idle**: lobster (Raspberry Pi 4, formerly mysecrets, pending repurpose for openclaw)
+- **Agent Runner**: lobster (Raspberry Pi 4, claude-code + oh-my-openagent)
 - **Powered down**: beacon (nix-serve)
 - **Archive**: sparrow01 (Raspberry Pi 3, reference config only, no flake entry)
 
