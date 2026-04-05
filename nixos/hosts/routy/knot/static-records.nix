@@ -27,6 +27,20 @@
           # Bee cluster
           { name = "bee01"; ip = "10.2.0.10"; }
           { name = "bee02"; ip = "10.2.0.11"; }
+          # Infrastructure hosts (static IPs, no longer DHCP-registered)
+          { name = "opi01"; ip = "10.1.0.20"; }
+          { name = "opi02"; ip = "10.1.0.21"; }
+          { name = "opi03"; ip = "10.1.0.22"; }
+          { name = "raccoon00"; ip = "10.1.0.30"; }
+          { name = "raccoon01"; ip = "10.1.0.31"; }
+          { name = "raccoon02"; ip = "10.1.0.32"; }
+          { name = "raccoon03"; ip = "10.1.0.33"; }
+          { name = "raccoon04"; ip = "10.1.0.34"; }
+          { name = "raccoon05"; ip = "10.1.0.35"; }
+          { name = "possum"; ip = "10.1.0.60"; }
+          { name = "cardinal"; ip = "10.1.0.65"; }
+          { name = "hawk"; ip = "10.1.0.91"; }
+          { name = "lobster"; ip = "10.1.0.99"; }
         ];
 
         nsRecords = [
@@ -62,11 +76,26 @@
       };
 
       # Reverse DNS zone for 10.x.x.x
-      # Note: All PTR records are DHCP-managed via Kea DDNS
       "10.in-addr.arpa" = {
         nsRecords = [
           { zone = "@"; nameserver = "ns0.internal."; }
           { zone = "@"; nameserver = "ns1.internal."; }
+        ];
+        ptrRecords = [
+          # Infrastructure hosts (static IPs, no longer DHCP-registered)
+          { ip = "10.1.0.20"; hostname = "opi01.internal."; }
+          { ip = "10.1.0.21"; hostname = "opi02.internal."; }
+          { ip = "10.1.0.22"; hostname = "opi03.internal."; }
+          { ip = "10.1.0.30"; hostname = "raccoon00.internal."; }
+          { ip = "10.1.0.31"; hostname = "raccoon01.internal."; }
+          { ip = "10.1.0.32"; hostname = "raccoon02.internal."; }
+          { ip = "10.1.0.33"; hostname = "raccoon03.internal."; }
+          { ip = "10.1.0.34"; hostname = "raccoon04.internal."; }
+          { ip = "10.1.0.35"; hostname = "raccoon05.internal."; }
+          { ip = "10.1.0.60"; hostname = "possum.internal."; }
+          { ip = "10.1.0.65"; hostname = "cardinal.internal."; }
+          { ip = "10.1.0.91"; hostname = "hawk.internal."; }
+          { ip = "10.1.0.99"; hostname = "lobster.internal."; }
         ];
       };
 
