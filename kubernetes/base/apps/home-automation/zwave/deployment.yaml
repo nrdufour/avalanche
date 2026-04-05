@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zwave
+  namespace: home-automation
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: zwave
+  template:
+    metadata:
+      labels:
+        app: zwave
+    spec:
+      enableServiceLinks: false
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: "homeseer.feature.node.kubernetes.io/g8"
+                    operator: "In"
+                    values:
+                      - "true"
+      containers:
+        - name: app
+          image: ghcr.io/zwave-js/zwave-js-ui:11.9.1@sha256:a7036e59a9d7916d1f92f2fa1e0b9f4a5ed317fc8bef38756368f7c865e0e95a
+          env:
+            - name: PORT
+              value: "80"
+            - name: TZ
+              value: "America/New_York"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
+          securityContext:
+            privileged: true
+          resources:
+            requests:
+              cpu: 10m
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: config
+              mountPath: /usr/src/app/store
+            - name: device
+              mountPath: /dev/zwave
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: zwave
+        - name: device
+          hostPath:
+            path: /dev/ttyACM0
+        - name: tmp
+          emptyDir: {}

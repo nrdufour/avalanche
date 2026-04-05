@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: zwave
+  namespace: home-automation
+  annotations:
+    gethomepage.dev/description: ZWave Device Management
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/group: Home
+    gethomepage.dev/icon: sh-z-wave-js-ui
+    gethomepage.dev/name: ZWave JS UI
+    gethomepage.dev/pod-selector: "app=zwave"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: zwave.internal
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: zwave
+                port:
+                  number: 80
