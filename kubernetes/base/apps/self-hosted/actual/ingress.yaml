@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: actual
+  namespace: self-hosted
+  annotations:
+    cert-manager.io/cluster-issuer: ca-server-cluster-issuer
+    cert-manager.io/common-name: actual.internal
+    gethomepage.dev/description: Finances Management
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/group: Home
+    gethomepage.dev/icon: sh-actual-budget
+    gethomepage.dev/name: Actual Budget
+    gethomepage.dev/pod-selector: "app=actual"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: actual.internal
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: actual
+                port:
+                  number: 5006
+  tls:
+    - hosts:
+        - "actual.internal"
+      secretName: actual-ing-cert
