@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rtl433
+  namespace: home-automation
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: rtl433
+  template:
+    metadata:
+      labels:
+        app: rtl433
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: main
+          image: docker.io/hertzg/rtl_433:25.12
+          args:
+            - "-Ccustomary"
+            - "-Mtime:unix:usec:utc"
+            - "-Mlevel"
+            - "-Mprotocol"
+            - "-Mstats:2:300"
+            - "-R40"
+            - "-R41"
+            - "-Finflux://influxdb2.internal:8086/api/v2/write?org=nemoworld&bucket=rtl433_sensors,token=$(INFLUXDB2_TOKEN)"
+            - "-Finflux://possum.internal:8428/write?db=rtl433_sensors"
+            - "-Fmqtt://mqtt.internal,retain=0,events=rtl_433[/model][/channel][/id]"
+            - "-Flog"
+          envFrom:
+            - secretRef:
+                name: rtl433-secret
+          securityContext:
+            privileged: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: "rtlsdr.feature.node.kubernetes.io/v3"
+                    operator: "In"
+                    values:
+                      - "true"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: "kubernetes.io/hostname"
+              labelSelector:
+                matchExpressions:
+                  - key: "app.kubernetes.io/name"
+                    operator: "In"
+                    values:
+                      - "rtlamr2mqtt"
