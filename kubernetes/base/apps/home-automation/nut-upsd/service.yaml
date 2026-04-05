@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nut-upsd
+  namespace: home-automation
+spec:
+  type: ClusterIP
+  selector:
+    app: nut-upsd
+  ports:
+    - name: http
+      port: 3493
+      targetPort: 3493
+      protocol: TCP

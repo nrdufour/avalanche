@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nut-upsd
+  namespace: home-automation
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nut-upsd
+  template:
+    metadata:
+      labels:
+        app: nut-upsd
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        apc.feature.node.kubernetes.io/1500s: "true"
+      containers:
+        - name: main
+          image: docker.io/instantlinux/nut-upsd:2.8.2-r0
+          env:
+            - name: DESCRIPTION
+              value: "Main Cluster UPS"
+            - name: DRIVER
+              value: "usbhid-ups"
+          envFrom:
+            - secretRef:
+                name: nut-upsd-secret
+          securityContext:
+            privileged: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi

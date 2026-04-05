@@ -5,18 +5,10 @@ metadata:
   namespace: argocd
 spec:
   project: default
-  sources:
-    - path: kubernetes/base/apps/home-automation/nut-upsd
-      repoURL: https://forge.internal/nemo/avalanche.git
-      targetRevision: HEAD
-      ref: values
-    - repoURL: oci://ghcr.io/bjw-s/helm/app-template
-      targetRevision: 3.7.3
-      path: .
-      helm:
-        releaseName: nut-upsd
-        valueFiles:
-          - $values/kubernetes/base/apps/home-automation/nut-upsd/helm-values.yaml
+  source:
+    repoURL: https://forge.internal/nemo/avalanche.git
+    targetRevision: HEAD
+    path: kubernetes/base/apps/home-automation/nut-upsd
   destination:
     namespace: home-automation
     name: 'in-cluster'
