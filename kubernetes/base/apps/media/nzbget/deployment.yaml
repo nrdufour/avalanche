@@ -29,7 +29,7 @@ spec:
 
       containers:
         - name: nzbget
-          image: ghcr.io/home-operations/nzbget:26.0.0@sha256:0185f0b026696bfbb89f29aecf777b721a8aa288da90ceb1021b6ee52c6de8f7
+          image: ghcr.io/home-operations/nzbget:26.1.0@sha256:37611bd0b2301d30998e984bd57f1331d6a9dba4adfbf2729af79a2be0bb24da
           ports:
             - name: http
               containerPort: 6789
