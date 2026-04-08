@@ -10,7 +10,7 @@
     services.k3s = {
       enable = true;
       role = "agent";
-      linstorSupport = true;
+      # linstorSupport = true;  # DRBD 9.2.15 broken on kernel 6.18 (opi nodes)
     };
     services.monitoring.nodeExporter.enable = false;
   };
