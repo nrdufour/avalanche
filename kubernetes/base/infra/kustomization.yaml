@@ -23,4 +23,5 @@ resources:
   - observability/fluent-bit-app.yaml
   - kube-system/metrics-server.yaml
   - longhorn-system/longhorn-app.yaml
+  - piraeus/piraeus-app.yaml
   - network/coredns-custom-app.yaml

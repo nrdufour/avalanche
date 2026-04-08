@@ -1,0 +1,13 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: linstor
+provisioner: linstor.csi.linbit.com
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  autoPlace: "2"
+  storagePool: ssd-thin
+  allowRemoteVolumeAccess: "true"
+  csi.storage.k8s.io/fstype: ext4

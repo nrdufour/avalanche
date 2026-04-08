@@ -1,0 +1,20 @@
+apiVersion: piraeus.io/v1
+kind: LinstorCluster
+metadata:
+  name: linstorcluster
+spec:
+  # NixOS PATH patch — satellites need access to host binaries (drbdadm, lvm, thin_check)
+  patches:
+    - target:
+        kind: Pod
+      patch: |
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: satellite
+        spec:
+          containers:
+            - name: linstor-satellite
+              env:
+                - name: PATH
+                  value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/run/wrappers/bin:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin

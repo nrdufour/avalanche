@@ -1,0 +1,13 @@
+---
+# Storage pools on controller nodes only (opi01-03 with NVMe SSDs)
+apiVersion: piraeus.io/v1
+kind: LinstorSatelliteConfiguration
+metadata:
+  name: controllers-storage
+spec:
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: "true"
+  storagePools:
+    - name: ssd-thin
+      fileThinPool:
+        directory: /var/lib/linstor-pools
