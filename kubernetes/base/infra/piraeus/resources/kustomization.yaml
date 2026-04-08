@@ -6,3 +6,5 @@ resources:
   - linstor-satellite.yaml
   - storage-class.yaml
   - snapshot-class.yaml
+  - monitoring.yaml
+  - grafana-dashboard.yaml

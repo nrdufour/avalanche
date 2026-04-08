@@ -1,0 +1,213 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: linstor-dashboard
+  namespace: home-automation
+  labels:
+    grafana_dashboard: "1"
+data:
+  linstor.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [],
+      "panels": [
+        {
+          "title": "Node State",
+          "type": "table",
+          "gridPos": { "h": 6, "w": 12, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "options": { "0": { "text": "OFFLINE", "color": "red" }, "1": { "text": "CONNECTED", "color": "yellow" }, "2": { "text": "ONLINE", "color": "green" } }, "type": "value" }
+              ],
+              "color": { "mode": "fixed" }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "linstor_node_state",
+              "legendFormat": "{{node}}",
+              "format": "table",
+              "instant": true
+            }
+          ],
+          "transformations": [
+            { "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true, "address": true, "encryption": true, "instance": true, "job": true, "port": true }, "renameByName": { "node": "Node", "nodetype": "Type", "Value": "State" } } }
+          ]
+        },
+        {
+          "title": "Storage Pool Capacity",
+          "type": "bargauge",
+          "gridPos": { "h": 6, "w": 12, "x": 12, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "min": 0,
+              "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 80 }, { "color": "red", "value": 95 } ] }
+            }
+          },
+          "options": { "orientation": "horizontal", "displayMode": "gradient", "reduceOptions": { "calcs": ["lastNotNull"] } },
+          "targets": [
+            {
+              "expr": "linstor_storage_pool_capacity_total_bytes - linstor_storage_pool_capacity_free_bytes",
+              "legendFormat": "{{node}} used"
+            },
+            {
+              "expr": "linstor_storage_pool_capacity_total_bytes",
+              "legendFormat": "{{node}} total"
+            }
+          ]
+        },
+        {
+          "title": "Storage Pool Free Space",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "fillOpacity": 20 } } },
+          "targets": [
+            {
+              "expr": "linstor_storage_pool_capacity_free_bytes",
+              "legendFormat": "{{node}}"
+            }
+          ]
+        },
+        {
+          "title": "Storage Pool Usage %",
+          "type": "gauge",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "min": 0, "max": 1,
+              "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 0.7 }, { "color": "red", "value": 0.9 } ] }
+            }
+          },
+          "targets": [
+            {
+              "expr": "1 - (linstor_storage_pool_capacity_free_bytes / linstor_storage_pool_capacity_total_bytes)",
+              "legendFormat": "{{node}}"
+            }
+          ]
+        },
+        {
+          "title": "Resource State",
+          "type": "table",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "options": { "-1": { "text": "Unknown" }, "0": { "text": "Secondary", "color": "blue" }, "1": { "text": "Primary", "color": "green" } }, "type": "value" }
+              ]
+            }
+          },
+          "targets": [
+            {
+              "expr": "linstor_resource_state",
+              "format": "table",
+              "instant": true
+            }
+          ],
+          "transformations": [
+            { "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true }, "renameByName": { "node": "Node", "resource": "Resource", "Value": "State" } } }
+          ]
+        },
+        {
+          "title": "Volume State",
+          "type": "table",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "options": { "1": { "text": "UpToDate", "color": "green" }, "2": { "text": "Created" }, "3": { "text": "Attached" }, "4": { "text": "Diskless", "color": "blue" }, "5": { "text": "Inconsistent", "color": "yellow" }, "6": { "text": "Failed", "color": "red" } }, "type": "value" }
+              ]
+            }
+          },
+          "targets": [
+            {
+              "expr": "linstor_volume_state",
+              "format": "table",
+              "instant": true
+            }
+          ],
+          "transformations": [
+            { "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true }, "renameByName": { "node": "Node", "resource": "Resource", "volume_number": "Vol#", "Value": "State" } } }
+          ]
+        },
+        {
+          "title": "Volume Allocated Size",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "fillOpacity": 20 } } },
+          "targets": [
+            {
+              "expr": "linstor_volume_allocated_size_bytes",
+              "legendFormat": "{{resource}} on {{node}}"
+            }
+          ]
+        },
+        {
+          "title": "Error Reports",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 30 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": { "defaults": { "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } } },
+          "targets": [
+            {
+              "expr": "linstor_error_reports_count",
+              "legendFormat": "errors"
+            }
+          ]
+        },
+        {
+          "title": "Resource Definitions",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 30 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "targets": [
+            {
+              "expr": "linstor_resource_definition_count",
+              "legendFormat": "resources"
+            }
+          ]
+        },
+        {
+          "title": "Scrape Duration",
+          "type": "timeseries",
+          "gridPos": { "h": 4, "w": 12, "x": 12, "y": 30 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": { "defaults": { "unit": "s" } },
+          "targets": [
+            {
+              "expr": "linstor_scrape_duration_seconds",
+              "legendFormat": "scrape"
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["linstor", "storage", "drbd"],
+      "templating": {
+        "list": [
+          {
+            "name": "datasource",
+            "type": "datasource",
+            "query": "prometheus",
+            "current": { "selected": false, "text": "default", "value": "default" }
+          }
+        ]
+      },
+      "time": { "from": "now-6h", "to": "now" },
+      "title": "LINSTOR Storage",
+      "uid": "linstor-storage"
+    }

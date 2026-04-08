@@ -1,0 +1,40 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: linstor-controller
+  namespace: piraeus-system
+  labels:
+    app: linstor
+spec:
+  endpoints:
+    - port: api
+      path: /metrics
+      interval: 30s
+  namespaceSelector:
+    matchNames:
+      - piraeus-system
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: linstor-controller
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: piraeus-operator
+  namespace: piraeus-system
+  labels:
+    app: piraeus-operator
+spec:
+  endpoints:
+    - port: metrics
+      path: /metrics
+      scheme: https
+      tlsConfig:
+        insecureSkipVerify: true
+  namespaceSelector:
+    matchNames:
+      - piraeus-system
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: piraeus-operator
