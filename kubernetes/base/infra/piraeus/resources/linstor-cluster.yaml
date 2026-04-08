@@ -3,8 +3,8 @@ kind: LinstorCluster
 metadata:
   name: linstorcluster
 spec:
-  # NixOS PATH patch — satellites need access to host binaries (drbdadm, lvm, thin_check)
   patches:
+    # Skip DRBD kernel module compilation — NixOS pre-loads DRBD via boot.kernelModules
     - target:
         kind: Pod
       patch: |
@@ -13,6 +13,9 @@ spec:
         metadata:
           name: satellite
         spec:
+          initContainers:
+            - name: drbd-module-loader
+              image: quay.io/piraeusdatastore/drbd9-none:v9.3.1
           containers:
             - name: linstor-satellite
               env:
