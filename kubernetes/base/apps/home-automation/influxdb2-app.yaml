@@ -26,8 +26,9 @@ spec:
         - name: VOLSYNC_CACHE_CAPACITY
           value: "4Gi"
         - name: VOLSYNC_SCHEDULE
-          # Staggered to avoid concurrent Longhorn snapshot clones (see volsync-v2 README)
-          value: "5 * * * *"
+          # Every 6h, staggered to avoid concurrent Longhorn snapshot clones (see volsync-v2 README)
+          # Moved from hourly — 10Gi clone rebuilds consistently saturate Pi hardware
+          value: "54 */6 * * *"
         - name: VOLSYNC_UID
           value: "1000"
         - name: VOLSYNC_GID
