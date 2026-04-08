@@ -173,6 +173,50 @@ in
     # We use drbd9-none (no-op) but the hostPath mount still requires the directory to exist.
     system.activationScripts.usrSrc = mkIf cfg.linstorSupport "mkdir -p /usr/src";
 
+    # LINSTOR LVM thin pool backed by a loopback file on the NVMe root filesystem.
+    # FILE_THIN doesn't support snapshots; LVM_THIN does (required for VolSync).
+    # The loopback file can be grown later with: truncate, losetup -c, pvresize, lvextend.
+    systemd.services.linstor-loop-setup = mkIf cfg.linstorSupport {
+      description = "Set up LINSTOR LVM thin pool loopback device";
+      wantedBy = [ "multi-user.target" ];
+      before = [ "k3s.service" ];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+      };
+      path = with pkgs; [ util-linux lvm2 thin-provisioning-tools e2fsprogs ];
+      script = ''
+        BACKING=/var/lib/linstor-pools/backing.img
+        VG=linstor_vg
+        THINPOOL=thinpool
+        SIZE=300G
+
+        mkdir -p /var/lib/linstor-pools
+
+        # Create backing file if it doesn't exist
+        if [ ! -f "$BACKING" ]; then
+          truncate -s "$SIZE" "$BACKING"
+        fi
+
+        # Set up loop device if not already attached
+        if ! losetup -j "$BACKING" | grep -q "$BACKING"; then
+          LOOPDEV=$(losetup --find --show "$BACKING")
+        else
+          LOOPDEV=$(losetup -j "$BACKING" | cut -d: -f1)
+        fi
+
+        # Create PV/VG/thin pool if VG doesn't exist
+        if ! vgs "$VG" &>/dev/null; then
+          pvcreate "$LOOPDEV"
+          vgcreate "$VG" "$LOOPDEV"
+          lvcreate -l 100%FREE -T "$VG/$THINPOOL"
+        fi
+
+        # Activate the VG (in case it was deactivated)
+        vgchange -ay "$VG"
+      '';
+    };
+
     # Adding a service to prune the images used by containerd
     systemd.services.ctr-prune = {
       serviceConfig = {
