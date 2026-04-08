@@ -32,6 +32,28 @@
     };
   };
 
+  # DRBD 9.3.1 — fixes kernel 6.18 compatibility (9.2.x broken on 6.16+)
+  # Remove once nixpkgs#504903 merges
+  drbd-9_3 = final: prev: let
+    drbdOverride = lpFinal: lpPrev: {
+      drbd = lpPrev.drbd.overrideAttrs (old: rec {
+        version = "9.3.1";
+        src = final.fetchurl {
+          url = "https://pkg.linbit.com/downloads/drbd/9/drbd-${version}.tar.gz";
+          hash = "sha256-g5BZRNHyeUIsaRTUcitQsfIm35IJ630K/otlZZNWEFo=";
+        };
+        meta = old.meta // { broken = false; };
+      });
+    };
+  in {
+    linuxPackages_6_18 = prev.linuxPackages_6_18.extend drbdOverride;
+    linuxKernel = prev.linuxKernel // {
+      packages = prev.linuxKernel.packages // {
+        linux_6_18 = prev.linuxKernel.packages.linux_6_18.extend drbdOverride;
+      };
+    };
+  };
+
   # FireCapture planetary imaging
   firecapture = final: prev: {
     firecapture = final.callPackage ../pkgs/firecapture { };
