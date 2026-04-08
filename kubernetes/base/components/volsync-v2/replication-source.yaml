@@ -11,6 +11,7 @@
 #   ARGOCD_ENV_VOLSYNC_ACCESSMODE - Access mode (optional, default: "ReadWriteOnce")
 #   ARGOCD_ENV_VOLSYNC_UID - Mover user ID (optional, default: "1000")
 #   ARGOCD_ENV_VOLSYNC_GID - Mover group ID (optional, default: "1000")
+#   ARGOCD_ENV_VOLSYNC_UNLOCK - Trigger restic unlock on next sync (optional, change value to re-trigger)
 #
 apiVersion: volsync.backube/v1alpha1
 kind: ReplicationSource
@@ -43,6 +44,7 @@ spec:
       runAsGroup: ${ARGOCD_ENV_VOLSYNC_GID}
       fsGroup: ${ARGOCD_ENV_VOLSYNC_GID}
 
+    unlock: "${ARGOCD_ENV_VOLSYNC_UNLOCK}"
     pruneIntervalDays: 14
     retain:
       hourly: 24
