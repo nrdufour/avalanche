@@ -161,10 +161,17 @@ in
     };
 
     # LINSTOR/DRBD storage support
-    boot.kernelModules = mkIf cfg.linstorSupport [ "drbd" "drbd_transport_tcp" ];
     boot.extraModulePackages = mkIf cfg.linstorSupport [
       config.boot.kernelPackages.drbd
     ];
+    boot.kernelModules = mkIf cfg.linstorSupport [ "drbd" "drbd_transport_tcp" ];
+    # Ensure DRBD 9 (out-of-tree) loads instead of DRBD 8 (in-tree)
+    boot.extraModprobeConfig = mkIf cfg.linstorSupport ''
+      options drbd usermode_helper=disabled
+    '';
+    # Piraeus satellite pods mount /usr/src (for DRBD compilation) — NixOS doesn't have it.
+    # We use drbd9-none (no-op) but the hostPath mount still requires the directory to exist.
+    system.activationScripts.usrSrc = mkIf cfg.linstorSupport "mkdir -p /usr/src";
 
     # Adding a service to prune the images used by containerd
     systemd.services.ctr-prune = {
