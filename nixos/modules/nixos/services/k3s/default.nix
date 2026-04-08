@@ -73,6 +73,12 @@ in
       default = true;
       type = types.bool;
     };
+
+    linstorSupport = mkOption {
+      description = "Enable DRBD kernel module and LVM thin-provisioning tools for LINSTOR storage";
+      default = false;
+      type = types.bool;
+    };
   };
 
   config = mkIf cfg.enable {
@@ -135,6 +141,10 @@ in
     ] ++ optionals cfg.longhornSupport [
       pkgs.nfs-utils
       pkgs.openiscsi
+    ] ++ optionals cfg.linstorSupport [
+      pkgs.drbd
+      pkgs.lvm2
+      pkgs.thin-provisioning-tools
     ];
 
     # Longhorn storage support (NFS + iSCSI)
@@ -149,6 +159,12 @@ in
       PrivateMounts = "yes";
       BindPaths = "/run/current-system/sw/bin:/bin";
     };
+
+    # LINSTOR/DRBD storage support
+    boot.kernelModules = mkIf cfg.linstorSupport [ "drbd" "drbd_transport_tcp" ];
+    boot.extraModulePackages = mkIf cfg.linstorSupport [
+      config.boot.kernelPackages.drbd
+    ];
 
     # Adding a service to prune the images used by containerd
     systemd.services.ctr-prune = {

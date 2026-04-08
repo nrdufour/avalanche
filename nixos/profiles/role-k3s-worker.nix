@@ -10,6 +10,7 @@
     services.k3s = {
       enable = true;
       role = "agent";
+      linstorSupport = true;
     };
     services.monitoring.nodeExporter.enable = false;
   };
