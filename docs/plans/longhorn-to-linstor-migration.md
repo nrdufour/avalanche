@@ -1,6 +1,6 @@
 # Longhorn to LINSTOR (Piraeus) Migration Plan (Issue #131)
 
-**Status**: ⏸️ Blocked (DRBD 9.2.15 marked broken on kernel 6.18 in nixpkgs — opi nodes can't load the module)
+**Status**: 🚧 In Progress (Phase 1 — NixOS host prep, opi01 deployed with DRBD 9.3.1)
 **Created**: 2026-04-08
 **Last Updated**: 2026-04-08
 **Storage approach**: FILE_THIN on NVMe root partition (1.3-1.6TB free per opi node)
