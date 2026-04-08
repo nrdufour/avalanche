@@ -1,3 +1,5 @@
 # Piraeus Operator v2 Helm Values
 # Cluster configuration is managed via CRDs (LinstorCluster, LinstorSatelliteConfiguration)
 # in resources/, not here. This file is for operator-level settings only.
+
+installCRDs: true
