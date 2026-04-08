@@ -164,7 +164,7 @@ in
     boot.extraModulePackages = mkIf cfg.linstorSupport [
       config.boot.kernelPackages.drbd
     ];
-    boot.kernelModules = mkIf cfg.linstorSupport [ "drbd" "drbd_transport_tcp" ];
+    boot.kernelModules = mkIf cfg.linstorSupport [ "drbd" "drbd_transport_tcp" "dm-thin-pool" ];
     # Ensure DRBD 9 (out-of-tree) loads instead of DRBD 8 (in-tree)
     boot.extraModprobeConfig = mkIf cfg.linstorSupport ''
       options drbd usermode_helper=disabled
@@ -205,10 +205,14 @@ in
           LOOPDEV=$(losetup -j "$BACKING" | cut -d: -f1)
         fi
 
-        # Create PV/VG/thin pool if VG doesn't exist
+        # Create PV/VG if VG doesn't exist
         if ! vgs "$VG" &>/dev/null; then
           pvcreate "$LOOPDEV"
           vgcreate "$VG" "$LOOPDEV"
+        fi
+
+        # Create thin pool if it doesn't exist
+        if ! lvs "$VG/$THINPOOL" &>/dev/null; then
           lvcreate -l 100%FREE -T "$VG/$THINPOOL"
         fi
 
