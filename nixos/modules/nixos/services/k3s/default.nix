@@ -164,7 +164,7 @@ in
     boot.extraModulePackages = mkIf cfg.linstorSupport [
       config.boot.kernelPackages.drbd
     ];
-    boot.kernelModules = mkIf cfg.linstorSupport [ "drbd" "drbd_transport_tcp" "dm-thin-pool" ];
+    boot.kernelModules = mkIf cfg.linstorSupport [ "drbd" "drbd_transport_tcp" "dm-thin-pool" "dm-snapshot" ];
     # Ensure DRBD 9 (out-of-tree) loads instead of DRBD 8 (in-tree)
     boot.extraModprobeConfig = mkIf cfg.linstorSupport ''
       options drbd usermode_helper=disabled
