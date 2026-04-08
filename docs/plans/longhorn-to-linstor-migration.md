@@ -3,6 +3,7 @@
 **Status**: 🚧 In Progress (Phase 0 — planning)
 **Created**: 2026-04-08
 **Last Updated**: 2026-04-08
+**Storage approach**: FILE_THIN on NVMe root partition (1.3-1.6TB free per opi node)
 
 ## Overview
 
@@ -135,22 +136,21 @@ ssh <host>.internal lsmod | grep drbd
 ssh <host>.internal drbdadm --version
 ```
 
-### 1.4 Prepare storage on controllers
+### 1.4 Storage pool strategy: FILE_THIN on NVMe
 
-**Decision needed**: What disk/partition on opi01-03 to dedicate to LINSTOR?
+All 3 opi nodes have a 2TB NVMe with 1.3-1.6TB free on the root ext4 partition. No spare partition or disk is available without repartitioning. The eMMC (250GB) exists but is not suitable as a starting point.
 
-Survey current layout:
+**Approach**: Use LINSTOR's FILE_THIN storage pool, which creates a file-backed thin pool on an existing filesystem. LINSTOR manages the loopback device natively — no manual LVM setup required.
 
-```bash
-for host in opi01 opi02 opi03; do
-  echo "=== $host ===" && ssh ${host}.internal lsblk -f
-done
+```
+opi01: nvme0n1p2 (2.0TB, 1.6TB free) → FILE_THIN at /var/lib/linstor-pools/
+opi02: nvme0n1p2 (1.9TB, 1.6TB free) → FILE_THIN at /var/lib/linstor-pools/
+opi03: nvme0n1p2 (1.9TB, 1.3TB free) → FILE_THIN at /var/lib/linstor-pools/
 ```
 
-Options:
-- **Separate partition** (ideal): `pvcreate /dev/<part> && vgcreate linstor_vg /dev/<part>`
-- **Loopback file** (testing only): Not for production
-- **Reclaim Longhorn space** (after Phase 6): Reuse `/var/lib/rancher/longhorn` partition
+No host-side preparation needed — LINSTOR creates the pool directory and backing file automatically via the LinstorSatelliteConfiguration CR.
+
+**Future improvement**: If a dedicated SSD or partition becomes available, migrate to a real LVM thin pool for better performance. LINSTOR supports mixing pool types per node.
 
 ---
 
@@ -249,10 +249,11 @@ spec:
     node-role.kubernetes.io/control-plane: "true"
   storagePools:
     - name: ssd-thin
-      lvm_thin:
-        volumeGroup: linstor_vg
-        thinPool: thinpool
+      fileThinPool:
+        directory: /var/lib/linstor-pools
 ```
+
+Uses FILE_THIN — LINSTOR creates and manages the backing file and loopback device automatically in the specified directory (on the NVMe root filesystem).
 
 Workers get no storage pool config — they act as diskless DRBD clients.
 
