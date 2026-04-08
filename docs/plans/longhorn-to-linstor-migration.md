@@ -1,0 +1,544 @@
+# Longhorn to LINSTOR (Piraeus) Migration Plan (Issue #131)
+
+**Status**: 🚧 In Progress (Phase 0 — planning)
+**Created**: 2026-04-08
+**Last Updated**: 2026-04-08
+
+## Overview
+
+Migrate persistent storage from Longhorn 1.11.1 to LINSTOR (Piraeus Operator v2) on the K3s cluster. Longhorn replicates data in userspace, consuming excessive CPU on ARM SBCs — during a 2026-04-08 incident, an instance-manager hit 1031m CPU on raccoon00 during VolSync snapshot clone rebuilds. LINSTOR uses DRBD for kernel-level replication, eliminating this overhead.
+
+**Migration strategy**: Deploy LINSTOR alongside Longhorn, then restore each app from existing VolSync restic backups (S3/Garage) into new LINSTOR PVCs. No live data migration needed.
+
+## NixOS Package Availability (verified 2026-04-08)
+
+| Package | Nixpkgs Attribute | Version | aarch64 | Kernel 6.18 (opi) | Kernel 6.12 (raccoon) |
+|---------|------------------|---------|---------|--------------------|-----------------------|
+| DRBD kernel module | `linuxPackages.drbd` | 9.2.15 | Yes | Yes | Yes |
+| DRBD userspace | `drbd` | 9.33.0 | Yes | — | — |
+| LVM2 | `lvm2` | 2.03.35 | Yes | — | — |
+| thin-provisioning-tools | `thin-provisioning-tools` | 1.3.0 | Yes | — | — |
+
+## Current Storage Topology
+
+| Node | Role | Hardware | Kernel | Storage | Longhorn Data |
+|------|------|----------|--------|---------|---------------|
+| opi01 | controller | OPi5+ SSD | 6.18 | SSD (fstrim) | /var/lib/rancher/longhorn |
+| opi02 | controller | OPi5+ SSD | 6.18 | SSD (fstrim) | /var/lib/rancher/longhorn |
+| opi03 | controller | OPi5+ SSD | 6.18 | SSD (fstrim) | /var/lib/rancher/longhorn |
+| raccoon00 | worker | RPi4 SD | 6.12 | SD card only | /var/lib/rancher/longhorn |
+| raccoon01 | worker | RPi4 SD | 6.12 | SD card only | /var/lib/rancher/longhorn |
+| raccoon02 | worker | RPi4 SD | 6.12 | SD card only | /var/lib/rancher/longhorn |
+| raccoon03 | worker | RPi4 USB | 6.12 | USB SSD at /var/lib/rancher | /var/lib/rancher/longhorn |
+| raccoon04 | worker | RPi4 USB | 6.12 | USB SSD at /var/lib/rancher | /var/lib/rancher/longhorn |
+| raccoon05 | worker | RPi4 USB | 6.12 | USB SSD at /var/lib/rancher | /var/lib/rancher/longhorn |
+
+**Target**: opi01-03 as LINSTOR storage nodes (SSD, more CPU), raccoons as diskless DRBD clients only.
+
+## Apps to Migrate
+
+### VolSync v2 apps (13 — restore from S3 backup)
+
+| App | Namespace | PVC Size | Schedule | Priority |
+|-----|-----------|----------|----------|----------|
+| kanboard | self-hosted | — | 51 */6 | Batch 1 (low risk) |
+| ntfy | self-hosted | — | 20 * | Batch 1 |
+| homebox | self-hosted | — | 48 */6 | Batch 1 |
+| thelounge | irc | — | 39 */6 | Batch 1 |
+| esphome | home-automation | — | 30 */6 | Batch 2 |
+| mqtt | home-automation | — | 10 * | Batch 2 |
+| zwave | home-automation | 1Gi | 36 */6 | Batch 2 |
+| grafana | home-automation | 1Gi | 33 */6 | Batch 2 |
+| home-assistant | home-automation | 1Gi | 0 * | Batch 3 (critical) |
+| influxdb2 | home-automation | 10Gi | 54 */6 | Batch 3 (largest) |
+| seerr | media | — | 45 */6 | Batch 4 |
+| archivebox | media | — | 42 */6 | Batch 4 |
+| matrix | self-hosted | — | 15 * | Batch 5 |
+
+### Custom VolSync (1 — manual YAML changes)
+
+| App | Namespace | Notes |
+|-----|-----------|-------|
+| immich-cache | media | Custom volsync manifests, not using volsync-v2 component |
+
+### Standalone PVC apps (no VolSync — fresh start or manual copy)
+
+| App | Namespace | Data | Migration |
+|-----|-----------|------|-----------|
+| sonarr, prowlarr, radarr, qbittorrent, nzbget, ytptube | media | Regenerable (indexes, cache) | Fresh start |
+| searxng | self-hosted | Regenerable | Fresh start, rename PVC |
+| marmithon | irc | Bot state | Manual copy, rename PVC |
+| frigate | home-automation | Config + recordings | Manual copy |
+| actual | self-hosted | Budget data | Manual copy, rename PVC |
+| minecraft | games | World data | Manual copy |
+| influxdb2-backup | home-automation | Backup scratch | Fresh start |
+| immich-ml-cache | media | ML model cache | Fresh start |
+
+### PVC renames needed
+
+Three apps have Longhorn-specific PVC names that should be cleaned up:
+- `marmithon-longhorn-pvc` → `marmithon` (update `irc/marmithon/deployment.yaml`)
+- `actual-longhorn-pvc` → `actual` (update `self-hosted/actual/deployment.yaml`)
+- `searxng-longhorn-pvc` → `searxng` (update `self-hosted/searxng/deployment.yaml`)
+
+---
+
+## Phase 1: NixOS Host Preparation
+
+### 1.1 Add `linstorSupport` to K3s module
+
+**File**: `nixos/modules/nixos/services/k3s/default.nix`
+
+Add alongside existing `longhornSupport`:
+
+```nix
+linstorSupport = mkOption {
+  description = "Enable DRBD kernel module and LVM thin-provisioning tools for LINSTOR";
+  default = false;
+  type = types.bool;
+};
+```
+
+Config block:
+
+```nix
+boot.kernelModules = mkIf cfg.linstorSupport [ "drbd" "drbd_transport_tcp" ];
+boot.extraModulePackages = mkIf cfg.linstorSupport [
+  config.boot.kernelPackages.drbd
+];
+environment.systemPackages = optionals cfg.linstorSupport [
+  pkgs.drbd
+  pkgs.lvm2
+  pkgs.thin-provisioning-tools
+];
+```
+
+### 1.2 Enable on profiles
+
+**Files**: `nixos/profiles/role-k3s-controller.nix`, `nixos/profiles/role-k3s-worker.nix`
+
+```nix
+mySystem.services.k3s.linstorSupport = true;
+```
+
+Workers need the DRBD kernel module to mount DRBD-backed volumes as diskless clients. LVM/thin-provisioning-tools aren't strictly needed on workers but keeping the config uniform is simpler.
+
+### 1.3 Deploy and verify
+
+```bash
+# Deploy controllers first, then workers
+just nix deploy opi01 && just nix deploy opi02 && just nix deploy opi03
+just nix deploy raccoon00  # ... through raccoon05
+
+# Verify on each node
+ssh <host>.internal lsmod | grep drbd
+ssh <host>.internal drbdadm --version
+```
+
+### 1.4 Prepare storage on controllers
+
+**Decision needed**: What disk/partition on opi01-03 to dedicate to LINSTOR?
+
+Survey current layout:
+
+```bash
+for host in opi01 opi02 opi03; do
+  echo "=== $host ===" && ssh ${host}.internal lsblk -f
+done
+```
+
+Options:
+- **Separate partition** (ideal): `pvcreate /dev/<part> && vgcreate linstor_vg /dev/<part>`
+- **Loopback file** (testing only): Not for production
+- **Reclaim Longhorn space** (after Phase 6): Reuse `/var/lib/rancher/longhorn` partition
+
+---
+
+## Phase 2: Piraeus Operator Deployment
+
+### 2.1 Directory structure
+
+```
+kubernetes/base/infra/piraeus/
+├── piraeus-app.yaml              # ArgoCD Application (Helm)
+├── piraeus/
+│   └── helm-values.yaml          # Helm overrides
+└── resources/
+    ├── kustomization.yaml
+    ├── linstor-cluster.yaml      # LinstorCluster CR
+    ├── linstor-satellite.yaml    # Storage pool config (opi only)
+    ├── storage-class.yaml
+    └── snapshot-class.yaml
+```
+
+### 2.2 ArgoCD Application
+
+**File**: `kubernetes/base/infra/piraeus/piraeus-app.yaml`
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: piraeus
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://forge.internal/nemo/avalanche.git
+      targetRevision: HEAD
+      path: kubernetes/base/infra/piraeus/resources
+      ref: values
+    - chart: piraeus-operator
+      repoURL: oci://ghcr.io/piraeusdatastore/helm-charts
+      targetRevision: 2.7.1  # verify latest
+      helm:
+        releaseName: piraeus-operator
+        valueFiles:
+          - $values/kubernetes/base/infra/piraeus/piraeus/helm-values.yaml
+  destination:
+    namespace: piraeus-system
+    name: 'in-cluster'
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+```
+
+### 2.3 LinstorCluster CR
+
+**File**: `kubernetes/base/infra/piraeus/resources/linstor-cluster.yaml`
+
+```yaml
+apiVersion: piraeus.io/v1
+kind: LinstorCluster
+metadata:
+  name: linstorcluster
+spec:
+  patches:
+    - target:
+        kind: Pod
+      patch: |
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: satellite
+        spec:
+          containers:
+            - name: linstor-satellite
+              env:
+                - name: PATH
+                  value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/run/wrappers/bin:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin
+```
+
+NixOS PATH patch — same issue as Longhorn (currently solved by Kyverno ClusterPolicy), but Piraeus supports inline patches natively.
+
+### 2.4 Satellite configuration (storage on controllers only)
+
+**File**: `kubernetes/base/infra/piraeus/resources/linstor-satellite.yaml`
+
+```yaml
+apiVersion: piraeus.io/v1
+kind: LinstorSatelliteConfiguration
+metadata:
+  name: controllers-storage
+spec:
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: "true"
+  storagePools:
+    - name: ssd-thin
+      lvm_thin:
+        volumeGroup: linstor_vg
+        thinPool: thinpool
+```
+
+Workers get no storage pool config — they act as diskless DRBD clients.
+
+### 2.5 StorageClass
+
+**File**: `kubernetes/base/infra/piraeus/resources/storage-class.yaml`
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: linstor
+  # Do NOT set as default yet — Longhorn is still default during migration
+provisioner: linstor.csi.linbit.com
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  autoPlace: "2"                    # 2 replicas across 3 storage nodes
+  storagePool: ssd-thin
+  allowRemoteVolumeAccess: "true"   # Diskless attachment on workers
+  csi.storage.k8s.io/fstype: ext4
+```
+
+Design: 2 replicas instead of Longhorn's 3. With synchronous kernel-level replication, 2 replicas on SSD is more reliable than 3 Longhorn userspace replicas.
+
+### 2.6 VolumeSnapshotClass
+
+**File**: `kubernetes/base/infra/piraeus/resources/snapshot-class.yaml`
+
+```yaml
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: linstor-snapshot
+driver: linstor.csi.linbit.com
+deletionPolicy: Delete
+```
+
+### 2.7 Register in infra kustomization
+
+**File**: `kubernetes/base/infra/kustomization.yaml` — add `piraeus/piraeus-app.yaml`
+
+### 2.8 Verification
+
+```bash
+kubectl -n piraeus-system get pods
+kubectl -n piraeus-system exec deploy/linstor-controller -- linstor node list
+kubectl -n piraeus-system exec deploy/linstor-controller -- linstor storage-pool list
+# Expect ssd-thin on opi01, opi02, opi03 only
+```
+
+### 2.9 End-to-end test
+
+```bash
+# Create test PVC + pod + snapshot, verify everything works, then clean up
+kubectl apply -f - <<'EOF'
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: linstor-test
+spec:
+  storageClassName: linstor
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: linstor-test-pod
+spec:
+  containers:
+    - name: test
+      image: busybox
+      command: ["sh", "-c", "echo hello > /data/test.txt && sleep 3600"]
+      volumeMounts:
+        - name: data
+          mountPath: /data
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: linstor-test
+EOF
+
+kubectl wait --for=condition=Ready pod/linstor-test-pod --timeout=120s
+
+# Test snapshot
+kubectl apply -f - <<'EOF'
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: linstor-test-snap
+spec:
+  volumeSnapshotClassName: linstor-snapshot
+  source:
+    persistentVolumeClaimName: linstor-test
+EOF
+
+kubectl wait --for=jsonpath='{.status.readyToUse}'=true volumesnapshot/linstor-test-snap --timeout=60s
+
+# Clean up
+kubectl delete pod linstor-test-pod
+kubectl delete volumesnapshot linstor-test-snap
+kubectl delete pvc linstor-test
+```
+
+---
+
+## Phase 3: VolSync Template Updates
+
+### 3.1 Parameterize volumeSnapshotClassName
+
+**Files**:
+- `kubernetes/base/components/volsync-v2/replication-source.yaml` — change `volumeSnapshotClassName: longhorn-snapshot-vsc` to `"${ARGOCD_ENV_VOLSYNC_SNAPSHOT_CLASS}"`
+- `kubernetes/base/components/volsync-v2/replication-destination.yaml` — same change + parameterize `cleanupTempPVC: ${ARGOCD_ENV_VOLSYNC_CLEANUP_TEMP_PVC}`
+
+Add variable docs:
+```
+#   ARGOCD_ENV_VOLSYNC_SNAPSHOT_CLASS - Volume snapshot class (REQUIRED)
+#   ARGOCD_ENV_VOLSYNC_CLEANUP_TEMP_PVC - Clean up temp PVC after sync (REQUIRED, "true" or "false")
+```
+
+Update the `cleanupTempPVC` comment:
+```yaml
+# Longhorn requires false (deletes volume with temp PVC). LINSTOR supports true.
+```
+
+### 3.2 Add new env vars to ALL 13 app manifests (same commit!)
+
+**Critical**: envsubst replaces unset vars with empty strings. The template changes and variable additions MUST be in a single atomic commit.
+
+Add to each `-app.yaml`:
+```yaml
+        - name: VOLSYNC_SNAPSHOT_CLASS
+          value: longhorn-snapshot-vsc
+        - name: VOLSYNC_CLEANUP_TEMP_PVC
+          value: "false"
+```
+
+Apps to update:
+1. `home-automation/esphome-app.yaml`
+2. `home-automation/grafana-app.yaml`
+3. `home-automation/home-assistant-app.yaml`
+4. `home-automation/influxdb2-app.yaml`
+5. `home-automation/mqtt-app.yaml`
+6. `home-automation/zwave-app.yaml`
+7. `irc/thelounge-app.yaml`
+8. `media/archivebox-app.yaml`
+9. `media/seerr-app.yaml`
+10. `self-hosted/homebox-app.yaml`
+11. `self-hosted/kanboard-app.yaml`
+12. `self-hosted/matrix-app.yaml`
+13. `self-hosted/ntfy-app.yaml`
+
+### 3.3 Update volsync-v2 README
+
+Add `VOLSYNC_SNAPSHOT_CLASS` and `VOLSYNC_CLEANUP_TEMP_PVC` to the variables table.
+
+### 3.4 Verification
+
+```bash
+# After single-commit deploy, verify all ReplicationSources still have correct snapshot class
+kubectl get replicationsource -A -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.restic.volumeSnapshotClassName}{"\n"}{end}'
+# All should show longhorn-snapshot-vsc
+
+# Wait for next scheduled backup to succeed for at least one app
+```
+
+---
+
+## Phase 4: Per-App Migration
+
+### Procedure (per VolSync app)
+
+1. **Disable ArgoCD auto-sync** (top-down: cluster → applications → app)
+   ```bash
+   kubectl patch application cluster -n argocd --type json -p '[{"op":"replace","path":"/spec/syncPolicy/automated","value":null}]'
+   kubectl patch application applications -n argocd --type json -p '[{"op":"replace","path":"/spec/syncPolicy/automated","value":null}]'
+   kubectl patch application <app> -n argocd --type json -p '[{"op":"replace","path":"/spec/syncPolicy/automated","value":null}]'
+   ```
+
+2. **Verify latest backup is recent**
+   ```bash
+   kubectl get replicationsource <app> -n <ns> -o jsonpath='{.status.lastSyncTime}'
+   ```
+
+3. **Scale down the app**
+   ```bash
+   kubectl scale deployment/<app> -n <ns> --replicas=0
+   ```
+
+4. **Delete old VolSync resources**
+   ```bash
+   kubectl delete replicationsource <app> -n <ns>
+   kubectl delete replicationdestination <app>-dst -n <ns> 2>/dev/null || true
+   ```
+
+5. **Delete old PVC (with safety net)**
+   ```bash
+   PV=$(kubectl get pvc <app> -n <ns> -o jsonpath='{.spec.volumeName}')
+   kubectl patch pv $PV -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}'
+   kubectl delete pvc <app> -n <ns>
+   ```
+
+6. **Update app manifest** — change in `-app.yaml`:
+   ```yaml
+   VOLSYNC_STORAGECLASS: linstor
+   VOLSYNC_SNAPSHOT_CLASS: linstor-snapshot
+   VOLSYNC_CLEANUP_TEMP_PVC: "true"
+   ```
+
+7. **Commit, push, sync**
+   ```bash
+   git add <file> && git commit && git push
+   # Re-enable applications sync briefly to pick up changes
+   # Hard-refresh child app, then sync
+   ```
+
+8. **Wait for restore** — ReplicationDestination triggers, PVC becomes Bound, app starts
+
+9. **Verify**: app accessible, PVC storageClassName is `linstor`, DRBD resource exists, first backup succeeds
+
+10. **Re-enable auto-sync**, clean up retained Longhorn PV
+
+### Migration order
+
+| Batch | Apps | Risk | Notes |
+|-------|------|------|-------|
+| 1 | kanboard, ntfy, homebox, thelounge | Low | Small, rarely accessed |
+| 2 | esphome, mqtt, zwave, grafana | Medium | Home automation, small data |
+| 3 | home-assistant, influxdb2 | High | Critical, influxdb2 is ~5GB |
+| 4 | seerr, archivebox | Medium | Media |
+| 5 | matrix, immich (custom) | Medium | Immich needs manual YAML changes |
+| 6 | Standalone PVC apps | Varies | No VolSync, fresh start or manual copy |
+
+---
+
+## Phase 5: Longhorn Decommission
+
+**Prerequisite**: ALL apps migrated and stable for at least 1 week.
+
+1. Verify no PVCs reference Longhorn:
+   ```bash
+   kubectl get pvc -A -o jsonpath='{range .items[*]}{.spec.storageClassName}{"\n"}{end}' | sort -u
+   # Should not contain "longhorn"
+   ```
+
+2. Remove from ArgoCD: delete `longhorn-system/longhorn-app.yaml` reference from `kubernetes/base/infra/kustomization.yaml`
+
+3. Set LINSTOR as default StorageClass
+
+4. Clean up NixOS: disable/remove `longhornSupport`, remove iSCSI config if unused
+
+5. Delete Longhorn data: `rm -rf /var/lib/rancher/longhorn` on all nodes
+
+6. Delete repo files: `kubernetes/base/infra/longhorn-system/`
+
+7. Update volsync-v2 default comments to reference `linstor`
+
+---
+
+## Rollback
+
+### Per-app rollback
+
+Revert the app manifest to Longhorn values, delete the LINSTOR PVC and ReplicationDestination, push/sync — VolSync restores from the same S3 backup into a new Longhorn PVC.
+
+### Full rollback
+
+Longhorn is never modified until Phase 5. Revert all migrated apps, delete the Piraeus ArgoCD Application, revert NixOS configs. Everything goes back to how it was.
+
+---
+
+## Risks
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| DRBD module issue on specific kernel | Low | High | Verified in nixpkgs; test on one node first |
+| Piraeus satellite can't find NixOS binaries | Medium | Medium | PATH patch in LinstorCluster CR |
+| VolSync restore fails into LINSTOR PVC | Low | Low | S3 backups intact, retry or rollback |
+| envsubst empty variable breaks VolSync | High if bad sequencing | High | Single atomic commit |
+| LVM thin pool full | Medium | High | Monitor via Prometheus; LINSTOR metrics |
+
+---
+
+*Created: 2026-04-08*
+*Last Updated: 2026-04-08*
