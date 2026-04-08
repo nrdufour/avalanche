@@ -1,6 +1,6 @@
 # Longhorn to LINSTOR (Piraeus) Migration Plan (Issue #131)
 
-**Status**: 🚧 In Progress (Phase 2 complete — Piraeus deployed, waiting for raccoon reboots)
+**Status**: 🚧 In Progress (Phase 2 complete — all 10 nodes online, monitoring in place, ready for Phase 3)
 **Created**: 2026-04-08
 **Last Updated**: 2026-04-08
 **Storage approach**: LVM_THIN via 300GB loopback file on NVMe root partition
@@ -29,21 +29,23 @@ Migrate persistent storage from Longhorn 1.11.1 to LINSTOR (Piraeus Operator v2)
   - `/usr/src` directory creation for Piraeus satellite hostPath mount
   - `usermode_helper=disabled` via `boot.extraModprobeConfig`
   - opi01-03: deployed, rebooted, DRBD 9.3.1 loaded, pools working
-  - raccoon00-05: deployed, awaiting reboot (kured will handle) for DRBD 9 + usermode_helper
+  - raccoon00-05: deployed, rebooted, DRBD 9.2.15 loaded, satellites running as diskless clients
 - [x] **Phase 2: Piraeus Operator deployment** — v2.10.5
   - ArgoCD Application at `kubernetes/base/infra/piraeus/`
   - LinstorCluster CR with NixOS PATH patch + drbd9-none init container
   - LinstorSatelliteConfiguration: LVM_THIN pool on opi01-03 only
   - StorageClass `linstor` (2 replicas, diskless remote access)
   - VolumeSnapshotClass `linstor-snapshot`
-  - End-to-end test passed: PVC provisioning + snapshots verified
+  - End-to-end test passed: PVC provisioning + LVM thin snapshots verified
+  - Prometheus ServiceMonitors for LINSTOR controller + Piraeus operator
+  - Grafana dashboard "LINSTOR Storage" (node state, pool capacity/usage, resource/volume state, errors)
 - [ ] **Phase 3: VolSync template updates** — parameterize snapshot class + cleanupTempPVC
 - [ ] **Phase 4: Per-app migration** — restore from restic into LINSTOR PVCs
 - [ ] **Phase 5: Longhorn decommission** — after all apps stable for 1 week
 
 ## Blockers
 
-- **Raccoon reboots**: 6 raccoon workers need reboot for DRBD 9.3.1 kernel module (currently loading DRBD 8.4.11 in-tree). kured will cycle through them. Satellite pods will CrashLoop until rebooted. Not blocking Phase 3 (git-only changes).
+None. All nodes deployed, rebooted, and online.
 
 ## Lessons Learned (so far)
 
@@ -56,6 +58,7 @@ Migrate persistent storage from Longhorn 1.11.1 to LINSTOR (Piraeus Operator v2)
 - **LinstorSatelliteConfiguration can't change pool type in-place** — must delete and recreate the resource to switch from FILE_THIN to LVM_THIN.
 - **Piraeus OCI Helm chart path** is `oci://ghcr.io/piraeusdatastore/piraeus-operator/piraeus` (not `helm-charts/piraeus-operator`). Use `path: .` in ArgoCD multi-source (same pattern as snapshot-controller).
 - **`installCRDs: true`** must be set in Helm values — defaults to false.
+- **LINSTOR metric label is `storage_pool`** (with underscore), not `storagepool`. Filter pool metrics with `{storage_pool="ssd-thin"}` to exclude diskless pools.
 
 ## Current Storage Topology
 
