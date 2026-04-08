@@ -10,8 +10,8 @@ spec:
       repoURL: https://forge.internal/nemo/avalanche.git
       targetRevision: HEAD
       ref: values
-    - chart: piraeus-operator
-      repoURL: oci://ghcr.io/piraeusdatastore/helm-charts
+    - chart: piraeus
+      repoURL: oci://ghcr.io/piraeusdatastore/piraeus-operator
       targetRevision: 2.10.5
       helm:
         releaseName: piraeus-operator
