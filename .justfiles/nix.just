@@ -20,7 +20,7 @@ list-hosts:
 deploy host:
     #!/usr/bin/env bash
     cd "{{justfile_directory()}}"
-    nixos-rebuild switch -j auto --use-remote-sudo --build-host {{host}}.internal --target-host {{host}}.internal --flake ".#{{host}}" --fast
+    nixos-rebuild switch -j auto --sudo --build-host {{host}}.internal --target-host {{host}}.internal --flake ".#{{host}}" --no-reexec
 
 # Switch to a configuration locally (for current machine only)
 switch:
@@ -56,7 +56,7 @@ deploy-all:
     HOSTS=$(nix flake show --json 2>/dev/null | jq -r '.nixosConfigurations | keys.[]')
     for HOST in $HOSTS; do
         echo "Deploying to $HOST..."
-        nixos-rebuild switch -j auto --use-remote-sudo --build-host ${HOST}.internal --target-host ${HOST}.internal --flake ".#${HOST}" --fast
+        nixos-rebuild switch -j auto --sudo --build-host ${HOST}.internal --target-host ${HOST}.internal --flake ".#${HOST}" --no-reexec
     done
 
 # Deploy to K3s control-plane nodes only (opi01-03)
@@ -82,7 +82,7 @@ deploy-control-plane:
     CONTROL_PLANE_HOSTS=("opi01" "opi02" "opi03")
     for HOST in "${CONTROL_PLANE_HOSTS[@]}"; do
         echo "Deploying to $HOST..."
-        nixos-rebuild switch -j auto --use-remote-sudo --build-host ${HOST}.internal --target-host ${HOST}.internal --flake ".#${HOST}" --fast
+        nixos-rebuild switch -j auto --sudo --build-host ${HOST}.internal --target-host ${HOST}.internal --flake ".#${HOST}" --no-reexec
     done
 
 # Deploy to K3s worker nodes only (raccoon00-05)
@@ -108,7 +108,7 @@ deploy-workers:
     WORKER_HOSTS=("raccoon00" "raccoon01" "raccoon02" "raccoon03" "raccoon04" "raccoon05")
     for HOST in "${WORKER_HOSTS[@]}"; do
         echo "Deploying to $HOST..."
-        nixos-rebuild switch -j auto --use-remote-sudo --build-host ${HOST}.internal --target-host ${HOST}.internal --flake ".#${HOST}" --fast
+        nixos-rebuild switch -j auto --sudo --build-host ${HOST}.internal --target-host ${HOST}.internal --flake ".#${HOST}" --no-reexec
     done
 
 # Disable automatic NixOS upgrades on all hosts (stops timer until reboot/manual start)
