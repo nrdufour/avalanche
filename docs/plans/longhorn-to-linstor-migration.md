@@ -34,7 +34,9 @@ Migrate persistent storage from Longhorn 1.11.1 to LINSTOR (Piraeus Operator v2)
 | raccoon04 | worker | RPi4 USB | 6.12 | USB SSD at /var/lib/rancher | /var/lib/rancher/longhorn |
 | raccoon05 | worker | RPi4 USB | 6.12 | USB SSD at /var/lib/rancher | /var/lib/rancher/longhorn |
 
-**Target**: opi01-03 as LINSTOR storage nodes (SSD, more CPU), raccoons as diskless DRBD clients only.
+**Target**: opi01-03 as LINSTOR storage nodes (SSD, more CPU), raccoons as diskless DRBD clients.
+
+**Important**: Workloads do NOT need to run on opi nodes. DRBD's diskless client mode allows pods on any raccoon to mount LINSTOR volumes over the network via the kernel DRBD module. Data replicas live on opi nodes, but pods are scheduled anywhere. This is fundamentally different from Longhorn, which runs heavy userspace instance-managers on every node with a replica. Current scheduling (most stateful pods on raccoons) will work unchanged.
 
 ## Apps to Migrate
 
