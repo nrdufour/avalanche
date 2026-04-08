@@ -56,11 +56,11 @@ data:
           "options": { "orientation": "horizontal", "displayMode": "gradient", "reduceOptions": { "calcs": ["lastNotNull"] } },
           "targets": [
             {
-              "expr": "linstor_storage_pool_capacity_total_bytes - linstor_storage_pool_capacity_free_bytes",
+              "expr": "linstor_storage_pool_capacity_total_bytes{storagepool=\"ssd-thin\"} - linstor_storage_pool_capacity_free_bytes{storagepool=\"ssd-thin\"}",
               "legendFormat": "{{node}} used"
             },
             {
-              "expr": "linstor_storage_pool_capacity_total_bytes",
+              "expr": "linstor_storage_pool_capacity_total_bytes{storagepool=\"ssd-thin\"}",
               "legendFormat": "{{node}} total"
             }
           ]
@@ -73,7 +73,7 @@ data:
           "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "fillOpacity": 20 } } },
           "targets": [
             {
-              "expr": "linstor_storage_pool_capacity_free_bytes",
+              "expr": "linstor_storage_pool_capacity_free_bytes{storagepool=\"ssd-thin\"}",
               "legendFormat": "{{node}}"
             }
           ]
@@ -92,7 +92,7 @@ data:
           },
           "targets": [
             {
-              "expr": "1 - (linstor_storage_pool_capacity_free_bytes / linstor_storage_pool_capacity_total_bytes)",
+              "expr": "1 - (linstor_storage_pool_capacity_free_bytes{storagepool=\"ssd-thin\"} / linstor_storage_pool_capacity_total_bytes{storagepool=\"ssd-thin\"})",
               "legendFormat": "{{node}}"
             }
           ]
