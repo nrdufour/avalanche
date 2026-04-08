@@ -40,7 +40,7 @@
         version = "9.3.1";
         src = final.fetchurl {
           url = "https://pkg.linbit.com/downloads/drbd/9/drbd-${version}.tar.gz";
-          hash = "sha256-g5BZRNHyeUIsaRTUcitQsfIm35IJ630K/otlZZNWEFo=";
+          hash = "sha256-m8xS4J+4iLXRzrD4fdvIOTyz2HQPP5KJ5b9/zxCW9mA=";
         };
         meta = old.meta // { broken = false; };
       });
