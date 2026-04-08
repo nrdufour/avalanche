@@ -1,9 +1,9 @@
 # Longhorn to LINSTOR (Piraeus) Migration Plan (Issue #131)
 
-**Status**: 🚧 In Progress (Phase 1 — NixOS host prep, opi01 deployed with DRBD 9.3.1)
+**Status**: 🚧 In Progress (Phase 2 complete — Piraeus deployed, waiting for raccoon reboots)
 **Created**: 2026-04-08
 **Last Updated**: 2026-04-08
-**Storage approach**: FILE_THIN on NVMe root partition (1.3-1.6TB free per opi node)
+**Storage approach**: LVM_THIN via 300GB loopback file on NVMe root partition
 
 ## Overview
 
@@ -13,12 +13,49 @@ Migrate persistent storage from Longhorn 1.11.1 to LINSTOR (Piraeus Operator v2)
 
 ## NixOS Package Availability (verified 2026-04-08)
 
-| Package | Nixpkgs Attribute | Version | aarch64 | Kernel 6.18 (opi) | Kernel 6.12 (raccoon) |
-|---------|------------------|---------|---------|--------------------|-----------------------|
-| DRBD kernel module | `linuxPackages.drbd` | 9.2.15 | Yes | Yes | Yes |
-| DRBD userspace | `drbd` | 9.33.0 | Yes | — | — |
-| LVM2 | `lvm2` | 2.03.35 | Yes | — | — |
-| thin-provisioning-tools | `thin-provisioning-tools` | 1.3.0 | Yes | — | — |
+| Package | Nixpkgs Attribute | Version | Notes |
+|---------|------------------|---------|-------|
+| DRBD kernel module | `linuxPackages.drbd` | 9.3.1 (overlay) | 9.2.15 broken on 6.18; overlay in `nixos/overlays/default.nix`. Remove once nixpkgs#504903 merges |
+| DRBD userspace | `drbd` | 9.33.0 | — |
+| LVM2 | `lvm2` | 2.03.35 | — |
+| thin-provisioning-tools | `thin-provisioning-tools` | 1.3.0 | — |
+
+## Progress
+
+- [x] **Phase 1: NixOS host prep** — DRBD 9.3.1 + LVM tools + dm-thin-pool/dm-snapshot modules
+  - `linstorSupport` option in `nixos/modules/nixos/services/k3s/default.nix`
+  - DRBD 9.3.1 overlay for kernel 6.18 in `nixos/overlays/default.nix`
+  - Loopback-backed LVM thin pool (300GB per node) via systemd service
+  - `/usr/src` directory creation for Piraeus satellite hostPath mount
+  - `usermode_helper=disabled` via `boot.extraModprobeConfig`
+  - opi01-03: deployed, rebooted, DRBD 9.3.1 loaded, pools working
+  - raccoon00-05: deployed, awaiting reboot (kured will handle) for DRBD 9 + usermode_helper
+- [x] **Phase 2: Piraeus Operator deployment** — v2.10.5
+  - ArgoCD Application at `kubernetes/base/infra/piraeus/`
+  - LinstorCluster CR with NixOS PATH patch + drbd9-none init container
+  - LinstorSatelliteConfiguration: LVM_THIN pool on opi01-03 only
+  - StorageClass `linstor` (2 replicas, diskless remote access)
+  - VolumeSnapshotClass `linstor-snapshot`
+  - End-to-end test passed: PVC provisioning + snapshots verified
+- [ ] **Phase 3: VolSync template updates** — parameterize snapshot class + cleanupTempPVC
+- [ ] **Phase 4: Per-app migration** — restore from restic into LINSTOR PVCs
+- [ ] **Phase 5: Longhorn decommission** — after all apps stable for 1 week
+
+## Blockers
+
+- **Raccoon reboots**: 6 raccoon workers need reboot for DRBD 9.3.1 kernel module (currently loading DRBD 8.4.11 in-tree). kured will cycle through them. Satellite pods will CrashLoop until rebooted. Not blocking Phase 3 (git-only changes).
+
+## Lessons Learned (so far)
+
+- **DRBD 9.2.x is broken on kernel 6.16+** in nixpkgs. Override to 9.3.1 via flake overlay. Track nixpkgs#504903 to remove the overlay.
+- **FILE_THIN does NOT support snapshots** despite `CanSnapshots: True` in pool listing. Must use LVM_THIN for VolSync compatibility.
+- **NixOS needs extra kernel modules** for LVM thin: `dm-thin-pool` and `dm-snapshot` (not loaded by default).
+- **`boot.extraModulePackages` DRBD 9 requires reboot** — `nixos-rebuild switch` doesn't reload kernel modules. The in-tree DRBD 8 stays loaded until reboot.
+- **`usermode_helper=disabled`** must be set via `extraModprobeConfig` — Piraeus satellite init container rejects DRBD loaded with default `usermode_helper=/sbin/drbdadm`.
+- **Piraeus satellite needs `/usr/src`** as a hostPath mount even when using `drbd9-none` (no-op). NixOS doesn't have `/usr/src` — create it via activation script.
+- **LinstorSatelliteConfiguration can't change pool type in-place** — must delete and recreate the resource to switch from FILE_THIN to LVM_THIN.
+- **Piraeus OCI Helm chart path** is `oci://ghcr.io/piraeusdatastore/piraeus-operator/piraeus` (not `helm-charts/piraeus-operator`). Use `path: .` in ArgoCD multi-source (same pattern as snapshot-controller).
+- **`installCRDs: true`** must be set in Helm values — defaults to false.
 
 ## Current Storage Topology
 
