@@ -38,6 +38,13 @@ spec:
           value: linstor-snapshot
         - name: VOLSYNC_CLEANUP_TEMP_PVC
           value: "true"
+  ignoreDifferences:
+    - group: ""
+      kind: PersistentVolumeClaim
+      name: kanboard
+      jsonPointers:
+        - /spec/dataSourceRef
+        - /spec/dataSource
   destination:
     server: https://kubernetes.default.svc
     namespace: self-hosted
@@ -47,3 +54,4 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - RespectIgnoreDifferences=true
