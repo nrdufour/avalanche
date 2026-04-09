@@ -1,8 +1,8 @@
 # Longhorn to LINSTOR (Piraeus) Migration Plan (Issue #131)
 
-**Status**: 🚧 In Progress (Phase 3 complete — VolSync templates parameterized, ready for Phase 4 per-app migration)
+**Status**: 🚧 In Progress (Phase 4 — Batch 1 complete, Batch 2 next)
 **Created**: 2026-04-08
-**Last Updated**: 2026-04-08
+**Last Updated**: 2026-04-09
 **Storage approach**: LVM_THIN via 300GB loopback file on NVMe root partition
 
 ## Overview
@@ -59,6 +59,12 @@ None. All nodes deployed, rebooted, and online.
 - **Piraeus OCI Helm chart path** is `oci://ghcr.io/piraeusdatastore/piraeus-operator/piraeus` (not `helm-charts/piraeus-operator`). Use `path: .` in ArgoCD multi-source (same pattern as snapshot-controller).
 - **`installCRDs: true`** must be set in Helm values — defaults to false.
 - **LINSTOR metric label is `storage_pool`** (with underscore), not `storagepool`. Filter pool metrics with `{storage_pool="ssd-thin"}` to exclude diskless pools.
+- **ArgoCD CMP cache survives Application env var changes** — updating plugin env vars in the Application object does NOT invalidate the CMP manifest cache. You must sync `applications` parent first (to update the Application object), THEN `--hard-refresh` the child app to regenerate CMP output.
+- **dataSourceRef removal patch blocks migration restores** — most apps have a kustomize patch removing `dataSourceRef` from the PVC (to prevent re-restore on sync). This must be temporarily removed during migration so the new PVC clones from the ReplicationDestination snapshot. Re-add after PVC is bound.
+- **PVC created without dataSourceRef gets empty Longhorn volume** — if ArgoCD syncs before the Application env vars are updated (stale CMP cache), it creates a bare PVC on the old storage class. Must delete and recreate after fixing the cache.
+- **Disable auto-sync on `cluster` and `applications` for the entire batch** — re-enabling mid-migration causes race conditions where ArgoCD scales deployments back up or syncs stale manifests.
+- **Add `ignoreDifferences` for PVC dataSourceRef/dataSource** — after migration, the live PVC has `dataSourceRef` (immutable) but the rendered manifest doesn't (patch removes it). Without `ignoreDifferences` + `RespectIgnoreDifferences=true`, ArgoCD will show perpetual OutOfSync.
+- **Pause after push before syncing** — ArgoCD needs time to settle. Immediately syncing after push can hit "another operation is already in progress" errors.
 
 ## Current Storage Topology
 
@@ -470,68 +476,100 @@ kubectl get replicationsource -A -o jsonpath='{range .items[*]}{.metadata.name}{
 
 ## Phase 4: Per-App Migration
 
+### Prerequisites
+
+Disable auto-sync on `cluster` and `applications` ArgoCD apps before starting a migration batch. Keep them disabled until the entire batch is done.
+
+```bash
+kubectl patch application cluster -n argocd --type json -p '[{"op":"replace","path":"/spec/syncPolicy/automated","value":null}]'
+kubectl patch application applications -n argocd --type json -p '[{"op":"replace","path":"/spec/syncPolicy/automated","value":null}]'
+```
+
 ### Procedure (per VolSync app)
 
-1. **Disable ArgoCD auto-sync** (top-down: cluster → applications → app)
+1. **Disable auto-sync on the child app**
    ```bash
-   kubectl patch application cluster -n argocd --type json -p '[{"op":"replace","path":"/spec/syncPolicy/automated","value":null}]'
-   kubectl patch application applications -n argocd --type json -p '[{"op":"replace","path":"/spec/syncPolicy/automated","value":null}]'
    kubectl patch application <app> -n argocd --type json -p '[{"op":"replace","path":"/spec/syncPolicy/automated","value":null}]'
    ```
 
-2. **Verify latest backup is recent**
-   ```bash
-   kubectl get replicationsource <app> -n <ns> -o jsonpath='{.status.lastSyncTime}'
-   ```
-
-3. **Scale down the app**
+2. **Scale down the app**, wait for pod termination
    ```bash
    kubectl scale deployment/<app> -n <ns> --replicas=0
+   kubectl wait --for=delete pod -l app=<app> -n <ns> --timeout=60s
    ```
 
-4. **Delete old VolSync resources**
+3. **Delete old VolSync resources**
    ```bash
    kubectl delete replicationsource <app> -n <ns>
    kubectl delete replicationdestination <app>-dst -n <ns> 2>/dev/null || true
    ```
 
-5. **Delete old PVC (with safety net)**
+4. **Delete old PVC (with safety net)**
    ```bash
    PV=$(kubectl get pvc <app> -n <ns> -o jsonpath='{.spec.volumeName}')
    kubectl patch pv $PV -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}'
    kubectl delete pvc <app> -n <ns>
    ```
 
-6. **Update app manifest** — change in `-app.yaml`:
-   ```yaml
-   VOLSYNC_STORAGECLASS: linstor
-   VOLSYNC_SNAPSHOT_CLASS: linstor-snapshot
-   VOLSYNC_CLEANUP_TEMP_PVC: "true"
-   ```
+5. **Update manifests in a single commit**, then push:
+   - In `<app>/kustomization.yaml`: temporarily remove the `dataSourceRef` removal patch (needed so PVC is created with `dataSourceRef` pointing to the ReplicationDestination snapshot)
+   - In `<app>-app.yaml`: change env vars:
+     ```yaml
+     VOLSYNC_STORAGECLASS: linstor
+     VOLSYNC_SNAPSHOT_CLASS: linstor-snapshot
+     VOLSYNC_CLEANUP_TEMP_PVC: "true"
+     ```
+   - In `<app>-app.yaml`: add `ignoreDifferences` for PVC dataSourceRef/dataSource + `RespectIgnoreDifferences=true` in syncOptions
 
-7. **Commit, push, sync**
+   **PAUSE after push** — wait ~30s for ArgoCD to settle before proceeding.
+
+6. **Sync through the ArgoCD chain** (order matters):
    ```bash
-   git add <file> && git commit && git push
-   # Re-enable applications sync briefly to pick up changes
-   # Hard-refresh child app, then sync
+   argocd app get applications --hard-refresh --grpc-web
+   argocd app sync applications --grpc-web
+   argocd app get <app> --hard-refresh --grpc-web
+   # Child app may auto-sync at this point; if not:
+   argocd app sync <app> --grpc-web
    ```
 
-8. **Wait for restore** — ReplicationDestination triggers, PVC becomes Bound, app starts
+7. **Wait for restore + PVC bind**, verify app works and data is correct
+   ```bash
+   kubectl get pvc <app> -n <ns> -o jsonpath='{.spec.storageClassName}'  # should be "linstor"
+   kubectl get pvc <app> -n <ns> -o jsonpath='{.spec.dataSourceRef.name}'  # should be "<app>-dst"
+   kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/<app> -n <ns> --timeout=180s
+   kubectl wait --for=condition=Ready pod -l app=<app> -n <ns> --timeout=120s
+   # Verify DRBD resource exists:
+   kubectl -n piraeus-system exec deploy/linstor-controller -- linstor resource list | grep <pv-name>
+   ```
 
-9. **Verify**: app accessible, PVC storageClassName is `linstor`, DRBD resource exists, first backup succeeds
+8. **Verify data** — check the app in a browser, confirm data is present
 
-10. **Re-enable auto-sync**, clean up retained Longhorn PV
+9. **Re-add the dataSourceRef patch** in `<app>/kustomization.yaml`, commit + push
+
+10. **Sync through ArgoCD chain again**:
+    ```bash
+    argocd app get applications --hard-refresh --grpc-web
+    argocd app sync applications --grpc-web
+    argocd app get <app> --hard-refresh --grpc-web
+    ```
+    Verify: `Synced` + `Healthy`
+
+11. **Re-enable auto-sync on child**, clean up old Longhorn PV
+    ```bash
+    kubectl patch application <app> -n argocd --type json -p '[{"op":"replace","path":"/spec/syncPolicy","value":{"automated":{"prune":true,"selfHeal":true},"syncOptions":["CreateNamespace=true","RespectIgnoreDifferences=true"]}}]'
+    kubectl delete pv <old-pv-name>
+    ```
 
 ### Migration order
 
-| Batch | Apps | Risk | Notes |
-|-------|------|------|-------|
-| 1 | kanboard, ntfy, homebox, thelounge | Low | Small, rarely accessed |
-| 2 | esphome, mqtt, zwave, grafana | Medium | Home automation, small data |
-| 3 | home-assistant, influxdb2 | High | Critical, influxdb2 is ~5GB |
-| 4 | seerr, archivebox | Medium | Media |
-| 5 | matrix, immich (custom) | Medium | Immich needs manual YAML changes |
-| 6 | Standalone PVC apps | Varies | No VolSync, fresh start or manual copy |
+| Batch | Apps | Risk | Status |
+|-------|------|------|--------|
+| 1 | kanboard, ntfy, homebox, thelounge | Low | ✅ Complete (2026-04-09) |
+| 2 | esphome, mqtt, zwave, grafana | Medium | Pending |
+| 3 | home-assistant, influxdb2 | High | Pending |
+| 4 | seerr, archivebox | Medium | Pending |
+| 5 | matrix, immich (custom) | Medium | Pending |
+| 6 | Standalone PVC apps | Varies | Pending |
 
 ---
 
@@ -584,4 +622,4 @@ Longhorn is never modified until Phase 5. Revert all migrated apps, delete the P
 ---
 
 *Created: 2026-04-08*
-*Last Updated: 2026-04-08*
+*Last Updated: 2026-04-09*
