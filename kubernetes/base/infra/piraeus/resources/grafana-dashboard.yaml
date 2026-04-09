@@ -54,31 +54,6 @@ data:
               "legendFormat": "Online",
               "instant": true,
               "refId": "A"
-            },
-            {
-              "expr": "count(linstor_node_state)",
-              "legendFormat": "Total",
-              "instant": true,
-              "refId": "B"
-            }
-          ],
-          "transformations": [
-            {
-              "id": "mergeByLabels",
-              "options": {}
-            },
-            {
-              "id": "calculateField",
-              "options": {
-                "alias": "Nodes Online",
-                "mode": "reduceRow",
-                "reduce": { "reducer": "sum" },
-                "binary": {
-                  "left": "Online",
-                  "right": "Total",
-                  "reducer": "sum"
-                }
-              }
             }
           ]
         },
@@ -186,7 +161,7 @@ data:
           },
           "targets": [
             {
-              "expr": "linstor_error_reports_count",
+              "expr": "sum(linstor_error_reports_count{hostname!=\"\"})",
               "legendFormat": "Errors",
               "instant": true,
               "refId": "A"
@@ -276,7 +251,7 @@ data:
           "title": "Pool Usage per Node",
           "type": "gauge",
           "id": 7,
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 6 },
+          "gridPos": { "h": 8, "w": 10, "x": 0, "y": 6 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "fieldConfig": {
             "defaults": {
@@ -298,7 +273,7 @@ data:
           },
           "options": {
             "reduceOptions": { "calcs": ["lastNotNull"] },
-            "orientation": "horizontal",
+            "orientation": "vertical",
             "showThresholdLabels": false,
             "showThresholdMarkers": true
           },
@@ -315,7 +290,7 @@ data:
           "title": "Pool Free Space Trend",
           "type": "timeseries",
           "id": 8,
-          "gridPos": { "h": 8, "w": 16, "x": 8, "y": 6 },
+          "gridPos": { "h": 8, "w": 14, "x": 10, "y": 6 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "fieldConfig": {
             "defaults": {
@@ -519,7 +494,7 @@ data:
           ]
         },
         {
-          "title": "Error Reports Over Time",
+          "title": "New Error Reports (per hour)",
           "type": "timeseries",
           "id": 11,
           "gridPos": { "h": 6, "w": 12, "x": 12, "y": 26 },
@@ -544,8 +519,8 @@ data:
           },
           "targets": [
             {
-              "expr": "linstor_error_reports_count",
-              "legendFormat": "Error Reports",
+              "expr": "increase(linstor_error_reports_count{hostname!=\"\"}[1h])",
+              "legendFormat": "{{hostname}}",
               "refId": "A"
             }
           ]
