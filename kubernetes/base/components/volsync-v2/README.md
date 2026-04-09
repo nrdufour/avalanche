@@ -8,7 +8,7 @@ A reusable Kustomize component for VolSync backup/restore with ArgoCD.
 - **No orphaned PVCs**: Uses `cleanupTempPVC: true` and `cleanupCachePVC: true`
 - **Bootstrap-once pattern**: ArgoCD `CreateOnly=true` prevents re-triggering restores
 - **On-demand re-restore**: Delete the ReplicationDestination to trigger a new restore
-- **Sensible defaults**: Only required variables are `APP`, `VOLSYNC_CAPACITY`, and `VOLSYNC_BITWARDEN_KEY`
+- **Sensible defaults**: Only required variables are `APP`, `VOLSYNC_CAPACITY`, `VOLSYNC_BITWARDEN_KEY`, `VOLSYNC_SNAPSHOT_CLASS`, and `VOLSYNC_CLEANUP_TEMP_PVC`
 
 ## How It Works
 
@@ -72,6 +72,10 @@ spec:
           value: "1000"
         - name: VOLSYNC_GID
           value: "1000"
+        - name: VOLSYNC_SNAPSHOT_CLASS
+          value: longhorn-snapshot-vsc
+        - name: VOLSYNC_CLEANUP_TEMP_PVC
+          value: "false"
   destination:
     namespace: myapp
     name: 'in-cluster'
@@ -145,6 +149,8 @@ spec:
 | `VOLSYNC_SCHEDULE` | Backup cron schedule | `0 * * * *` | No |
 | `VOLSYNC_UID` | Mover container UID | `1000` | No |
 | `VOLSYNC_GID` | Mover container GID | `1000` | No |
+| `VOLSYNC_SNAPSHOT_CLASS` | Volume snapshot class name | - | Yes |
+| `VOLSYNC_CLEANUP_TEMP_PVC` | Clean up temp PVC after restore (`true` or `false`) | - | Yes |
 
 ## Schedule Staggering
 

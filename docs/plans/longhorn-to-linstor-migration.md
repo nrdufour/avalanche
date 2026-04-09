@@ -1,6 +1,6 @@
 # Longhorn to LINSTOR (Piraeus) Migration Plan (Issue #131)
 
-**Status**: 🚧 In Progress (Phase 2 complete — all 10 nodes online, monitoring in place, ready for Phase 3)
+**Status**: 🚧 In Progress (Phase 3 complete — VolSync templates parameterized, ready for Phase 4 per-app migration)
 **Created**: 2026-04-08
 **Last Updated**: 2026-04-08
 **Storage approach**: LVM_THIN via 300GB loopback file on NVMe root partition
@@ -39,7 +39,7 @@ Migrate persistent storage from Longhorn 1.11.1 to LINSTOR (Piraeus Operator v2)
   - End-to-end test passed: PVC provisioning + LVM thin snapshots verified
   - Prometheus ServiceMonitors for LINSTOR controller + Piraeus operator
   - Grafana dashboard "LINSTOR Storage" (node state, pool capacity/usage, resource/volume state, errors)
-- [ ] **Phase 3: VolSync template updates** — parameterize snapshot class + cleanupTempPVC
+- [x] **Phase 3: VolSync template updates** — parameterize snapshot class + cleanupTempPVC
 - [ ] **Phase 4: Per-app migration** — restore from restic into LINSTOR PVCs
 - [ ] **Phase 5: Longhorn decommission** — after all apps stable for 1 week
 

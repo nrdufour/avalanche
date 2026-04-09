@@ -264,6 +264,8 @@ Reusable Kustomize component for backup/restore at `kubernetes/base/components/v
 - `APP` - Application name (used in resource names and S3 path)
 - `VOLSYNC_CAPACITY` - PVC size (e.g., "2Gi")
 - `VOLSYNC_BITWARDEN_KEY` - Bitwarden item UUID for S3 credentials
+- `VOLSYNC_SNAPSHOT_CLASS` - Volume snapshot class (e.g., "longhorn-snapshot-vsc" or "linstor-snapshot")
+- `VOLSYNC_CLEANUP_TEMP_PVC` - Clean up temp PVC after restore ("true" for LINSTOR, "false" for Longhorn)
 
 **Optional env vars:** `VOLSYNC_STORAGECLASS` (default: longhorn), `VOLSYNC_ACCESSMODE` (default: ReadWriteOnce), `VOLSYNC_CACHE_CAPACITY` (default: 2Gi), `VOLSYNC_SCHEDULE` (default: "0 * * * *"), `VOLSYNC_UID`/`VOLSYNC_GID` (default: 1000)
 

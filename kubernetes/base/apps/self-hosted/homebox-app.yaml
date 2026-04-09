@@ -34,6 +34,10 @@ spec:
           value: "65532"
         - name: VOLSYNC_GID
           value: "65532"
+        - name: VOLSYNC_SNAPSHOT_CLASS
+          value: longhorn-snapshot-vsc
+        - name: VOLSYNC_CLEANUP_TEMP_PVC
+          value: "false"
   destination:
     server: https://kubernetes.default.svc
     namespace: self-hosted

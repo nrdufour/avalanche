@@ -17,6 +17,8 @@
 #   ARGOCD_ENV_VOLSYNC_ACCESSMODE - Access mode (optional, default: "ReadWriteOnce")
 #   ARGOCD_ENV_VOLSYNC_UID - Mover user ID (optional, default: "1000")
 #   ARGOCD_ENV_VOLSYNC_GID - Mover group ID (optional, default: "1000")
+#   ARGOCD_ENV_VOLSYNC_SNAPSHOT_CLASS - Volume snapshot class (REQUIRED)
+#   ARGOCD_ENV_VOLSYNC_CLEANUP_TEMP_PVC - Clean up temp PVC after sync (REQUIRED, "true" or "false")
 #
 apiVersion: volsync.backube/v1alpha1
 kind: ReplicationDestination
@@ -37,7 +39,7 @@ spec:
     repository: "${ARGOCD_ENV_APP}-volsync-secret"
 
     storageClassName: "${ARGOCD_ENV_VOLSYNC_STORAGECLASS}"
-    volumeSnapshotClassName: longhorn-snapshot-vsc
+    volumeSnapshotClassName: "${ARGOCD_ENV_VOLSYNC_SNAPSHOT_CLASS}"
 
     capacity: "${ARGOCD_ENV_VOLSYNC_CAPACITY}"
     cacheCapacity: "${ARGOCD_ENV_VOLSYNC_CACHE_CAPACITY}"
@@ -50,8 +52,7 @@ spec:
       runAsGroup: ${ARGOCD_ENV_VOLSYNC_GID}
       fsGroup: ${ARGOCD_ENV_VOLSYNC_GID}
 
-    # NOTE: cleanupTempPVC must be false for Longhorn
-    # Longhorn deletes the volume when temp PVC is deleted, making snapshots unusable
+    # Longhorn requires false (deletes volume with temp PVC). LINSTOR supports true.
     enableFileDeletion: true
     cleanupCachePVC: true
-    cleanupTempPVC: false
+    cleanupTempPVC: ${ARGOCD_ENV_VOLSYNC_CLEANUP_TEMP_PVC}
