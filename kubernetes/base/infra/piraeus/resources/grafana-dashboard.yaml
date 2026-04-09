@@ -362,28 +362,28 @@ data:
           },
           "targets": [
             {
-              "expr": "max by (resource) (linstor_volume_definition_size_bytes)",
+              "expr": "max by (resource) (label_replace(linstor_volume_definition_size_bytes{volume_number=\"0\"}, \"resource\", \"$1\", \"name\", \"(.*)\"))",
               "legendFormat": "{{resource}}",
               "format": "table",
               "instant": true,
               "refId": "provisioned"
             },
             {
-              "expr": "max by (resource) (linstor_volume_allocated_size_bytes)",
+              "expr": "max by (resource) (linstor_volume_allocated_size_bytes{volume_number=\"0\"})",
               "legendFormat": "{{resource}}",
               "format": "table",
               "instant": true,
               "refId": "allocated"
             },
             {
-              "expr": "count by (resource) (linstor_volume_state == 1)",
+              "expr": "count by (resource) (linstor_volume_state{volume_number=\"0\"} == 1)",
               "legendFormat": "{{resource}}",
               "format": "table",
               "instant": true,
               "refId": "replicas"
             },
             {
-              "expr": "count by (resource) (linstor_volume_state == 4)",
+              "expr": "count by (resource) (linstor_volume_state{volume_number=\"0\"} == 4)",
               "legendFormat": "{{resource}}",
               "format": "table",
               "instant": true,
