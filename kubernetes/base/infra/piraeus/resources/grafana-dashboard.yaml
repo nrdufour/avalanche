@@ -349,18 +349,25 @@ data:
                 "properties": [ { "id": "unit", "value": "bytes" } ]
               },
               {
-                "matcher": { "id": "byName", "options": "Resource" },
+                "matcher": { "id": "byName", "options": "Claim" },
                 "properties": [
-                  { "id": "custom.width", "value": 300 }
+                  { "id": "custom.width", "value": 200 }
                 ]
               }
             ]
           },
           "options": {
             "showHeader": true,
-            "sortBy": [ { "displayName": "Resource", "desc": false } ]
+            "sortBy": [ { "displayName": "Claim", "desc": false } ]
           },
           "targets": [
+            {
+              "expr": "label_replace(kube_persistentvolumeclaim_info{storageclass=\"linstor\"}, \"resource\", \"$1\", \"volumename\", \"(.*)\")",
+              "legendFormat": "{{resource}}",
+              "format": "table",
+              "instant": true,
+              "refId": "claim"
+            },
             {
               "expr": "max by (resource) (label_replace(linstor_volume_definition_size_bytes{volume_number=\"0\"}, \"resource\", \"$1\", \"name\", \"(.*)\"))",
               "legendFormat": "{{resource}}",
@@ -403,21 +410,29 @@ data:
                   "__name__": true,
                   "instance": true,
                   "job": true,
-                  "volume": true
+                  "volume": true,
+                  "resource": true,
+                  "Value #claim": true,
+                  "storageclass": true,
+                  "volumename": true,
+                  "uid": true,
+                  "resource_group": true
                 },
                 "renameByName": {
-                  "resource": "Resource",
+                  "persistentvolumeclaim": "Claim",
+                  "namespace": "Namespace",
                   "Value #provisioned": "Provisioned",
                   "Value #allocated": "Allocated",
                   "Value #replicas": "UpToDate Replicas",
                   "Value #diskless": "Diskless Clients"
                 },
                 "indexByName": {
-                  "Resource": 0,
-                  "Provisioned": 1,
-                  "Allocated": 2,
-                  "UpToDate Replicas": 3,
-                  "Diskless Clients": 4
+                  "Claim": 0,
+                  "Namespace": 1,
+                  "Provisioned": 2,
+                  "Allocated": 3,
+                  "UpToDate Replicas": 4,
+                  "Diskless Clients": 5
                 }
               }
             }
