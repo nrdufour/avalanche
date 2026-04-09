@@ -362,7 +362,7 @@ data:
           },
           "targets": [
             {
-              "expr": "max by (resource) (label_replace(linstor_volume_definition_size_bytes{volume=\"0\"}, \"resource\", \"$1\", \"name\", \"(.*)\"))",
+              "expr": "max by (resource) (label_replace(linstor_volume_definition_size_bytes{volume_number=\"0\"}, \"resource\", \"$1\", \"name\", \"(.*)\"))",
               "legendFormat": "{{resource}}",
               "format": "table",
               "instant": true,
