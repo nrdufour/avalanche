@@ -16,181 +16,537 @@ data:
       "links": [],
       "panels": [
         {
-          "title": "Node State",
-          "type": "table",
-          "gridPos": { "h": 6, "w": 12, "x": 0, "y": 0 },
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "title": "Overview",
+          "type": "row",
+          "id": 100
+        },
+        {
+          "title": "Nodes Online",
+          "type": "stat",
+          "id": 1,
+          "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "fieldConfig": {
             "defaults": {
-              "mappings": [
-                { "options": { "0": { "text": "OFFLINE", "color": "red" }, "1": { "text": "CONNECTED", "color": "yellow" }, "2": { "text": "ONLINE", "color": "green" } }, "type": "value" }
-              ],
-              "color": { "mode": "fixed" }
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null }
+                ]
+              },
+              "color": { "mode": "thresholds" },
+              "mappings": []
             },
             "overrides": []
           },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "none"
+          },
           "targets": [
             {
-              "expr": "linstor_node_state",
-              "legendFormat": "{{node}}",
-              "format": "table",
-              "instant": true
+              "expr": "count(linstor_node_state == 2)",
+              "legendFormat": "Online",
+              "instant": true,
+              "refId": "A"
+            },
+            {
+              "expr": "count(linstor_node_state)",
+              "legendFormat": "Total",
+              "instant": true,
+              "refId": "B"
             }
           ],
           "transformations": [
-            { "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true, "address": true, "encryption": true, "instance": true, "job": true, "port": true }, "renameByName": { "node": "Node", "nodetype": "Type", "Value": "State" } } }
+            {
+              "id": "mergeByLabels",
+              "options": {}
+            },
+            {
+              "id": "calculateField",
+              "options": {
+                "alias": "Nodes Online",
+                "mode": "reduceRow",
+                "reduce": { "reducer": "sum" },
+                "binary": {
+                  "left": "Online",
+                  "right": "Total",
+                  "reducer": "sum"
+                }
+              }
+            }
           ]
         },
         {
-          "title": "Storage Pool Capacity",
-          "type": "bargauge",
-          "gridPos": { "h": 6, "w": 12, "x": 12, "y": 0 },
+          "title": "Volumes",
+          "type": "stat",
+          "id": 2,
+          "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "fieldConfig": {
             "defaults": {
-              "unit": "bytes",
-              "min": 0,
-              "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 80 }, { "color": "red", "value": 95 } ] }
-            }
-          },
-          "options": { "orientation": "horizontal", "displayMode": "gradient", "reduceOptions": { "calcs": ["lastNotNull"] } },
-          "targets": [
-            {
-              "expr": "linstor_storage_pool_capacity_total_bytes{storage_pool=\"ssd-thin\"} - linstor_storage_pool_capacity_free_bytes{storage_pool=\"ssd-thin\"}",
-              "legendFormat": "{{node}} used"
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "text", "value": null }
+                ]
+              },
+              "color": { "mode": "thresholds" },
+              "mappings": []
             },
-            {
-              "expr": "linstor_storage_pool_capacity_total_bytes{storage_pool=\"ssd-thin\"}",
-              "legendFormat": "{{node}} total"
-            }
-          ]
-        },
-        {
-          "title": "Storage Pool Free Space",
-          "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "fillOpacity": 20 } } },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "none"
+          },
           "targets": [
             {
-              "expr": "linstor_storage_pool_capacity_free_bytes{storage_pool=\"ssd-thin\"}",
-              "legendFormat": "{{node}}"
+              "expr": "linstor_resource_definition_count",
+              "legendFormat": "Volumes",
+              "instant": true,
+              "refId": "A"
             }
           ]
         },
         {
-          "title": "Storage Pool Usage %",
-          "type": "gauge",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+          "title": "Total Storage Used",
+          "type": "stat",
+          "id": 3,
+          "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "fieldConfig": {
             "defaults": {
               "unit": "percentunit",
-              "min": 0, "max": 1,
-              "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 0.7 }, { "color": "red", "value": 0.9 } ] }
-            }
+              "min": 0,
+              "max": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 0.7 },
+                  { "color": "red", "value": 0.9 }
+                ]
+              },
+              "color": { "mode": "thresholds" },
+              "mappings": []
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "none"
           },
           "targets": [
             {
-              "expr": "1 - (linstor_storage_pool_capacity_free_bytes{storage_pool=\"ssd-thin\"} / linstor_storage_pool_capacity_total_bytes{storage_pool=\"ssd-thin\"})",
-              "legendFormat": "{{node}}"
-            }
-          ]
-        },
-        {
-          "title": "Resource State",
-          "type": "table",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "fieldConfig": {
-            "defaults": {
-              "mappings": [
-                { "options": { "-1": { "text": "Unknown" }, "0": { "text": "Secondary", "color": "blue" }, "1": { "text": "Primary", "color": "green" } }, "type": "value" }
-              ]
-            }
-          },
-          "targets": [
-            {
-              "expr": "linstor_resource_state",
-              "format": "table",
-              "instant": true
-            }
-          ],
-          "transformations": [
-            { "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true }, "renameByName": { "node": "Node", "resource": "Resource", "Value": "State" } } }
-          ]
-        },
-        {
-          "title": "Volume State",
-          "type": "table",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "fieldConfig": {
-            "defaults": {
-              "mappings": [
-                { "options": { "1": { "text": "UpToDate", "color": "green" }, "2": { "text": "Created" }, "3": { "text": "Attached" }, "4": { "text": "Diskless", "color": "blue" }, "5": { "text": "Inconsistent", "color": "yellow" }, "6": { "text": "Failed", "color": "red" } }, "type": "value" }
-              ]
-            }
-          },
-          "targets": [
-            {
-              "expr": "linstor_volume_state",
-              "format": "table",
-              "instant": true
-            }
-          ],
-          "transformations": [
-            { "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true }, "renameByName": { "node": "Node", "resource": "Resource", "volume_number": "Vol#", "Value": "State" } } }
-          ]
-        },
-        {
-          "title": "Volume Allocated Size",
-          "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "fillOpacity": 20 } } },
-          "targets": [
-            {
-              "expr": "linstor_volume_allocated_size_bytes",
-              "legendFormat": "{{resource}} on {{node}}"
+              "expr": "1 - (sum(linstor_storage_pool_capacity_free_bytes{storage_pool=\"ssd-thin\"}) / sum(linstor_storage_pool_capacity_total_bytes{storage_pool=\"ssd-thin\"}))",
+              "legendFormat": "Used",
+              "instant": true,
+              "refId": "A"
             }
           ]
         },
         {
           "title": "Error Reports",
           "type": "stat",
-          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 30 },
+          "id": 4,
+          "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "fieldConfig": { "defaults": { "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } } },
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 1 }
+                ]
+              },
+              "color": { "mode": "thresholds" },
+              "mappings": []
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "none"
+          },
           "targets": [
             {
               "expr": "linstor_error_reports_count",
-              "legendFormat": "errors"
+              "legendFormat": "Errors",
+              "instant": true,
+              "refId": "A"
             }
           ]
         },
         {
-          "title": "Resource Definitions",
+          "title": "Degraded Volumes",
           "type": "stat",
-          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 30 },
+          "id": 5,
+          "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 1 }
+                ]
+              },
+              "color": { "mode": "thresholds" },
+              "mappings": []
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "none"
+          },
           "targets": [
             {
-              "expr": "linstor_resource_definition_count",
-              "legendFormat": "resources"
+              "expr": "count(linstor_volume_state != 1 and linstor_volume_state != 4) or vector(0)",
+              "legendFormat": "Degraded",
+              "instant": true,
+              "refId": "A"
             }
           ]
         },
         {
-          "title": "Scrape Duration",
-          "type": "timeseries",
-          "gridPos": { "h": 4, "w": 12, "x": 12, "y": 30 },
+          "title": "Pool Errors",
+          "type": "stat",
+          "id": 6,
+          "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "fieldConfig": { "defaults": { "unit": "s" } },
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 1 }
+                ]
+              },
+              "color": { "mode": "thresholds" },
+              "mappings": []
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "none"
+          },
           "targets": [
             {
-              "expr": "linstor_scrape_duration_seconds",
-              "legendFormat": "scrape"
+              "expr": "sum(linstor_storage_pool_error_count{storage_pool=\"ssd-thin\"}) or vector(0)",
+              "legendFormat": "Pool Errors",
+              "instant": true,
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+          "title": "Storage Pools",
+          "type": "row",
+          "id": 101
+        },
+        {
+          "title": "Pool Usage per Node",
+          "type": "gauge",
+          "id": 7,
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 6 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "min": 0,
+              "max": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 0.7 },
+                  { "color": "red", "value": 0.9 }
+                ]
+              },
+              "color": { "mode": "thresholds" },
+              "mappings": []
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "orientation": "horizontal",
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "targets": [
+            {
+              "expr": "1 - (linstor_storage_pool_capacity_free_bytes{storage_pool=\"ssd-thin\"} / linstor_storage_pool_capacity_total_bytes{storage_pool=\"ssd-thin\"})",
+              "legendFormat": "{{node}}",
+              "instant": true,
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "Pool Free Space Trend",
+          "type": "timeseries",
+          "id": 8,
+          "gridPos": { "h": 8, "w": 16, "x": 8, "y": 6 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "custom": {
+                "fillOpacity": 20,
+                "lineWidth": 2,
+                "drawStyle": "line",
+                "spanNulls": false
+              },
+              "color": { "mode": "palette-classic" }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          },
+          "targets": [
+            {
+              "expr": "linstor_storage_pool_capacity_free_bytes{storage_pool=\"ssd-thin\"}",
+              "legendFormat": "{{node}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+          "title": "Volumes",
+          "type": "row",
+          "id": 102
+        },
+        {
+          "title": "Volume Overview",
+          "type": "table",
+          "id": 9,
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 15 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [ { "color": "text", "value": null } ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Provisioned" },
+                "properties": [ { "id": "unit", "value": "bytes" } ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Allocated" },
+                "properties": [ { "id": "unit", "value": "bytes" } ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Resource" },
+                "properties": [
+                  { "id": "custom.width", "value": 300 }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "sortBy": [ { "displayName": "Resource", "desc": false } ]
+          },
+          "targets": [
+            {
+              "expr": "max by (resource) (linstor_volume_definition_size_bytes)",
+              "legendFormat": "{{resource}}",
+              "format": "table",
+              "instant": true,
+              "refId": "provisioned"
+            },
+            {
+              "expr": "max by (resource) (linstor_volume_allocated_size_bytes)",
+              "legendFormat": "{{resource}}",
+              "format": "table",
+              "instant": true,
+              "refId": "allocated"
+            },
+            {
+              "expr": "count by (resource) (linstor_volume_state == 1)",
+              "legendFormat": "{{resource}}",
+              "format": "table",
+              "instant": true,
+              "refId": "replicas"
+            },
+            {
+              "expr": "count by (resource) (linstor_volume_state == 4)",
+              "legendFormat": "{{resource}}",
+              "format": "table",
+              "instant": true,
+              "refId": "diskless"
+            }
+          ],
+          "transformations": [
+            {
+              "id": "merge",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "__name__": true,
+                  "instance": true,
+                  "job": true,
+                  "volume_number": true
+                },
+                "renameByName": {
+                  "resource": "Resource",
+                  "Value #provisioned": "Provisioned",
+                  "Value #allocated": "Allocated",
+                  "Value #replicas": "UpToDate Replicas",
+                  "Value #diskless": "Diskless Clients"
+                },
+                "indexByName": {
+                  "Resource": 0,
+                  "Provisioned": 1,
+                  "Allocated": 2,
+                  "UpToDate Replicas": 3,
+                  "Diskless Clients": 4
+                }
+              }
+            }
+          ]
+        },
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
+          "title": "Health",
+          "type": "row",
+          "id": 103
+        },
+        {
+          "title": "Degraded Volume Details",
+          "type": "table",
+          "id": 10,
+          "gridPos": { "h": 6, "w": 12, "x": 0, "y": 26 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [ { "color": "text", "value": null } ]
+              },
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "1": { "text": "UpToDate", "color": "green", "index": 0 },
+                    "4": { "text": "Diskless", "color": "blue", "index": 1 },
+                    "5": { "text": "Inconsistent", "color": "yellow", "index": 2 },
+                    "6": { "text": "Failed", "color": "red", "index": 3 }
+                  }
+                }
+              ]
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "State" },
+                "properties": [
+                  { "id": "custom.displayMode", "value": "color-background" }
+                ]
+              }
+            ]
+          },
+          "options": { "showHeader": true },
+          "targets": [
+            {
+              "expr": "linstor_volume_state != 1 and linstor_volume_state != 4",
+              "format": "table",
+              "instant": true,
+              "refId": "A"
+            }
+          ],
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "__name__": true,
+                  "instance": true,
+                  "job": true,
+                  "volume_number": true
+                },
+                "renameByName": {
+                  "node": "Node",
+                  "resource": "Resource",
+                  "Value": "State"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "title": "Error Reports Over Time",
+          "type": "timeseries",
+          "id": 11,
+          "gridPos": { "h": 6, "w": 12, "x": 12, "y": 26 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "fillOpacity": 0,
+                "lineWidth": 2,
+                "drawStyle": "line",
+                "lineInterpolation": "stepAfter",
+                "spanNulls": false
+              },
+              "color": { "mode": "palette-classic" }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          },
+          "targets": [
+            {
+              "expr": "linstor_error_reports_count",
+              "legendFormat": "Error Reports",
+              "refId": "A"
             }
           ]
         }
