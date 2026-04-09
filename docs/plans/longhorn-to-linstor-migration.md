@@ -65,6 +65,7 @@ None. All nodes deployed, rebooted, and online.
 - **Disable auto-sync on `cluster` and `applications` for the entire batch** — re-enabling mid-migration causes race conditions where ArgoCD scales deployments back up or syncs stale manifests.
 - **Add `ignoreDifferences` for PVC dataSourceRef/dataSource** — after migration, the live PVC has `dataSourceRef` (immutable) but the rendered manifest doesn't (patch removes it). Without `ignoreDifferences` + `RespectIgnoreDifferences=true`, ArgoCD will show perpetual OutOfSync.
 - **Pause after push before syncing** — ArgoCD needs time to settle. Immediately syncing after push can hit "another operation is already in progress" errors.
+- **Changing `autoPlace` in StorageClass only affects new volumes** — existing volumes need `linstor resource create <node> <resource> --storage-pool ssd-thin` to add replicas. DRBD syncs data automatically.
 
 ## Current Storage Topology
 
@@ -320,13 +321,13 @@ allowVolumeExpansion: true
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer
 parameters:
-  autoPlace: "2"                    # 2 replicas across 3 storage nodes
+  autoPlace: "3"                    # 3 replicas across 3 storage nodes (full redundancy)
   storagePool: ssd-thin
   allowRemoteVolumeAccess: "true"   # Diskless attachment on workers
   csi.storage.k8s.io/fstype: ext4
 ```
 
-Design: 2 replicas instead of Longhorn's 3. With synchronous kernel-level replication, 2 replicas on SSD is more reliable than 3 Longhorn userspace replicas.
+Design: 3 replicas across 3 storage nodes — every volume has a copy on all opi nodes. With only 3 storage nodes, this is the right call: storage cost is negligible and it survives 2 simultaneous node failures.
 
 ### 2.6 VolumeSnapshotClass
 
