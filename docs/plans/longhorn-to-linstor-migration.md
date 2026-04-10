@@ -68,6 +68,7 @@ None. All nodes deployed, rebooted, and online.
 - **Changing `autoPlace` in StorageClass only affects new volumes** — existing volumes need `linstor resource create <node> <resource> --storage-pool ssd-thin` to add replicas. DRBD syncs data automatically.
 - **Force-deleting VolSync mover pods leaves stale restic repo locks** — when a mover pod is killed mid-backup, its restic lock persists in S3. Subsequent backups complete the data phase but fail on `forget` (prune) due to the stale lock. Fix with `restic unlock --remove-all` via a one-shot pod using the app's volsync secret and CA cert.
 - **Longhorn snapshot clone "not ready for workloads" is often transient** — the cloned volume needs time to rebuild replicas. Don't delete too quickly; give it 2-3 minutes. For large volumes (10Gi+) on ARM nodes, this can take longer but does eventually complete.
+- **VolSync cache PVCs may remain on Longhorn after migration** — the `volsync-src-<app>-cache` PVC is created by VolSync on the old storage class. After migration, a new cache PVC is created on LINSTOR but the old one may persist as an orphan. Check and delete manually.
 
 ## Current Storage Topology
 
@@ -125,6 +126,7 @@ None. All nodes deployed, rebooted, and online.
 | minecraft | games | World data | Manual copy |
 | influxdb2-backup | home-automation | Backup scratch | Fresh start |
 | immich-ml-cache | media | ML model cache | Fresh start |
+| prometheus | observability | TSDB | Fresh start (StatefulSet PVC) |
 
 ### PVC renames needed
 
