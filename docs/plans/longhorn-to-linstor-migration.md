@@ -1,6 +1,6 @@
 # Longhorn to LINSTOR (Piraeus) Migration Plan (Issue #131)
 
-**Status**: 🚧 In Progress (Phase 4 — Batch 1 complete, Batch 2 next)
+**Status**: 🚧 In Progress (Phase 4 — Batch 4 complete, Batch 5 next)
 **Created**: 2026-04-08
 **Last Updated**: 2026-04-09
 **Storage approach**: LVM_THIN via 300GB loopback file on NVMe root partition
@@ -66,6 +66,8 @@ None. All nodes deployed, rebooted, and online.
 - **Add `ignoreDifferences` for PVC dataSourceRef/dataSource** — after migration, the live PVC has `dataSourceRef` (immutable) but the rendered manifest doesn't (patch removes it). Without `ignoreDifferences` + `RespectIgnoreDifferences=true`, ArgoCD will show perpetual OutOfSync.
 - **Pause after push before syncing** — ArgoCD needs time to settle. Immediately syncing after push can hit "another operation is already in progress" errors.
 - **Changing `autoPlace` in StorageClass only affects new volumes** — existing volumes need `linstor resource create <node> <resource> --storage-pool ssd-thin` to add replicas. DRBD syncs data automatically.
+- **Force-deleting VolSync mover pods leaves stale restic repo locks** — when a mover pod is killed mid-backup, its restic lock persists in S3. Subsequent backups complete the data phase but fail on `forget` (prune) due to the stale lock. Fix with `restic unlock --remove-all` via a one-shot pod using the app's volsync secret and CA cert.
+- **Longhorn snapshot clone "not ready for workloads" is often transient** — the cloned volume needs time to rebuild replicas. Don't delete too quickly; give it 2-3 minutes. For large volumes (10Gi+) on ARM nodes, this can take longer but does eventually complete.
 
 ## Current Storage Topology
 
@@ -566,9 +568,10 @@ kubectl patch application applications -n argocd --type json -p '[{"op":"replace
 | Batch | Apps | Risk | Status |
 |-------|------|------|--------|
 | 1 | kanboard, ntfy, homebox, thelounge | Low | ✅ Complete (2026-04-09) |
-| 2 | esphome, mqtt, zwave, grafana | Medium | Pending |
-| 3 | home-assistant, influxdb2 | High | Pending |
-| 4 | seerr, archivebox | Medium | Pending |
+| 2 | esphome, mqtt, zwave, grafana | Medium | ✅ Complete (2026-04-09) |
+| 3a | home-assistant | High | ✅ Complete (2026-04-09) |
+| 3b | influxdb2 | High | ✅ Complete (2026-04-09) |
+| 4 | seerr, archivebox | Medium | ✅ Complete (2026-04-09) |
 | 5 | matrix, immich (custom) | Medium | Pending |
 | 6 | Standalone PVC apps | Varies | Pending |
 
