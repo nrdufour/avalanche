@@ -38,3 +38,84 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/component: piraeus-operator
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: linstor-storage
+  namespace: piraeus-system
+  labels:
+    app: linstor
+spec:
+  groups:
+    - name: linstor.storage-pool
+      rules:
+        # Real thin-pool usage (allocated / total). Thin-pool exhaustion suspends
+        # DRBD I/O on the node and can take every volume on that pool read-only.
+        - alert: LinstorStoragePoolAllocatedHigh
+          expr: |
+            (
+              1
+              - sum by (node, storage_pool) (linstor_storage_pool_capacity_free_bytes{storage_pool!="DfltDisklessStorPool"})
+                / sum by (node, storage_pool) (linstor_storage_pool_capacity_total_bytes{storage_pool!="DfltDisklessStorPool"})
+            ) > 0.75
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "LINSTOR thin pool {{ $labels.storage_pool }} on {{ $labels.node }} is {{ $value | humanizePercentage }} full"
+            description: |
+              The LVM-thin pool backing LINSTOR on {{ $labels.node }} is above 75% real allocation.
+              At 100% the pool suspends writes and DRBD I/O is frozen for every volume on the node.
+              Extend the thin pool LV or evict volumes before it fills.
+        - alert: LinstorStoragePoolAllocatedCritical
+          expr: |
+            (
+              1
+              - sum by (node, storage_pool) (linstor_storage_pool_capacity_free_bytes{storage_pool!="DfltDisklessStorPool"})
+                / sum by (node, storage_pool) (linstor_storage_pool_capacity_total_bytes{storage_pool!="DfltDisklessStorPool"})
+            ) > 0.90
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "LINSTOR thin pool {{ $labels.storage_pool }} on {{ $labels.node }} is {{ $value | humanizePercentage }} full"
+            description: |
+              The LVM-thin pool backing LINSTOR on {{ $labels.node }} is above 90% real allocation.
+              Exhaustion will suspend DRBD I/O for every volume on the pool. Extend immediately.
+        # Provisioned = sum of every replica's declared size on this node.
+        # Crossing 100% means the node is overcommitted — if every PVC filled to
+        # its declared capacity the thin pool would exhaust.
+        - alert: LinstorStoragePoolProvisionedHigh
+          expr: |
+            sum by (node) (
+              label_replace(
+                label_replace(
+                  linstor_volume_allocated_size_bytes{storage_pool!="DfltDisklessStorPool"},
+                  "name", "$1", "resource", "(.*)"
+                ),
+                "volume_number", "$1", "volume", "(.*)"
+              ) * 0
+              + on (name, volume_number) group_left() linstor_volume_definition_size_bytes
+            )
+            / on (node) group_left()
+              sum by (node) (linstor_storage_pool_capacity_total_bytes{storage_pool!="DfltDisklessStorPool"})
+            > 0.80
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "LINSTOR node {{ $labels.node }} provisioned at {{ $value | humanizePercentage }} of pool capacity"
+            description: |
+              The sum of declared PVC sizes with a replica on {{ $labels.node }} exceeds 80% of the
+              thin pool's raw capacity. Real usage is still below the pool size (see allocated alerts),
+              but there is no longer much headroom to absorb PVCs filling up to their declared size.
+              Either grow the pool or avoid scheduling additional replicas on this node.
+        - alert: LinstorStoragePoolErrors
+          expr: linstor_storage_pool_error_count{storage_pool!="DfltDisklessStorPool"} > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "LINSTOR storage pool {{ $labels.storage_pool }} on {{ $labels.node }} reporting errors"
+            description: "Storage pool error count is {{ $value }}; check linstor storage-pool list and satellite logs."
