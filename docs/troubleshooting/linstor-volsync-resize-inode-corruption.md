@@ -96,6 +96,18 @@ kubectl exec -n piraeus-system linstor-satellite.opi01-XXXXX -- bash -c '
 
 The `linstor` StorageClass has been updated with `linstor.csi.linbit.com/fsopts: "-O ^resize_inode"` in `kubernetes/base/infra/piraeus/resources/storage-class.yaml`. This passes `-O ^resize_inode` to `mkfs.ext4` at format time, so all new PVCs are created without the feature. No manual intervention needed for new apps.
 
+**Note on StorageClass recreation:** Kubernetes `StorageClass.parameters` is an immutable field. When updating `fsopts` (or any other parameter), the existing StorageClass must be deleted and recreated — an in-place `kubectl apply` will fail with `parameters: Forbidden: updates to parameters are forbidden`. Deleting the StorageClass is safe: existing PVCs/PVs reference it by name but don't depend on it staying alive. ArgoCD will recreate it on the next sync. The initial rollout of this fix required running `kubectl delete sc linstor` before the sync could proceed.
+
+### Volume Expansion Compatibility
+
+Disabling `resize_inode` does **not** break PVC expansion. Verified on 2026-04-12 with a test PVC expanded from 1 GiB to 2 GiB:
+
+- **How LINSTOR CSI expansion actually works**: When a PVC is resized, the CSI controller expands the underlying LV at the block layer immediately. The filesystem resize is deferred to the next pod start — the PVC enters the `FileSystemResizePending` condition with message "Waiting for user to (re-)start a pod to finish file system resize of volume on node."
+- **Why this is offline from ext4's perspective**: The filesystem is unmounted during the pod restart, so `resize2fs` runs offline. Offline `resize2fs` does not need `resize_inode` or `meta_bg` — it can freely allocate new GDT blocks because nothing else is using the filesystem.
+- **Result**: Expansion succeeds cleanly. Data is preserved. No special filesystem features required.
+
+This means the fix has no downside for volume sizing operations. The pod-restart requirement is a LINSTOR CSI behavior, not a consequence of removing `resize_inode`.
+
 ## Emergency Recovery
 
 When a VolSync backup is stuck due to this issue:
