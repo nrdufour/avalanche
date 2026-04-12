@@ -11,3 +11,4 @@ parameters:
   storagePool: ssd-thin
   allowRemoteVolumeAccess: "true"
   csi.storage.k8s.io/fstype: ext4
+  linstor.csi.linbit.com/fsopts: "-O ^resize_inode"
