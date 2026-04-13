@@ -20,6 +20,12 @@ alertmanager:
     # path survives a cluster outage via the alertmanager-ntfy relay on
     # hawk, which is the real "outside" monitor point for cluster incidents.
     replicas: 1
+    # Mount the webhook URL secret at /etc/alertmanager/secrets/<name>/
+    # The secret is created by the sibling kustomization.yaml's secretGenerator.
+    # Prometheus Operator strips inline webhook_configs.url for security,
+    # hence the indirection via `url_file` below.
+    secrets:
+      - alertmanager-webhook-ntfy
     storage:
       volumeClaimTemplate:
         spec:
@@ -45,7 +51,7 @@ alertmanager:
       - name: "null"
       - name: ntfy
         webhook_configs:
-          - url: http://alertmanager-ntfy.internal:8000/hook
+          - url_file: /etc/alertmanager/secrets/alertmanager-webhook-ntfy/url
             send_resolved: true
 
 kubeApiServer:

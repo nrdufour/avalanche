@@ -2,5 +2,16 @@
 # yaml-language-server: $schema=https://json.schemastore.org/kustomization
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: observability
 resources:
   - scrapeconfig.yaml
+# Prometheus Operator strips `webhook_configs[].url` from inline Alertmanager
+# configs for security reasons, requiring URLs to be sourced from a mounted
+# Secret. This generator creates the secret; the helm values mount it via
+# alertmanagerSpec.secrets and reference it with `url_file`.
+secretGenerator:
+  - name: alertmanager-webhook-ntfy
+    literals:
+      - url=http://alertmanager-ntfy.internal:8000/hook
+    options:
+      disableNameSuffixHash: true
