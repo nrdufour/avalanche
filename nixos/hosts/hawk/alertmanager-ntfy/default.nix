@@ -9,7 +9,12 @@
       http.addr = "0.0.0.0:8000";
 
       ntfy = {
-        baseurl = "https://ntfy.internal";
+        # Bypass nginx/TLS entirely and talk to ntfy on its localhost
+        # listener — both services live on hawk, so this is a loopback
+        # call that avoids the step-ca trust dance for the relay's own
+        # HTTP client. External clients still reach ntfy via the nginx
+        # vhost at https://ntfy.internal.
+        baseurl = "http://127.0.0.1:2586";
         notification = {
           topic = "homelab-alerts";
           priority = ''
