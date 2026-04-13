@@ -9,6 +9,7 @@
       ./step-ca
       ./kanidm
       ./vaultwarden
+      ./ntfy
       # ./scorekit.nix
       ./ollama.nix
     ];
