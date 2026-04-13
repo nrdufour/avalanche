@@ -1,7 +1,7 @@
 # Piraeus CSI Snapshot Consistency — Analysis & Path Forward
 
-**Status**: Known issue, mitigated for one symptom, root cause unsolved.
-**Last updated**: 2026-04-12
+**Status**: Known issue, symptom remediated (after one botched attempt), root cause unsolved.
+**Last updated**: 2026-04-13
 **Owner**: none assigned (work deferred)
 **Related**: [linstor-volsync-resize-inode-corruption.md](../../troubleshooting/linstor-volsync-resize-inode-corruption.md)
 
@@ -11,11 +11,11 @@
 
 The Piraeus/LINSTOR CSI driver (all versions through v1.10.6) takes **crash-consistent** volume snapshots — not application-consistent. It does not call `fsfreeze`, does not sync the filesystem, and does not issue any `FIFREEZE` ioctl before asking LINSTOR to create a thin LVM snapshot. This is a real gap in the driver, not a misconfiguration on our end.
 
-We've observed one concrete symptom from this gap: ext4 `resize_inode` metadata corruption in VolSync snapshot clones, causing `e2fsck -p` to fail and VolSync mover pods to get stuck in `ContainerCreating` for days. We've mitigated that specific symptom by disabling `resize_inode` on all LINSTOR-backed PVCs (see the troubleshooting doc). But the underlying crash-consistency race is still there and could theoretically surface as different metadata corruption in the future.
+We've observed one concrete symptom from this gap: ext4 `resize_inode` metadata corruption in VolSync snapshot clones, causing `e2fsck -p` to fail and VolSync mover pods to get stuck in `ContainerCreating` for days. We've remediated that specific symptom (the full procedure — including what we learned the hard way — is in the "What We've Done So Far" section below). But the underlying crash-consistency race is still there and could theoretically surface as different metadata corruption in the future.
 
 **There is no community solution to copy-paste.** No GitHub issues filed, no workaround scripts, no Helm charts, no operators. If we want a real fix, we'd be the first to build it — but we do have the right hook point to build on: VolSync's `copy-trigger` annotation protocol.
 
-This document captures everything learned on 2026-04-12 so the knowledge isn't lost.
+This document captures everything learned across 2026-04-10 through 2026-04-13 so the knowledge isn't lost.
 
 ---
 
@@ -199,11 +199,13 @@ Mayastor's approach is closest to Option C. For a homelab, Option B is probably 
 
 ## What We've Done So Far (Mitigation)
 
-All commits are on `main` as of 2026-04-12.
+All commits are on `main`.
+
+### Phase 1 — initial symptom remediation (2026-04-12)
 
 1. **Recovered the stuck homebox backup** via parallel-delete of mover pod + clone PVC + VolumeSnapshot, then manual sync trigger. Recovery documented in `docs/troubleshooting/linstor-volsync-resize-inode-corruption.md`.
 
-2. **Disabled `resize_inode` on all 24 existing LINSTOR LVs** across opi01/opi02/opi03 via `tune2fs -O ^resize_inode`. Verified clean on all nodes. This removes the specific vulnerable metadata structure that caused the observed corruption.
+2. **Ran `tune2fs -O ^resize_inode` on every existing LINSTOR LV** across opi01/opi02/opi03 — intended to remove the vulnerable metadata structure cluster-wide.
 
 3. **Updated the `linstor` StorageClass** with `linstor.csi.linbit.com/fsopts: "-O ^resize_inode"` so new PVCs are formatted without the feature from mkfs time. Tested end-to-end with a fresh PVC.
 
@@ -211,11 +213,64 @@ All commits are on `main` as of 2026-04-12.
 
 5. **Learned that `StorageClass.parameters` is immutable** — updating `fsopts` required deleting and recreating the StorageClass. ArgoCD fails to update in place with `Forbidden: updates to parameters are forbidden`.
 
-6. **Documented the initial root cause in troubleshooting docs** at `docs/troubleshooting/linstor-volsync-resize-inode-corruption.md`.
+6. **Documented the initial root cause** in `docs/troubleshooting/linstor-volsync-resize-inode-corruption.md`.
+
+### Phase 2 — the 2026-04-13 cascade
+
+Phase 1 looked complete but was not. The next morning, **every single LINSTOR-backed VolSync ReplicationSource (11 apps)** was stuck within one sync cycle: `esphome`, `grafana`, `home-assistant`, `influxdb2`, `mqtt`, `zwave`, `thelounge`, `archivebox`, `seerr`, `homebox`, `ntfy`. The only LINSTOR-backed one that kept succeeding was `kanboard`, for a reason we didn't expect (see Phase 3).
+
+**Root cause of the cascade**: `tune2fs -O ^resize_inode` only clears the superblock feature flag. It does **not** zero the on-disk structures tied to that feature — specifically `s_reserved_gdt_blocks`, which stays at its non-zero mkfs value. The resulting state (`resize_inode` feature cleared **and** `s_reserved_gdt_blocks > 0`) is precisely the flag/data mismatch that `e2fsck -p` classifies as "manual intervention required" and bails with exit 4. So the Phase 1 fix left every LV in the same inconsistent state that had previously occurred only occasionally from snapshot races — and every volume now tripped the CSI driver's mount-time fsck on its next snapshot clone.
+
+In other words, the Phase 1 remediation converted a rare, race-dependent failure into a guaranteed, deterministic failure on every single volume. **The cluster would have been better off without the Phase 1 fix** — at least most apps would have kept working.
+
+### Phase 3 — full remediation (2026-04-13)
+
+The correct procedure is **both** steps, both required: `tune2fs -O ^resize_inode` **and** `e2fsck -fy`, run **offline** (app scaled to zero, no mover clone) on the **DRBD device** (not the raw LV — bypassing DRBD would desync replicas). Only `e2fsck -fy` actually zeros `s_reserved_gdt_blocks` and rewrites the block group descriptors to match the cleared feature flag.
+
+Per-app sequence (scripted, ~5 min each):
+
+1. Remove `spec.syncPolicy.automated` on the ArgoCD Application (and the parent app-of-apps, which otherwise re-enables its children within seconds)
+2. `kubectl scale deploy/<app> --replicas=0` and wait for pod termination
+3. Delete stuck mover pod + clone PVC + VolumeSnapshot (parallel)
+4. Confirm the source LV is fully `Unused` on LINSTOR
+5. On one satellite: `drbdadm resume-io <resource>` (clears leftover `suspended:user` state from failed attempts), `drbdadm primary <resource>`, `tune2fs -O ^resize_inode /dev/drbdNNNN`, `e2fsck -fy /dev/drbdNNNN`, `drbdadm secondary <resource>`
+6. Repeat step 5 for the `volsync-<app>-cache` resource — the mover cache has the same ext4 formatting and the same vulnerability, and a stuck mover will fail to mount either the source clone **or** the cache
+7. Scale deployment back to 1, re-enable auto-sync, annotate/patch the ReplicationSource to trigger a fresh manual sync
+8. Verify the mover runs to `Completed` and the ReplicationSource returns to `Waiting for next scheduled synchronization`
+
+Failure modes observed during this procedure:
+
+- **`Multiple primaries not allowed`** from `drbdadm primary` — another node still holds the resource Primary because a pod is still `Terminating` or kubelet hasn't released its mount. Wait, re-check `drbdsetup status`, retry.
+- **`Device is held open by someone`** with phantom opener PIDs from days ago — stale `open_cnt` left in the DRBD kernel state by a crashed kubelet mount. Investigate via `/var/lib/kubelet/pods/*/volumes/kubernetes.io~csi/<pvc>/mount` on the host.
+- **`suspended:user blocked:upper`** — leftover from a prior failed attempt. `drbdadm resume-io <resource>` clears it.
+- **Multi-volume resources** — a single LINSTOR resource can expose multiple DRBD volumes (e.g., `volume:0`, `volume:1` in `drbdsetup status`). `drbdadm dump <resource>` lists all minors. Each one needs the same `tune2fs` + `e2fsck` treatment. `kanboard` had this: source and cache each carried two DRBD volumes.
+
+Full per-app breakdown: 10 apps remediated end-to-end in ~2 hours (archivebox, seerr, thelounge, esphome, grafana, zwave, homebox, ntfy, mqtt, home-assistant, influxdb2 — source + cache each = 22 LVs rewritten). Detailed runbook in `docs/troubleshooting/linstor-volsync-resize-inode-corruption.md` (Path B).
+
+### Phase 4 — kanboard and the RWX/NFS complication
+
+`kanboard` was the only LINSTOR-backed VolSync replication that **kept succeeding** throughout the cascade. That was initially confusing — its underlying LV had exactly the same `s_reserved_gdt_blocks > 0` state as every other LV.
+
+The answer: `kanboard`'s PVC was provisioned as `ReadWriteMany`. On LINSTOR, RWX is not a native capability — piraeus implements it by running a `linstor-csi-nfs-server` DaemonSet (Ganesha NFS) that mounts the DRBD volume on one "export node" and re-exports it over NFS to consuming pods. So the consumer pods never mount the DRBD block device directly; they mount the NFS export. And when VolSync takes a snapshot clone, that clone is also mounted via the same NFS layer, not by the CSI driver running `e2fsck -p` on the block device. **The entire fsck-at-mount failure path is bypassed for RWX volumes.** The corruption is present on-disk, but it's invisible to everything that would notice it.
+
+This also broke the Phase 3 remediation procedure for `kanboard`: when we scaled the app to zero and tried to run `drbdadm primary` from a satellite node, it failed with `Device is held open by someone` — because `linstor-csi-nfs-server` on the export node was still holding the mount for the NFS export. No consuming pod was visible to `kubectl get pods`, and the `open_cnt` opener list reported phantom PIDs from days ago that didn't exist in the host's process table.
+
+**Resolution**: rather than wrestle with restarting the NFS server daemonset (which would disrupt all RWX exports from the same node), we migrated `kanboard` from RWX to RWO. It was a single-replica deployment with a 200 MiB dataset that had been provisioned as RWX by accident — nothing actually required multi-writer semantics. The migration procedure (commit `263b661`, then `99000ca`):
+
+1. Trigger a fresh backup to ensure restic has the latest state
+2. Change `VOLSYNC_ACCESSMODE: ReadWriteMany` → `ReadWriteOnce` in `kanboard-app.yaml`
+3. Add `strategy: { type: Recreate }` to the deployment — RWO + RollingUpdate deadlocks on pod rollouts because the new pod can't mount the PVC while the old one still holds it
+4. Temporarily remove the `dataSourceRef` strip patch from `kustomization.yaml` so the replacement PVC is created with a VolSync restore pointer
+5. Scale to 0, delete the old RWX PVC, sync ArgoCD → new RWO PVC provisioned with `dataSourceRef` → VolSync populator runs restore from restic → kanboard pod starts on the restored data
+6. Re-add the `dataSourceRef` strip patch as a safety net
+
+The new PVC was born without the corruption because the `linstor` StorageClass now passes `-O ^resize_inode` to `mkfs.ext4` at provisioning time. Net result: `kanboard` is now on the same direct-block backup path as every other app, and the `linstor-csi-nfs-server` daemonset is one dependency lighter in the cluster.
+
+**Generalizable lesson**: any PVC with `ReadWriteMany` on LINSTOR silently adds an NFS-server chokepoint on one node, bypasses the ext4 fsck path entirely (both for better and for worse), and breaks the offline-fsck remediation procedure. RWX should be a deliberate choice, not an accident. Audit existing RWX PVCs; migrate any that don't actually need multi-writer semantics.
 
 ### What this mitigation does NOT fix
 
-The underlying crash-consistency race is still there. We've only removed one vulnerable target. Other ext4 metadata structures that could theoretically hit similar corruption patterns in the future:
+The underlying crash-consistency race is still there. We've removed one specific vulnerable target (the `resize_inode` feature), but nothing about the Piraeus snapshot path has changed. Other ext4 metadata structures that could theoretically hit similar corruption patterns in the future:
 
 - **The journal itself during a transaction commit** — partial journal writes captured mid-commit
 - **Block group descriptors during allocation** — `flex_bg` metadata updates
@@ -223,6 +278,8 @@ The underlying crash-consistency race is still there. We've only removed one vul
 - **`metadata_csum` checksum blocks on any metadata being written during the snapshot window** — this is the broadest risk
 
 None of these have been observed in practice yet, but the mechanism is still present. The only real fix is getting `fsfreeze` into the snapshot path.
+
+**Lesson from the cascade**: the "accept the risk, it's rare" framing looked fine until one bad remediation turned a stochastic risk into a deterministic failure across the entire cluster in a single sync cycle. Monitoring (Priority 1) is no longer optional — it should be the first thing built, independent of any decision about the deeper fix. And when modifying filesystem feature flags, the change must always include an offline `e2fsck -fy` pass, not just the `tune2fs` call (see `feedback_tune2fs_requires_fsck.md` in auto-memory).
 
 ---
 
@@ -410,8 +467,14 @@ The most interesting follow-up would be to survey what features are set by defau
 
 **2026-04-12**: Mitigated the observed symptom by disabling `resize_inode` feature on all existing and new LINSTOR PVCs. Accepted the residual risk of future metadata corruption from the unfixed crash-consistency gap. Chose not to build the VolSync copy-trigger automation today due to time constraints. Documented everything in this file so the work can be picked up later without losing context.
 
+**2026-04-13**: Learned the 2026-04-12 mitigation was incomplete. `tune2fs -O ^resize_inode` only cleared the feature flag, leaving `s_reserved_gdt_blocks > 0` on disk — the exact state `e2fsck -p` refuses to auto-fix. Every LINSTOR-backed VolSync replication (11 apps) tripped on its next sync cycle, producing a cluster-wide cascade that was worse than the original rare failure mode. Performed the full offline procedure (`tune2fs -O ^resize_inode` + `e2fsck -fy` on the DRBD device, per source + cache PVC) on all affected apps. Migrated `kanboard` from RWX to RWO along the way to sidestep the `linstor-csi-nfs-server` mount-holder complication. New lessons captured in auto-memory and in this doc's Phase 2/3/4 sections.
+
+The cascade changed my confidence in "accept the risk" as a long-term strategy. Monitoring (Priority 1) should be built immediately and independently of any other decision — it would have caught the cascade within minutes instead of hours. The deeper `fsfreeze` fix (Priority 3) is no longer a nice-to-have; it's the only way to prevent the next class of metadata corruption from repeating this experience with a different vulnerable field.
+
 Open questions to revisit:
-- Should we prioritize Priority 1 (monitoring) immediately, separate from the rest of the work?
-- Is per-app Option A (CronJob) or cluster-wide Option B (controller) the right shape?
-- Does VolSync's `copyMethod: Clone` (LVM clone instead of snapshot) have different consistency characteristics? (Not investigated.)
-- Should we file the upstream issue this week to give maintainers time to respond?
+- **Priority 1 (monitoring)**: should happen this week. 30 minutes of work. Do first.
+- **Priority 2 (upstream issue)**: file now. The 2026-04-13 cascade gives a concrete production-severity anecdote to strengthen the case — "tune2fs-only mitigation turned a stochastic risk into a deterministic cluster-wide outage" is the kind of story maintainers take seriously. Include a link to piraeus-operator issue #632 (their repair-on-mount fix) and point out that it would not have caught our class of corruption (fsck exit 4, not auto-repairable).
+- **Priority 3 shape (per-app CronJob vs cluster-wide controller)**: start with Option A (per-app CronJob) for `influxdb2` and `home-assistant` as the two highest-value targets. If that works, graduate to Option B (cluster-wide controller) once we have ≥3 apps on it and the per-app pattern is starting to feel like boilerplate.
+- **Priority 4 (other ext4 features)**: lower priority, but worth doing a fsopts audit at the next convenient moment — what features are actually needed on Piraeus LVs vs what's mkfs default.
+- **RWX audit**: enumerate all RWX PVCs in the cluster. For each, decide if it actually needs multi-writer semantics. Any that don't should be migrated to RWO (per the kanboard playbook) — both to simplify the backup path and to remove accidental dependencies on the `linstor-csi-nfs-server` DaemonSet.
+- Does VolSync's `copyMethod: Clone` (LVM clone instead of snapshot) have different consistency characteristics? (Still not investigated.)
