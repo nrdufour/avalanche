@@ -59,37 +59,65 @@ The `resize_inode` feature is vestigial on LINSTOR thin-provisioned volumes:
 
 ### Apply the fix
 
-Run `tune2fs -O ^resize_inode` on every LINSTOR LV across all storage nodes (opi01, opi02, opi03):
+**Both steps below are required.** Running `tune2fs -O ^resize_inode` alone is **not sufficient** — it clears the feature flag in the superblock but leaves `s_reserved_gdt_blocks > 0` on disk. `e2fsck -p` (preen mode, what the LINSTOR CSI runs at mount time) refuses to auto-fix that mismatch and exits 4, so the mover pod still gets stuck. You must also run `e2fsck -fy` offline, which zeroes the stale reserved GDT blocks and rewrites the block group descriptors to match.
+
+Additionally, `e2fsck -fy` must operate on the DRBD device (`/dev/drbdNNNN`), not the underlying LVM volume directly — bypassing DRBD would desync replicas. That means the resource must be promoted Primary on exactly one node while no workload has it attached.
+
+**Per-volume procedure** (must be done while the app is scaled to zero and no mover pod has the source cloned):
+
+```bash
+# 1. On one satellite, promote DRBD primary, rewrite, demote.
+#    Find the minor with: drbdadm dump <resource> | grep minor
+kubectl exec -n piraeus-system linstor-satellite.opi01-XXXXX -- bash -c '
+  RES=pvc-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+  DEV=/dev/drbdNNNN
+  drbdadm resume-io $RES 2>/dev/null   # clears any suspended:user state from earlier failed attempts
+  drbdadm primary $RES                 # requires: no peer is Primary, no host mount
+  tune2fs -O ^resize_inode $DEV        # clear feature flag
+  e2fsck -fy $DEV                      # rc=1 is normal: "FILE SYSTEM WAS MODIFIED"
+  dumpe2fs -h $DEV 2>/dev/null | grep -E "resize_inode|Reserved GDT"   # should print nothing → clean
+  drbdadm secondary $RES
+'
+```
+
+**Both source and cache must be fixed.** Each VolSync app has two broken filesystems: the source PVC (`<app>`) and the mover cache PVC (`volsync-src-<app>-cache`). The cache is formatted once at provisioning and inherits the same `resize_inode` defaults, so it exhibits the same inconsistency and will block the mover at `MountVolume.SetUp failed … Resize_inode not valid`.
+
+**Common failure modes during the fix:**
+
+- `Multiple primaries not allowed` — another node still has the resource Primary (usually because a pod is still `Terminating` or kubelet hasn't released the mount yet). Wait for termination, re-check `drbdsetup status <resource>`, then retry.
+- `Device is held open by someone` with phantom PIDs — stale `open_cnt` left behind by kubelet. Check `/var/lib/kubelet/pods/*/volumes/kubernetes.io~csi/<pvc>/mount` on the satellite host.
+- RWX (NFS) PVCs — LINSTOR exports RWX volumes via the `linstor-csi-nfs-server` daemonset, which keeps the volume mounted on the export node even after the consuming app is scaled to zero. These cannot be fixed with the above procedure without also disrupting the NFS export.
+- `suspended:user blocked:upper` — leftover from a failed previous attempt. `drbdadm resume-io <resource>` clears it.
+- Multi-volume resources — a LINSTOR resource can expose multiple DRBD volumes (e.g. `volume:0`, `volume:1` in `drbdsetup status`). `drbdadm dump <resource>` will list multiple minors. All of them need the same `tune2fs` + `e2fsck` treatment.
+
+### Verify the fix
+
+For each fixed resource, check via the DRBD device (not the raw LV — the LV view can be stale while DRBD holds uncommitted writes):
+
+```bash
+kubectl exec -n piraeus-system linstor-satellite.opi01-XXXXX -- bash -c '
+  RES=pvc-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+  DEV=/dev/drbdNNNN
+  drbdadm primary $RES
+  dumpe2fs -h $DEV 2>/dev/null | grep -E "resize_inode|Reserved GDT" && echo DIRTY || echo CLEAN
+  drbdadm secondary $RES
+'
+```
+
+A clean filesystem prints `CLEAN` (no `resize_inode` feature flag in the features list, no non-zero `Reserved GDT blocks` line).
+
+To scope the remaining work across all nodes (LV-level scan — good enough for discovery, but confirm individual fixes via DRBD as above):
 
 ```bash
 for sat in linstor-satellite.opi01-XXXXX linstor-satellite.opi02-XXXXX linstor-satellite.opi03-XXXXX; do
   kubectl exec -n piraeus-system $sat -- bash -c '
-    for lv in $(lvs --noheadings -o lv_name linstor_vg | grep -v snapshot | grep "^  pvc-"); do
-      lv=$(echo $lv | xargs)
-      dev="/dev/linstor_vg/$lv"
-      if tune2fs -l "$dev" 2>/dev/null | grep -q resize_inode; then
-        echo "Removing resize_inode from $lv"
-        tune2fs -O ^resize_inode "$dev"
-      fi
-    done
-  '
+    for lv in $(lvs --noheadings -o lv_name linstor_vg 2>/dev/null | grep "pvc-" | grep -v snapshot); do
+      lv=$(echo $lv | xargs); dev="/dev/linstor_vg/$lv"
+      has_ri=$(tune2fs -l "$dev" 2>/dev/null | grep -c resize_inode)
+      rgdt=$(dumpe2fs -h "$dev" 2>/dev/null | awk -F: "/Reserved GDT blocks/ {gsub(/ /,\"\",\$2); print \$2}")
+      [ "$has_ri" = "0" ] && [ -n "$rgdt" ] && [ "$rgdt" != "0" ] && echo "BROKEN $lv rgdt=$rgdt"
+    done'
 done
-```
-
-The `e2fsck -f` that `tune2fs` recommends will run automatically the next time each clone PVC is mounted by the CSI driver.
-
-### Verify the fix
-
-```bash
-kubectl exec -n piraeus-system linstor-satellite.opi01-XXXXX -- bash -c '
-  for lv in $(lvs --noheadings -o lv_name linstor_vg | grep -v snapshot | grep "^  pvc-"); do
-    lv=$(echo $lv | xargs)
-    if tune2fs -l "/dev/linstor_vg/$lv" 2>/dev/null | grep -q resize_inode; then
-      echo "STILL HAS resize_inode: $lv"
-    fi
-  done
-  echo "Check complete."
-'
 ```
 
 ### For new PVCs
@@ -110,26 +138,60 @@ This means the fix has no downside for volume sizing operations. The pod-restart
 
 ## Emergency Recovery
 
-When a VolSync backup is stuck due to this issue:
+Two distinct recovery paths depending on whether the underlying source filesystem is already clean:
+
+### Path A — source FS is clean (quick, no downtime)
+
+Applies when the source and cache LVs are already fixed (no `resize_inode`, `Reserved GDT blocks = 0`) and the stuck mover is a one-off from a prior bad state: deleting the temp snapshot clone is enough.
 
 ```bash
-# 1. Find the stuck mover pod
-kubectl get pods -n <namespace> | grep volsync-src-<app>
+# 1. Parallel-delete the stuck pod, clone PVC, and VolumeSnapshot
+#    (all three must be deleted simultaneously to avoid finalizer deadlocks)
+kubectl delete -n <namespace> pod/<mover-pod> pvc/volsync-<app>-src volumesnapshot/volsync-<app>-src --wait=false
 
-# 2. Parallel-delete the stuck pod, clone PVC, and VolumeSnapshot
-# (all three must be deleted simultaneously to avoid finalizer deadlocks)
-kubectl delete pod <mover-pod> -n <namespace> &
-kubectl delete pvc volsync-<app>-src -n <namespace> &
-kubectl delete volumesnapshot volsync-<app>-src -n <namespace> &
-wait
-
-# 3. Trigger a fresh sync
+# 2. Trigger a fresh sync
 kubectl annotate replicationsource <app> -n <namespace> \
   volsync.backube/manual=fix-$(date +%s) --overwrite
 
-# 4. Verify the new mover pod starts and completes
+# 3. Verify the new mover pod starts and completes
 kubectl get pods -n <namespace> -w | grep volsync-src-<app>
 ```
+
+### Path B — source FS still dirty (requires per-app downtime)
+
+Applies when the underlying LV still has `resize_inode` cleared but `Reserved GDT blocks > 0` (the state left behind by an incomplete `tune2fs`-only remediation). Every fresh snapshot will inherit the dirty metadata, so the mover will keep getting stuck until the source and cache filesystems are rewritten offline.
+
+```bash
+# 1. Disable ArgoCD auto-sync so scale-down sticks
+#    (argocd CLI may fail on OCI repo validation; use kubectl patch)
+kubectl patch app -n argocd <app> --type json \
+  -p '[{"op":"remove","path":"/spec/syncPolicy/automated"}]'
+
+# 2. Scale the workload to zero and wait for the pod to fully terminate
+kubectl scale -n <namespace> deploy/<app> --replicas=0
+kubectl wait -n <namespace> --for=delete pod -l app.kubernetes.io/name=<app> --timeout=120s
+
+# 3. Clear any stuck mover pod + temp clone PVC + VolumeSnapshot
+kubectl delete -n <namespace> pod/<mover-pod> pvc/volsync-<app>-src volumesnapshot/volsync-<app>-src --wait=false
+
+# 4. Confirm the source LV is fully Unused (no role:Primary anywhere)
+kubectl exec -n piraeus-system linstor-satellite.opi01-XXXXX -- drbdsetup status <resource>
+
+# 5. Run the per-volume fix from "Apply the fix" above on BOTH the source and the
+#    volsync-*-cache resource. Source minor and cache minor can be found with:
+#      drbdadm dump <resource> | grep minor
+
+# 6. Scale back up, re-enable auto-sync, trigger a fresh sync
+kubectl scale -n <namespace> deploy/<app> --replicas=1
+kubectl patch app -n argocd <app> --type merge \
+  -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'
+kubectl annotate replicationsource <app> -n <namespace> \
+  volsync.backube/manual=fix-$(date +%s) --overwrite
+```
+
+**Warning about app-of-apps:** if a parent ArgoCD application manages the child app-of-apps, it will re-enable auto-sync on the child within seconds. Disable auto-sync on the parent first, then on the child.
+
+**Warning about RWX (NFS) PVCs:** resources backed by the `linstor-csi-nfs-server` daemonset stay mounted on the export node even after the consuming app is scaled to zero. The fix above will fail with `Device is held open by someone` showing stale `open_cnt`. A different procedure (restarting the NFS server pod on the holding node, which briefly disrupts all RWX exports from that node) is required — handle case-by-case.
 
 ## Important Note on Crash Consistency
 
@@ -145,4 +207,6 @@ In practice, with `resize_inode` disabled, the remaining crash-consistency risk 
 - **2026-04-08**: LINSTOR/Piraeus stack deployed, apps migrated from Longhorn via VolSync restore
 - **2026-04-10**: First occurrence — homebox VolSync backup mover stuck with `Resize inode not valid`
 - **2026-04-12**: Root cause identified — missing fsfreeze in CSI snapshot path + resize_inode vulnerability
-- **2026-04-12**: Fix applied — `resize_inode` disabled on all LINSTOR LVs across opi01/02/03
+- **2026-04-12**: First remediation attempt — `tune2fs -O ^resize_inode` applied cluster-wide. Incomplete: only cleared the feature flag, left `s_reserved_gdt_blocks > 0`, which `e2fsck -p` at mount time still rejects.
+- **2026-04-13**: Cascade — every LINSTOR-backed VolSync ReplicationSource (11 apps) stuck within a single sync cycle as soon as a snapshot clone tried to mount.
+- **2026-04-13**: Full remediation — per-app offline procedure (`tune2fs -O ^resize_inode` + `e2fsck -fy` on the DRBD device while primary) applied to archivebox, seerr, thelounge, esphome, grafana, zwave, homebox, ntfy, mqtt, home-assistant, influxdb2 (source + cache each). kanboard skipped because it's RWX-over-NFS and the NFS server daemonset holds the export mount — needs a separate procedure.
