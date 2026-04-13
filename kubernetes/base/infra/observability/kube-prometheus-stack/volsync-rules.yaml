@@ -1,0 +1,59 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: volsync-rules
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: volsync
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: volsync
+      rules:
+        # VolSync's own judgment that a replication is overdue. This fires
+        # when a sync cycle has missed its expected window — typically
+        # because the mover pod is stuck (see VolSyncMoverStuck below for
+        # the more specific case).
+        - alert: VolSyncOutOfSync
+          expr: volsync_volume_out_of_sync == 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "VolSync replication {{ $labels.obj_namespace }}/{{ $labels.obj_name }} is out of sync"
+            description: |
+              The VolSync ReplicationSource {{ $labels.obj_namespace }}/{{ $labels.obj_name }}
+              (method={{ $labels.method }}, role={{ $labels.role }}) has been out of sync for >15m.
+              Check: kubectl get replicationsource -n {{ $labels.obj_namespace }} {{ $labels.obj_name }}
+              Runbook: docs/troubleshooting/linstor-volsync-resize-inode-corruption.md
+
+        # More specific signal for the LINSTOR resize_inode class of failure:
+        # the mover pod itself is stuck in Pending because the CSI driver
+        # can't mount the snapshot clone. Fires faster than VolSyncOutOfSync
+        # and points directly at the mover pod for quick diagnosis.
+        - alert: VolSyncMoverStuck
+          expr: |
+            (time() - kube_pod_created) > 3600
+            and on (namespace, pod)
+            kube_pod_status_phase{phase="Pending"} == 1
+            and on (namespace, pod)
+            kube_pod_info{pod=~"volsync-src-.*"}
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "VolSync mover pod {{ $labels.namespace }}/{{ $labels.pod }} stuck >1h"
+            description: |
+              Mover pod {{ $labels.pod }} in {{ $labels.namespace }} has been Pending for over an hour.
+              Most common cause is the LINSTOR resize_inode / s_reserved_gdt_blocks fsck failure.
+
+              Diagnose:
+                kubectl describe pod -n {{ $labels.namespace }} {{ $labels.pod }}
+              Look for "Resize_inode not valid" or "s_reserved_gdt_blocks" in FailedMount events.
+
+              Quick fix (if source FS is already clean):
+                /oh-my-claudecode:volsync-fix   (or follow Path A in the runbook)
+
+              Full fix (if source FS has s_reserved_gdt_blocks > 0):
+                docs/troubleshooting/linstor-volsync-resize-inode-corruption.md (Path B)
