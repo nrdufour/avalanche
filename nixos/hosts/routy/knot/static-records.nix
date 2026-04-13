@@ -58,6 +58,7 @@
           { name = "vaultwarden"; target = "hawk.internal."; }
           { name = "forge"; target = "hawk.internal."; }
           { name = "ntfy"; target = "hawk.internal."; }
+          { name = "alertmanager-ntfy"; target = "hawk.internal."; }
           { name = "scorekit"; target = "bee01.internal."; }
           { name = "staging.scorekit"; target = "bee01.internal."; }
           # Metrics + logs (possum host)

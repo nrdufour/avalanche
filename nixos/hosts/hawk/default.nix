@@ -10,6 +10,7 @@
       ./kanidm
       ./vaultwarden
       ./ntfy
+      ./alertmanager-ntfy
       # ./scorekit.nix
       ./ollama.nix
     ];
