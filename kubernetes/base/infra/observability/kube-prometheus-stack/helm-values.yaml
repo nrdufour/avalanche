@@ -9,7 +9,38 @@ crds:
 cleanPrometheusOperatorObjectNames: true
 
 alertmanager:
-  enabled: false
+  enabled: true
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    pathType: Prefix
+    hosts: ["alertmanager.internal"]
+  alertmanagerSpec:
+    # Single replica — this is a homelab, not a HA pager. The notification
+    # path survives a cluster outage via the alertmanager-ntfy relay on
+    # hawk, which is the real "outside" monitor point for cluster incidents.
+    replicas: 1
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: linstor
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 2Gi
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      # Placeholder null receiver — this route is replaced in a later step
+      # once the alertmanager-ntfy relay on hawk is up.
+      receiver: "null"
+      group_by: ["alertname", "namespace"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+    receivers:
+      - name: "null"
 
 kubeApiServer:
   enabled: true
