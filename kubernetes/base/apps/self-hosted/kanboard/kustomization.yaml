@@ -9,7 +9,15 @@ resources:
   # Note: PVC is managed by volsync-v2 component
 components:
   - ../../../components/volsync-v2
-# NOTE: the usual dataSourceRef strip patch is temporarily removed during the
-# RWX→RWO migration (2026-04-13). The new RWO PVC must be created with
-# dataSourceRef so VolSync restores data from S3. Re-add the patch after the
-# migration is complete and verified.
+patches:
+  # !! DISASTER RECOVERY WARNING !!
+  # This patch PREVENTS restore-from-backup on a fresh cluster.
+  # If rebuilding the cluster, REMOVE this patch so the PVC is created
+  # with dataSourceRef and VolSync restores data from S3 automatically.
+  # Re-add it after the restore is complete.
+  - target:
+      kind: PersistentVolumeClaim
+      name: .*
+    patch: |
+      - op: remove
+        path: /spec/dataSourceRef
