@@ -18,7 +18,6 @@
       proxyPass = "http://${config.services.ntfy-sh.settings.listen-http}";
       proxyWebsockets = true;
       extraConfig = ''
-        proxy_http_version 1.1;
         proxy_buffering off;
         proxy_request_buffering off;
         proxy_redirect off;
