@@ -32,15 +32,21 @@ alertmanager:
     global:
       resolve_timeout: 5m
     route:
-      # Placeholder null receiver — this route is replaced in a later step
-      # once the alertmanager-ntfy relay on hawk is up.
-      receiver: "null"
+      receiver: ntfy
       group_by: ["alertname", "namespace"]
       group_wait: 30s
       group_interval: 5m
       repeat_interval: 12h
+      routes:
+        # Watchdog fires constantly; black-hole it so it doesn't page.
+        - matchers: ['alertname="Watchdog"']
+          receiver: "null"
     receivers:
       - name: "null"
+      - name: ntfy
+        webhook_configs:
+          - url: http://alertmanager-ntfy.internal:8000/hook
+            send_resolved: true
 
 kubeApiServer:
   enabled: true
