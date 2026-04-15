@@ -33,6 +33,12 @@
     # LLM Agents
     llm-agents.url = "github:numtide/llm-agents.nix";
 
+    # Hermes Agent — NousResearch self-improving AI agent
+    # https://hermes-agent.nousresearch.com/docs/getting-started/nix-setup/
+    # Not following nixpkgs: upstream builds Python deps via uv2nix and may
+    # expect a specific nixpkgs revision for wheel compatibility.
+    hermes-agent.url = "github:NousResearch/hermes-agent";
+
     # dns.nix - Type-safe DNS zone definitions
     # https://github.com/nix-community/dns.nix
     dns = {
