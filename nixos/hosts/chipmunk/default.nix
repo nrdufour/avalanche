@@ -1,6 +1,7 @@
 { inputs, pkgs, config, ... }: {
   imports = [
     ./tailscale.nix
+    ./hermes.nix
   ];
 
   fileSystems = {
@@ -36,10 +37,10 @@
 
   sops.defaultSopsFile = ../../../secrets/chipmunk/secrets.sops.yaml;
 
-  # Agent runner tools
+  # Agent runner tools — claude-code for interactive coding,
+  # hermes-agent (imported above) for fire-and-forget tasks.
   environment.systemPackages = [
     inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.claude-code
-    inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.oh-my-opencode
   ];
 
   # Log shipping enabled via global.nix
