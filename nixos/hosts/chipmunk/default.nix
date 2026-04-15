@@ -20,7 +20,7 @@
     };
   };
 
-  networking.hostName = "lobster";
+  networking.hostName = "chipmunk";
 
   networking.firewall = {
     enable = true;
@@ -34,7 +34,7 @@
     dns = [ "10.0.0.1" ];
   };
 
-  sops.defaultSopsFile = ../../../secrets/lobster/secrets.sops.yaml;
+  sops.defaultSopsFile = ../../../secrets/chipmunk/secrets.sops.yaml;
 
   # Agent runner tools
   environment.systemPackages = [
@@ -43,6 +43,6 @@
   ];
 
   # Log shipping enabled via global.nix
-  # Auto-upgrade disabled — lobster is a testing/agent-runner machine
+  # Auto-upgrade disabled — chipmunk is a testing/agent-runner machine
   system.autoUpgrade.enable = false;
 }

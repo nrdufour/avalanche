@@ -40,7 +40,7 @@
           { name = "possum"; ip = "10.1.0.60"; }
           { name = "cardinal"; ip = "10.1.0.65"; }
           { name = "hawk"; ip = "10.1.0.91"; }
-          { name = "lobster"; ip = "10.1.0.99"; }
+          { name = "chipmunk"; ip = "10.1.0.99"; }
         ];
 
         nsRecords = [
@@ -97,7 +97,7 @@
           { ip = "10.1.0.60"; hostname = "possum.internal."; }
           { ip = "10.1.0.65"; hostname = "cardinal.internal."; }
           { ip = "10.1.0.91"; hostname = "hawk.internal."; }
-          { ip = "10.1.0.99"; hostname = "lobster.internal."; }
+          { ip = "10.1.0.99"; hostname = "chipmunk.internal."; }
         ];
       };
 
