@@ -206,26 +206,22 @@ Until the underlying udev issue is fixed, treat every satellite reboot as a care
 
 ---
 
-## Aspirational: post-boot health check
+### 3. Boot-time `vgmknodes` fixup (active since 2026-04-15)
 
-The right long-term fix (short of moving off LINSTOR) would be a small systemd oneshot on every LINSTOR satellite host:
+`nixos/modules/nixos/services/k3s/default.nix` defines a `linstor-vgmknodes-fixup` systemd oneshot that runs on every boot of any host with `linstorSupport = true`:
 
-```nix
-systemd.services.linstor-vgmknodes-fixup = {
-  description = "Recreate LINSTOR LVM device symlinks after boot";
-  after = [ "lvm2-monitor.service" "linstor-satellite.service" ];
-  wantedBy = [ "multi-user.target" ];
-  serviceConfig = {
-    Type = "oneshot";
-    ExecStart = "${pkgs.lvm2}/bin/vgmknodes linstor_vg";
-    RemainAfterExit = true;
-  };
-};
-```
+- Ordered `after = linstor-loop-setup.service`, so the VG is activated before we run.
+- Ordered `before = k3s.service`, so the symlinks are reconciled before the Piraeus satellite pod starts and queries the storage pool.
+- Guarded with `vgs linstor_vg` so it's a no-op on hosts that don't have the VG (raccoon workers — they enable `linstorSupport` for the kernel modules but have no loop file).
 
-Combined with a Prometheus textfile-collector exporter that runs `vgmknodes --noudevsync` periodically and reports any "Falling back to direct link creation" lines as a counter metric, this would catch the bug both proactively (at boot) and reactively (if it happens later).
+This is **defense-in-depth, not a replacement for the kured/autoUpgrade hold**. The fixup only catches the boot-time class of the failure; mitigations 1 and 2 stay in place because:
 
-Not done yet. Captured here for whoever picks it up next.
+- We still don't understand the root cause.
+- We have no fixup for **late-activated LVs** (a PVC created post-boot, then losing its symlink some time later). The doc's "second-pass" observation in §Diagnosis is exactly this case. If we ever see evidence of late drops, the next step is a periodic systemd timer running the same script every ~15 min, plus a textfile-collector exporter to alert. **Not done yet — waiting for evidence.**
+
+### Future: textfile-collector alerting (deferred)
+
+A node-exporter textfile-collector running `vgmknodes --noudevsync` periodically and counting "Falling back to direct link creation" lines would give us proactive alerting for the late-drop case. Captured here for whoever picks it up if the boot-time fixup proves insufficient.
 
 ---
 

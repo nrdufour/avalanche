@@ -221,6 +221,27 @@ in
       '';
     };
 
+    # Workaround for udev race that drops /dev/linstor_vg/<lv> symlinks at boot.
+    # See docs/troubleshooting/linstor-vgmknodes-after-reboot.md
+    # TODO: if we ever observe missed late-activated LVs (post-boot PVC creates),
+    # add a periodic timer running the same script every ~15min.
+    systemd.services.linstor-vgmknodes-fixup = mkIf cfg.linstorSupport {
+      description = "Recreate LINSTOR LVM device symlinks after boot (udev race workaround)";
+      wantedBy = [ "multi-user.target" ];
+      after = [ "linstor-loop-setup.service" "lvm2-monitor.service" ];
+      before = [ "k3s.service" ];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+      };
+      path = with pkgs; [ lvm2 ];
+      script = ''
+        if vgs linstor_vg &>/dev/null; then
+          vgmknodes linstor_vg
+        fi
+      '';
+    };
+
     # Adding a service to prune the images used by containerd
     systemd.services.ctr-prune = {
       serviceConfig = {
