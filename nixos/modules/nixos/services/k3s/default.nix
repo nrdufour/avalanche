@@ -221,25 +221,40 @@ in
       '';
     };
 
-    # Workaround for udev race that drops /dev/linstor_vg/<lv> symlinks at boot.
+    # Workaround for udev race that drops /dev/linstor_vg/<lv> symlinks.
     # See docs/troubleshooting/linstor-vgmknodes-after-reboot.md
-    # TODO: if we ever observe missed late-activated LVs (post-boot PVC creates),
-    # add a periodic timer running the same script every ~15min.
+    #
+    # Two trigger paths:
+    #   - wantedBy multi-user.target + before k3s: runs synchronously at boot
+    #     so symlinks are reconciled before the satellite starts.
+    #   - .timer: runs periodically afterward to catch late drops triggered by
+    #     post-boot LV activations (observed on opi03 reboot test 2026-04-15:
+    #     boot pass was clean, but the linstor-satellite container's DRBD
+    #     adjust during startup triggered a udev event that udev dropped on
+    #     one LV).
     systemd.services.linstor-vgmknodes-fixup = mkIf cfg.linstorSupport {
-      description = "Recreate LINSTOR LVM device symlinks after boot (udev race workaround)";
+      description = "Recreate LINSTOR LVM device symlinks (udev race workaround)";
       wantedBy = [ "multi-user.target" ];
       after = [ "linstor-loop-setup.service" "lvm2-monitor.service" ];
       before = [ "k3s.service" ];
-      serviceConfig = {
-        Type = "oneshot";
-        RemainAfterExit = true;
-      };
+      serviceConfig.Type = "oneshot";
       path = with pkgs; [ lvm2 ];
       script = ''
         if vgs linstor_vg &>/dev/null; then
           vgmknodes linstor_vg
         fi
       '';
+    };
+
+    systemd.timers.linstor-vgmknodes-fixup = mkIf cfg.linstorSupport {
+      description = "Periodically reconcile LINSTOR LVM device symlinks";
+      wantedBy = [ "timers.target" ];
+      timerConfig = {
+        OnBootSec = "5min";
+        OnUnitActiveSec = "10min";
+        AccuracySec = "30s";
+        Unit = "linstor-vgmknodes-fixup.service";
+      };
     };
 
     # Adding a service to prune the images used by containerd
