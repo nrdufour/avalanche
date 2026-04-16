@@ -27,6 +27,16 @@
 
     environmentFiles = [ config.sops.secrets."hermes-env".path ];
 
+    # Browser automation: Playwright Chromium on the persistent volume.
+    # Chrome for Testing has no ARM64 builds; Playwright's does. The
+    # binary at /data/.browsers/ survives container recreation; system
+    # deps (libnss3, libatk, etc.) are in the writable layer and need
+    # reinstalling after container recreation (infrequent).
+    environment = {
+      PUPPETEER_EXECUTABLE_PATH = "/data/.browsers/chromium-1217/chrome-linux/chrome";
+      AGENT_BROWSER_ARGS = "--no-sandbox,--disable-dev-shm-usage,--disable-gpu";
+    };
+
     settings.model = {
       default  = "anthropic/claude-opus-4.6";
       provider = "openrouter";
