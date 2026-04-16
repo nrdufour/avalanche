@@ -31,6 +31,16 @@
       default  = "anthropic/claude-opus-4.6";
       provider = "openrouter";
     };
+
+    settings.smart_model_routing = {
+      enabled = true;
+      max_simple_chars = 160;
+      max_simple_words = 28;
+      cheap_model = {
+        provider = "openrouter";
+        model = "google/gemma-4-26b-a4b-it:free";
+      };
+    };
   };
 
   sops.secrets."hermes-env" = {
