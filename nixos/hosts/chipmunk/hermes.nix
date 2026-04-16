@@ -28,7 +28,10 @@
     environmentFiles = [ config.sops.secrets."hermes-env".path ];
 
     settings.model = {
-      default  = "anthropic/claude-opus-4.6";
+      # Use the Anthropic-native hyphen form to avoid Hermes' startup-time
+      # normalization warning (upstream's internal format is "4.6", but
+      # Anthropic's API expects "4-6").
+      default  = "anthropic/claude-opus-4-6";
       provider = "anthropic";
     };
   };

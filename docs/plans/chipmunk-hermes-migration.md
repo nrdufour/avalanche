@@ -2,6 +2,37 @@
 
 Rename `lobster` → `chipmunk` and replace the `oh-my-opencode` / openclaw experiment with Hermes Agent (NousResearch) as an always-on task agent, while keeping `claude-code` on the same host for interactive coding work.
 
+## Status (2026-04-15)
+
+**Done, deployed, verified end-to-end:**
+
+- ✅ **Stage 1**: rename `lobster` → `chipmunk` — committed in `05610d8`, deployed, DNS/DHCP flipped, stale scaffolding (kanidm/knot-dns/vaultwarden) dropped.
+- ✅ **Stage 2**: `hermes-agent` flake input locked — `474831f`.
+- ✅ **Stage 3**: Hermes Agent enabled on chipmunk in docker container mode, backed by direct Anthropic API, with `ndufour` wired as a `hostUsers` recipient so `hermes chat` runs from the shell. Smoke-tested with a live Claude Opus 4.6 round-trip. Commits: `7c9d879` (main), `8120977` (host wrapper), plus a model-ID refinement.
+
+**Facts resolved during implementation** (plan doc guesses now replaced by reality):
+
+- `services.hermes-agent.stateDir` exists as an option — **no bind mount needed**; set it directly to `/srv/hermes`.
+- Container backend `"docker"` auto-enables `virtualisation.docker` via `mkDefault` (podman would require manual enable).
+- Hermes default backend is OpenRouter, but **direct Anthropic is a first-class provider** (`provider: "anthropic"`, requires `ANTHROPIC_API_KEY`). Confirmed from upstream `cli-config.yaml.example`.
+- Model IDs keep the `anthropic/` prefix for direct-Anthropic usage; hyphen form `claude-opus-4-6` avoids a startup normalization warning.
+- `container.hostUsers` + `addToSystemPackages = true` **must be set together** — the module asserts this via eval warning.
+- aarch64 Python wheels build cleanly for Hermes on Pi 4 (uv2nix path works, `uv` 0.11.7 aarch64 ships, CPython 3.11.15 aarch64 installs fine).
+- First-boot container provisioning installs sudo/nodejs/npm/curl + uv + Python into the writable Ubuntu layer; one-time cost, persists across restarts.
+
+**Pre-existing bug surfaced** (not caused by this migration, tracked as follow-up):
+
+- `dns-sync-*.service` on routy uses `dig AXFR` without TSIG to enumerate "owned" records, which silently fails on a TSIG-gated zone. Result: the orphan-deletion path is a no-op. This bit us on cleaning up the stale `lobster.internal. A` record during the routy deploy; had to `nsupdate`-delete it manually. Forward-zone reverse-zone PTR sync works because same-name diffs don't rely on orphan enumeration. Fix: use `dig @server AXFR -k TSIG_KEY` or query owner records via per-name lookups.
+
+**Out of scope / deferred to later commits:**
+
+- Messaging gateway (CLI-only is sufficient today). Realistic options when the time comes: Signal, Email, Discord. **Not Matrix** (upstream doesn't support it). **Not Telegram** (user preference).
+- Forgejo bot account + token + optional MCP — `git`-over-HTTPS via a scoped token is the pragmatic starting point.
+- Local-model inference — chipmunk is the wrong host for it (Pi 4, no GPU). When needed, Hermes points `settings.model.provider = "custom"` + `base_url` at an OpenAI-compatible endpoint on a different box.
+- Rotating the Tailscale auth key visible in `secrets/chipmunk/secrets.sops.yaml` (leaked into conversation history during Stage 3 debugging — low urgency, single-use key, device already enrolled).
+- Tailscale admin-console device rename `lobster` → `chipmunk` (cosmetic, `.internal` is Knot not Tailscale).
+- Harmless cosmetic noise: `useradd: warning: uid 988 outside UID_MIN 1000` inside the container on first boot. NixOS' system-user UID range is below Ubuntu's default `UID_MIN`; no functional impact.
+
 ## Goals
 
 - Rename the host to match the "animal of the garden" theme (`lobster` → `chipmunk`).
