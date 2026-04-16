@@ -32,24 +32,16 @@
     # binary at /data/.browsers/ survives container recreation; system
     # deps (libnss3, libatk, etc.) are in the writable layer and need
     # reinstalling after container recreation (infrequent).
-    environment = {
-      PUPPETEER_EXECUTABLE_PATH = "/data/.browsers/chromium-1217/chrome-linux/chrome";
-      AGENT_BROWSER_ARGS = "--no-sandbox,--disable-dev-shm-usage,--disable-gpu";
-    };
+    # NB: `environment` sets host-side systemd env, not container env.
+    # Use extraOptions to pass -e flags into docker create.
+    container.extraOptions = [
+      "-e" "PUPPETEER_EXECUTABLE_PATH=/data/.browsers/chromium-1217/chrome-linux/chrome"
+      "-e" "AGENT_BROWSER_ARGS=--no-sandbox,--disable-dev-shm-usage,--disable-gpu"
+    ];
 
     settings.model = {
-      default  = "anthropic/claude-opus-4.6";
+      default  = "google/gemma-4-31b-it";
       provider = "openrouter";
-    };
-
-    settings.smart_model_routing = {
-      enabled = true;
-      max_simple_chars = 160;
-      max_simple_words = 28;
-      cheap_model = {
-        provider = "openrouter";
-        model = "google/gemma-4-31b-it";
-      };
     };
   };
 
