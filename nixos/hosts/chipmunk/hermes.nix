@@ -38,7 +38,7 @@
       max_simple_words = 28;
       cheap_model = {
         provider = "openrouter";
-        model = "google/gemma-4-26b-a4b-it:free";
+        model = "google/gemma-4-31b-it";
       };
     };
   };
