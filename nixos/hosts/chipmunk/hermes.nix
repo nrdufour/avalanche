@@ -9,10 +9,21 @@
     # stateDir into the container as /data when container mode is enabled.
     stateDir = "/srv/hermes";
 
+    # Make the host-side `hermes` wrapper available on PATH. The wrapper
+    # routes interactive commands into the container for users listed in
+    # container.hostUsers below.
+    addToSystemPackages = true;
+
     # Container mode gives Hermes a writable Ubuntu layer where it can
     # apt/pip/npm install arbitrary tools without polluting NixOS.
     # The docker backend auto-enables virtualisation.docker via mkDefault.
-    container.enable = true;
+    container = {
+      enable = true;
+      # Give ndufour a ~/.hermes symlink and a hermes CLI wrapper so we
+      # can run `hermes chat` directly from the host shell instead of
+      # dropping into the container with docker exec.
+      hostUsers = [ "ndufour" ];
+    };
 
     environmentFiles = [ config.sops.secrets."hermes-env".path ];
 
