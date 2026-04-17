@@ -52,7 +52,15 @@ data:
 
     echo "INFO: target pid=$target_pid container=$cid_short op=$op path=$mountpath" >&2
 
-    # Enter the target's mount namespace, then run fsfreeze from there.
-    # The target's view of $mountpath is what gets frozen (superblock-level).
-    nsenter -t "$target_pid" -m -- fsfreeze "$flag" "$mountpath"
+    # Reach the target's filesystem via /proc/<pid>/root/, a magic symlink
+    # that the kernel resolves into the target's root irrespective of which
+    # mount namespace we're in. fsfreeze runs from our own ns (where it's
+    # installed) and operates on the target's superblock via that path.
+    target_path="/proc/${target_pid}/root${mountpath}"
+    if [ ! -e "$target_path" ]; then
+      echo "ERR: resolved path $target_path does not exist" >&2
+      exit 4
+    fi
+
+    fsfreeze "$flag" "$target_path"
     echo "OK: $op done"
