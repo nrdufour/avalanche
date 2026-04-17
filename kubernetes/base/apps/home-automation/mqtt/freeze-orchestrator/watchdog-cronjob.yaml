@@ -22,7 +22,7 @@ spec:
           restartPolicy: Never
           containers:
             - name: watchdog
-              image: bitnami/kubectl:1.32.3
+              image: rancher/kubectl:v1.34.3
               command: ["/scripts/watchdog.sh"]
               env:
                 - name: NAMESPACE
