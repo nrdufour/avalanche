@@ -37,6 +37,10 @@ spec:
           value: linstor-snapshot
         - name: VOLSYNC_CLEANUP_TEMP_PVC
           value: "true"
+        # Escape for shell `$VAR` refs that must survive envsubst render.
+        # Use `${ARGOCD_ENV_DOLLAR}VAR` in manifests to emit a literal `$VAR`.
+        - name: DOLLAR
+          value: "$"
   ignoreDifferences:
     # PVC was created manually during migration; dataSourceRef is immutable
     # and harmless to ignore (only used on initial PVC creation for restore)
