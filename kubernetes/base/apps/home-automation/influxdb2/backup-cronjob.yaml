@@ -31,27 +31,27 @@ spec:
               set -e
               echo "Starting InfluxDB backup at $(date)"
 
-              # ARGOCD_ENV_DOLLAR emits a literal dollar sign after envsubst;
-              # see influxdb2-app.yaml. Without it, the CMP plugin strips
-              # shell variables (BACKUP_DIR, INFLUXDB_TOKEN) to empty.
+              # Use `${VAR:-}` form for shell variables: GNU envsubst only
+              # handles `$VAR` and `${VAR}`, so `${VAR:-}` passes through the
+              # CMP plugin and is expanded by the shell at runtime.
               BACKUP_DIR="/backup/influxdb-backup-$(date +%Y%m%d-%H%M%S)"
-              mkdir -p "${ARGOCD_ENV_DOLLAR}BACKUP_DIR"
+              mkdir -p "${BACKUP_DIR:-}"
 
               # Run InfluxDB backup
               influx backup \
                 --host http://influxdb2:8086 \
-                --token "${ARGOCD_ENV_DOLLAR}{INFLUXDB_TOKEN}" \
-                "${ARGOCD_ENV_DOLLAR}BACKUP_DIR"
+                --token "${INFLUXDB_TOKEN:-}" \
+                "${BACKUP_DIR:-}"
 
               echo "Backup completed successfully at $(date)"
-              echo "Backup location: ${ARGOCD_ENV_DOLLAR}BACKUP_DIR"
+              echo "Backup location: ${BACKUP_DIR:-}"
 
               # Keep only last 7 days of backups
               echo "Cleaning up old backups..."
               find /backup -maxdepth 1 -name "influxdb-backup-*" -type d -mtime +7 -exec rm -rf {} \;
 
               # Show backup info
-              du -sh "${ARGOCD_ENV_DOLLAR}BACKUP_DIR"
+              du -sh "${BACKUP_DIR:-}"
               echo "Available backups:"
               ls -lh /backup/ | grep influxdb-backup
             env:
