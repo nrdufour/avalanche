@@ -5,7 +5,7 @@ kind: Kustomization
 resources:
   - deployment.yaml
   - service.yaml
-  # - backup-cronjob.yaml
+  - backup-cronjob.yaml
   - backup-pvc.yaml
   - backup-secret.yaml
 
