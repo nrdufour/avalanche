@@ -10,3 +10,8 @@ installCRDs: true
 # ServiceMonitor in resources/monitoring.yaml to TargetDown.
 kubeRbacProxy:
   enabled: true
+  # gcr.io/kubebuilder/kube-rbac-proxy was sunset by Google; override to the
+  # canonical upstream at quay.io/brancz/kube-rbac-proxy.
+  image:
+    repository: quay.io/brancz/kube-rbac-proxy
+    tag: v0.21.2
