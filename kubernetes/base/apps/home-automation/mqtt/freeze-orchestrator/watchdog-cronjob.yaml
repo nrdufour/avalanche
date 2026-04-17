@@ -22,8 +22,10 @@ spec:
           restartPolicy: Never
           containers:
             - name: watchdog
-              image: rancher/kubectl:v1.34.3
-              command: ["/scripts/watchdog.sh"]
+              image: alpine:3.23
+              command: ["sh", "-c"]
+              args:
+                - "apk add --no-cache kubectl >/dev/null 2>&1 && exec /scripts/watchdog.sh"
               env:
                 - name: NAMESPACE
                   value: home-automation
