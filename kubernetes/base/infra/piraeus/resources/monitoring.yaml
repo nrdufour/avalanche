@@ -41,6 +41,21 @@ subjects:
     name: kube-prometheus-stack-prometheus
     namespace: observability
 ---
+# Allow the kube-rbac-proxy sidecar (runs as the operator SA) to perform
+# TokenReview / SubjectAccessReview against the API server.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: piraeus-operator-auth-delegator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: piraeus-operator
+    namespace: piraeus-system
+---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
