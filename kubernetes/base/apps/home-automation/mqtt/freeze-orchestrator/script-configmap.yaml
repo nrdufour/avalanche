@@ -5,6 +5,11 @@ metadata:
   name: mqtt-freeze-scripts
   namespace: home-automation
 data:
+  # NOTE: every shell variable reference below uses the ${VAR:-} form so
+  # the kustomize-envsubst CMP plugin leaves it untouched at render time
+  # (GNU envsubst doesn't recognise the `:-` default-expansion syntax).
+  # The shell expands ${VAR:-} at runtime, giving an empty string when
+  # unset. Any bare $VAR would be replaced with empty by envsubst.
   orchestrate.sh: |
     #!/bin/sh
     # Coordinates VolSync copy-trigger with fsfreeze on the mqtt PVC.
@@ -16,99 +21,99 @@ data:
     set -eu
 
     NS="${NAMESPACE:-home-automation}"
-    APP="${APP:-mqtt}"
-    POD_SELECTOR="${POD_SELECTOR:-app=mqtt}"
-    TARGET_CONTAINER="${TARGET_CONTAINER:-mqtt}"
-    FREEZE_MOUNTPATH="${FREEZE_MOUNTPATH:-/mosquitto/data}"
-    FREEZER_NS="${FREEZER_NS:-volume-freezer}"
-    FREEZER_SELECTOR="${FREEZER_SELECTOR:-app=volume-freezer}"
-    POLL_TIMEOUT="${POLL_TIMEOUT:-300}"
-    PVC_NAME="${PVC_NAME:-$APP}"
-    RS_NAME="${RS_NAME:-$APP}"
-    MODE="${MODE:-main}"           # main | thaw-only
+    APP_NAME="${APP:-mqtt}"
+    POD_SEL="${POD_SELECTOR:-app=mqtt}"
+    TC="${TARGET_CONTAINER:-mqtt}"
+    FM="${FREEZE_MOUNTPATH:-/mosquitto/data}"
+    FNS="${FREEZER_NS:-volume-freezer}"
+    FSEL="${FREEZER_SELECTOR:-app=volume-freezer}"
+    PT="${POLL_TIMEOUT:-300}"
+    PVC="${PVC_NAME:-mqtt}"
+    RS="${RS_NAME:-mqtt}"
+    RUN_MODE="${MODE:-main}"
 
     TOKEN="freeze-$(date +%s)-$$"
-    POD=""
-    NODE=""
+    TPOD=""
+    TNODE=""
     CID=""
     FREEZER=""
 
-    log() { echo "[$(date -Iseconds)] $*" >&2; }
+    log() { echo "[$(date -Iseconds)] ${*:-}" >&2; }
 
     pvc_status() {
-      kubectl get pvc -n "$NS" "$PVC_NAME" \
+      kubectl get pvc -n "${NS:-}" "${PVC:-}" \
         -o 'jsonpath={.metadata.annotations.volsync\.backube/latest-copy-status}' \
         2>/dev/null || true
     }
 
     discover_target() {
-      POD=$(kubectl get pod -n "$NS" -l "$POD_SELECTOR" \
+      TPOD=$(kubectl get pod -n "${NS:-}" -l "${POD_SEL:-}" \
         --field-selector=status.phase=Running \
         -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
-      if [ -z "$POD" ]; then
-        log "ERROR: no running pod matched $POD_SELECTOR in $NS"
+      if [ -z "${TPOD:-}" ]; then
+        log "ERROR: no running pod matched ${POD_SEL:-} in ${NS:-}"
         return 1
       fi
-      NODE=$(kubectl get pod -n "$NS" "$POD" -o jsonpath='{.spec.nodeName}')
-      CID=$(kubectl get pod -n "$NS" "$POD" \
-        -o "jsonpath={.status.containerStatuses[?(@.name=='$TARGET_CONTAINER')].containerID}")
-      if [ -z "$CID" ]; then
-        log "ERROR: container '$TARGET_CONTAINER' not found in $POD"
+      TNODE=$(kubectl get pod -n "${NS:-}" "${TPOD:-}" -o jsonpath='{.spec.nodeName}')
+      CID=$(kubectl get pod -n "${NS:-}" "${TPOD:-}" \
+        -o "jsonpath={.status.containerStatuses[?(@.name=='${TC:-}')].containerID}")
+      if [ -z "${CID:-}" ]; then
+        log "ERROR: container ${TC:-} not found in ${TPOD:-}"
         return 1
       fi
-      FREEZER=$(kubectl get pod -n "$FREEZER_NS" -l "$FREEZER_SELECTOR" \
-        --field-selector="spec.nodeName=$NODE,status.phase=Running" \
+      FREEZER=$(kubectl get pod -n "${FNS:-}" -l "${FSEL:-}" \
+        --field-selector="spec.nodeName=${TNODE:-},status.phase=Running" \
         -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
-      if [ -z "$FREEZER" ]; then
-        log "ERROR: no running volume-freezer pod on node $NODE"
+      if [ -z "${FREEZER:-}" ]; then
+        log "ERROR: no running freezer on node ${TNODE:-}"
         return 1
       fi
-      log "target pod=$POD node=$NODE cid=$CID freezer=$FREEZER"
+      log "target pod=${TPOD:-} node=${TNODE:-} cid=${CID:-} freezer=${FREEZER:-}"
     }
 
     run_freezer() {
-      op="$1"   # freeze or thaw
-      log "Invoking freezer: op=$op"
-      kubectl exec -n "$FREEZER_NS" "$FREEZER" -- \
-        /scripts/freeze.sh "$op" "$CID" "$FREEZE_MOUNTPATH"
+      op="${1:-}"   # freeze or thaw
+      log "Invoking freezer: op=${op:-}"
+      kubectl exec -n "${FNS:-}" "${FREEZER:-}" -- \
+        /scripts/freeze.sh "${op:-}" "${CID:-}" "${FM:-}"
     }
 
     thaw_best_effort() {
       rc=$?
-      log "=== exit handler (rc=$rc): unconditional thaw attempt ==="
-      if [ -n "$FREEZER" ] && [ -n "$CID" ]; then
+      log "=== exit handler (rc=${rc:-}): unconditional thaw attempt ==="
+      if [ -n "${FREEZER:-}" ] && [ -n "${CID:-}" ]; then
         run_freezer thaw || log "WARN: thaw failed; watchdog should recover"
       fi
-      if [ "$rc" != "0" ]; then
-        kubectl annotate pvc -n "$NS" "$PVC_NAME" --overwrite \
+      if [ "${rc:-0}" != "0" ]; then
+        kubectl annotate pvc -n "${NS:-}" "${PVC:-}" --overwrite \
           "volsync.backube/copy-trigger-" >/dev/null 2>&1 || true
       fi
-      exit "$rc"
+      exit "${rc:-0}"
     }
 
     discover_target
 
-    if [ "$MODE" = "thaw-only" ]; then
+    if [ "${RUN_MODE:-}" = "thaw-only" ]; then
       log "MODE=thaw-only: issuing unconditional thaw"
       run_freezer thaw
-      kubectl annotate pvc -n "$NS" "$PVC_NAME" --overwrite \
+      kubectl annotate pvc -n "${NS:-}" "${PVC:-}" --overwrite \
         "volsync.backube/copy-trigger-" >/dev/null 2>&1 || true
       exit 0
     fi
 
     trap thaw_best_effort EXIT INT TERM
 
-    log "Kicking ReplicationSource $RS_NAME with manual=$TOKEN"
-    kubectl patch replicationsource -n "$NS" "$RS_NAME" \
-      --type=merge -p "{\"spec\":{\"trigger\":{\"manual\":\"$TOKEN\"}}}" >/dev/null
+    log "Kicking ReplicationSource ${RS:-} with manual=${TOKEN:-}"
+    kubectl patch replicationsource -n "${NS:-}" "${RS:-}" \
+      --type=merge -p "{\"spec\":{\"trigger\":{\"manual\":\"${TOKEN:-}\"}}}" >/dev/null
 
-    log "Waiting for PVC $PVC_NAME -> WaitingForTrigger (timeout ${POLL_TIMEOUT}s)"
-    deadline=$(( $(date +%s) + POLL_TIMEOUT ))
+    log "Waiting for PVC ${PVC:-} -> WaitingForTrigger (timeout ${PT:-}s)"
+    deadline=$(( $(date +%s) + ${PT:-300} ))
     while :; do
-      st=$(pvc_status)
+      st="$(pvc_status)"
       log "  latest-copy-status=${st:-<none>}"
-      [ "$st" = "WaitingForTrigger" ] && break
-      if [ "$(date +%s)" -ge "$deadline" ]; then
+      [ "${st:-}" = "WaitingForTrigger" ] && break
+      if [ "$(date +%s)" -ge "${deadline:-0}" ]; then
         log "ERROR: timeout waiting for WaitingForTrigger"
         exit 1
       fi
@@ -117,23 +122,23 @@ data:
 
     run_freezer freeze
 
-    log "Setting volsync.backube/copy-trigger=$TOKEN on PVC"
-    kubectl annotate pvc -n "$NS" "$PVC_NAME" --overwrite \
-      "volsync.backube/copy-trigger=$TOKEN" >/dev/null
+    log "Setting volsync.backube/copy-trigger=${TOKEN:-} on PVC"
+    kubectl annotate pvc -n "${NS:-}" "${PVC:-}" --overwrite \
+      "volsync.backube/copy-trigger=${TOKEN:-}" >/dev/null
 
-    log "Waiting for latest-copy-status=Completed (timeout ${POLL_TIMEOUT}s)"
-    deadline=$(( $(date +%s) + POLL_TIMEOUT ))
+    log "Waiting for latest-copy-status=Completed (timeout ${PT:-}s)"
+    deadline=$(( $(date +%s) + ${PT:-300} ))
     while :; do
-      st=$(pvc_status)
+      st="$(pvc_status)"
       log "  latest-copy-status=${st:-<none>}"
-      case "$st" in
+      case "${st:-}" in
         Completed) break ;;
         Error|Failed)
-          log "ERROR: status=$st"
+          log "ERROR: status=${st:-}"
           exit 1
           ;;
       esac
-      if [ "$(date +%s)" -ge "$deadline" ]; then
+      if [ "$(date +%s)" -ge "${deadline:-0}" ]; then
         log "ERROR: timeout waiting for Completed"
         exit 1
       fi
@@ -142,7 +147,7 @@ data:
 
     run_freezer thaw
     trap - EXIT INT TERM
-    log "SUCCESS: TOKEN=$TOKEN"
+    log "SUCCESS: TOKEN=${TOKEN:-}"
   watchdog.sh: |
     #!/bin/sh
     # Watchdog: if the PVC is stuck WaitingForTrigger and no orchestrator Job
@@ -150,26 +155,26 @@ data:
     set -eu
 
     NS="${NAMESPACE:-home-automation}"
-    PVC_NAME="${PVC_NAME:-mqtt}"
-    ORCH_JOB_LABEL="${ORCH_JOB_LABEL:-freeze-orchestrator=mqtt}"
+    PVC="${PVC_NAME:-mqtt}"
+    LBL="${ORCH_JOB_LABEL:-freeze-orchestrator=mqtt}"
 
-    log() { echo "[$(date -Iseconds)] $*" >&2; }
+    log() { echo "[$(date -Iseconds)] ${*:-}" >&2; }
 
-    st=$(kubectl get pvc -n "$NS" "$PVC_NAME" \
+    st=$(kubectl get pvc -n "${NS:-}" "${PVC:-}" \
       -o 'jsonpath={.metadata.annotations.volsync\.backube/latest-copy-status}' \
       2>/dev/null || true)
 
-    if [ "$st" != "WaitingForTrigger" ]; then
-      log "PVC $PVC_NAME status=${st:-<none>}; nothing to do"
+    if [ "${st:-}" != "WaitingForTrigger" ]; then
+      log "PVC ${PVC:-} status=${st:-<none>}; nothing to do"
       exit 0
     fi
 
-    active=$(kubectl get jobs -n "$NS" -l "$ORCH_JOB_LABEL" \
+    active=$(kubectl get jobs -n "${NS:-}" -l "${LBL:-}" \
       -o 'jsonpath={range .items[?(@.status.active>0)]}{.metadata.name} {end}' \
       2>/dev/null || true)
 
-    if [ -n "$active" ]; then
-      log "Active orchestrator Jobs present ($active); not intervening"
+    if [ -n "${active:-}" ]; then
+      log "Active orchestrator Jobs present (${active:-}); not intervening"
       exit 0
     fi
 
