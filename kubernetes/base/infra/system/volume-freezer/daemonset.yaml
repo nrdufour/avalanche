@@ -32,7 +32,7 @@ spec:
         - operator: Exists
       containers:
         - name: freezer
-          image: alpine:3.19
+          image: alpine:3.23
           # Install util-linux (fsfreeze, nsenter) once at startup; then idle.
           command:
             - sh
