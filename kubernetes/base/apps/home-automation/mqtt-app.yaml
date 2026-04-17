@@ -45,6 +45,13 @@ spec:
       jsonPointers:
         - /spec/dataSourceRef
         - /spec/dataSource
+    # The freeze-orchestrator CronJob patches trigger.manual at runtime
+    # with a fresh token per run; selfHeal would otherwise revert it.
+    - group: volsync.backube
+      kind: ReplicationSource
+      name: mqtt
+      jsonPointers:
+        - /spec/trigger/manual
   destination:
     server: https://kubernetes.default.svc
     namespace: home-automation
