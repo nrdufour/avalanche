@@ -37,6 +37,8 @@
     algorithm = "zstd";
   };
 
+  environment.systemPackages = [ pkgs.htop ];
+
   # Headless — disable desktop services
   services.xserver.enable = false;
   services.displayManager.gdm.enable = false;
