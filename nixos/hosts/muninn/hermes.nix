@@ -31,16 +31,16 @@
       extraOptions = [
         "-e" "SSL_CERT_FILE=/etc/ssl/custom/ca-bundle.crt"
         "-e" "REQUESTS_CA_BUNDLE=/etc/ssl/custom/ca-bundle.crt"
-        # Share the host network namespace so hermes can reach the
-        # loopback-bound Ollama server at http://127.0.0.1:11434.
-        "--network=host"
-        "-e" "OLLAMA_HOST=http://127.0.0.1:11434"
       ];
     };
 
+    # Local ollama server on the host; the container shares the host
+    # network namespace (--network=host, set by the hermes-agent module
+    # by default) so 127.0.0.1 reaches the loopback-bound Ollama.
     settings.model = {
-      default  = "google/gemma-4-31b-it";
-      provider = "openrouter";
+      default  = "gemma4:e4b";
+      provider = "ollama";
+      base_url = "http://127.0.0.1:11434/v1";
     };
   };
 
