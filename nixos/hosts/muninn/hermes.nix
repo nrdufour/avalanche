@@ -19,13 +19,18 @@
       enable = true;
       hostUsers = [ "ndufour" ];
       # Mount the host's NixOS CA bundle (which includes the Ptinem
-      # private CA via mySystem.security.privateca) at Ubuntu's standard
-      # path so Python/curl/openssl inside the container trust
-      # *.internal services signed by step-ca. Without this, the Matrix
-      # gateway (and any other internal HTTPS call) fails with
-      # CERTIFICATE_VERIFY_FAILED.
+      # private CA via mySystem.security.privateca) into the container
+      # at a non-standard path so it doesn't clash with Ubuntu's
+      # ca-certificates package (which tries to regenerate its own
+      # bundle at /etc/ssl/certs/ca-certificates.crt and fails if that
+      # path is a RO mount). SSL_CERT_FILE below points Python/openssl
+      # at our mount.
       extraVolumes = [
-        "/etc/ssl/certs/ca-bundle.crt:/etc/ssl/certs/ca-certificates.crt:ro"
+        "/etc/ssl/certs/ca-bundle.crt:/etc/ssl/custom/ca-bundle.crt:ro"
+      ];
+      extraOptions = [
+        "-e" "SSL_CERT_FILE=/etc/ssl/custom/ca-bundle.crt"
+        "-e" "REQUESTS_CA_BUNDLE=/etc/ssl/custom/ca-bundle.crt"
       ];
     };
 
