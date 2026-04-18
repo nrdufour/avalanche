@@ -229,6 +229,11 @@ in
                 hw-address = "78:55:36:04:eb:af";
               }
               {
+                hostname = "muninn";
+                ip-address = "10.1.0.92";
+                hw-address = "78:55:36:06:b3:d0";
+              }
+              {
                 hostname = "chipmunk";
                 ip-address = "10.1.0.99";
                 hw-address = "d8:3a:dd:17:1e:1b";

@@ -32,6 +32,12 @@
     firewall.enable = true;
   };
 
+  mySystem.networking.staticIP = {
+    enable = true;
+    mac = "78:55:36:06:b3:d0";
+    address = "10.1.0.92/24";
+  };
+
   zramSwap = {
     enable = true;
     algorithm = "zstd";
