@@ -34,6 +34,10 @@
       ];
     };
 
+    # NOTE: settings only seed /var/lib/hermes/.hermes/config.yaml on
+    # first creation; the hermes-agent module does not rewrite it on
+    # redeploy. To change model/provider, also delete the file and
+    # restart hermes-agent, or edit the yaml in place.
     settings.model = {
       default  = "google/gemma-4-31b-it";
       provider = "openrouter";
