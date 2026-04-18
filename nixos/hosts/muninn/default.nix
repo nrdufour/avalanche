@@ -2,6 +2,7 @@
   imports = [
     ./hardware-configuration.nix
     ./hermes.nix
+    ./ollama.nix
   ];
 
   sops.defaultSopsFile = ../../../secrets/muninn/secrets.sops.yaml;

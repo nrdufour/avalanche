@@ -31,6 +31,10 @@
       extraOptions = [
         "-e" "SSL_CERT_FILE=/etc/ssl/custom/ca-bundle.crt"
         "-e" "REQUESTS_CA_BUNDLE=/etc/ssl/custom/ca-bundle.crt"
+        # Share the host network namespace so hermes can reach the
+        # loopback-bound Ollama server at http://127.0.0.1:11434.
+        "--network=host"
+        "-e" "OLLAMA_HOST=http://127.0.0.1:11434"
       ];
     };
 
