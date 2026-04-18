@@ -15,14 +15,13 @@
 
   # Disable CPU turbo boost — Beelink SER5 has a known power delivery
   # issue where rapid core state transitions cause instant reboots.
-  # See docs/troubleshooting/hawk-qemu-arm64-reboots.md and
-  # https://bbs.bee-link.com/d/9082-ser5-max-6800u-crashes.
   # On muninn the issue triggers during early stage 2 boot (unlike
-  # hawk where it only triggered under QEMU load), so we need to
-  # disable boost before userspace starts. Switch to amd_pstate=passive
-  # so that the no_turbo kernel parameter actually takes effect, then
-  # also set it via tmpfiles as a belt-and-suspenders for the running
-  # system.
+  # hawk where it only triggers under QEMU load), so we need to
+  # disable boost *before* userspace starts. Switching the AMD P-state
+  # driver to passive mode via kernel param makes the boost control
+  # take effect at kernel init time; the tmpfiles rule is kept as
+  # belt-and-suspenders for the running system.
+  # See docs/troubleshooting/muninn-ser5-cold-boot-reboot.md.
   boot.kernelParams = [ "amd_pstate=passive" ];
   systemd.tmpfiles.rules = [
     "w /sys/devices/system/cpu/cpufreq/boost - - - - 0"
