@@ -1,7 +1,10 @@
-{ pkgs, config, ... }: {
+{ pkgs, config, inputs, ... }: {
   imports = [
     ./hardware-configuration.nix
+    ./hermes.nix
   ];
+
+  sops.defaultSopsFile = ../../../secrets/muninn/secrets.sops.yaml;
 
   # Systemd-boot EFI
   boot.loader.systemd-boot.enable = true;
@@ -43,7 +46,12 @@
     algorithm = "zstd";
   };
 
-  environment.systemPackages = [ pkgs.htop ];
+  # Agent runner tools — claude-code for interactive coding,
+  # hermes-agent (imported above) for fire-and-forget tasks.
+  environment.systemPackages = [
+    pkgs.htop
+    inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.claude-code
+  ];
 
   # Headless — disable desktop services
   services.xserver.enable = false;
