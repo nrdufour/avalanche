@@ -38,7 +38,7 @@
     # network namespace (--network=host, set by the hermes-agent module
     # by default) so 127.0.0.1 reaches the loopback-bound Ollama.
     settings.model = {
-      default  = "gemma4:e4b";
+      default  = "qwen3.5:4b";
       provider = "ollama";
       base_url = "http://127.0.0.1:11434/v1";
     };
