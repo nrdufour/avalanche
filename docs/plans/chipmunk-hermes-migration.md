@@ -2,6 +2,18 @@
 
 Rename `lobster` → `chipmunk` and replace the `oh-my-opencode` / openclaw experiment with Hermes Agent (NousResearch) as an always-on task agent, while keeping `claude-code` on the same host for interactive coding work.
 
+## Superseded (2026-04-18)
+
+chipmunk served as the validation host for the Hermes stack and was powered off
+once the pattern was proven. The production Hermes runs on **muninn** (Beelink
+SER5, x86_64) as of 2026-04-18 — the chipmunk-specific ARM workarounds
+(Playwright Chromium symlink, PUPPETEER_EXECUTABLE_PATH, AGENT_BROWSER_ARGS,
+/srv USB stick for stateDir) were all dropped on muninn because x86_64 +
+properly-spec'd hardware makes them unnecessary. See muninn's host module and
+`docs/guides/muninn-hermes-matrix-bot.md` for the live production setup.
+
+This plan doc is retained as history of the original migration effort.
+
 ## Status (2026-04-15)
 
 **Done, deployed, verified end-to-end:**
@@ -26,7 +38,7 @@ Rename `lobster` → `chipmunk` and replace the `oh-my-opencode` / openclaw expe
 
 **Out of scope / deferred to later commits:**
 
-- Messaging gateway (CLI-only is sufficient today). Realistic options when the time comes: Signal, Email, Discord. **Not Matrix** (upstream doesn't support it). **Not Telegram** (user preference).
+- Messaging gateway (CLI-only is sufficient today). Realistic options when the time comes: Signal, Email, Discord, **Matrix** (upstream did add a Matrix gateway — the README I fetched at plan time was outdated and omitted it; this was corrected during the muninn migration). **Not Telegram** (user preference).
 - Forgejo bot account + token + optional MCP — `git`-over-HTTPS via a scoped token is the pragmatic starting point.
 - Local-model inference — chipmunk is the wrong host for it (Pi 4, no GPU). When needed, Hermes points `settings.model.provider = "custom"` + `base_url` at an OpenAI-compatible endpoint on a different box.
 - Rotating the Tailscale auth key visible in `secrets/chipmunk/secrets.sops.yaml` (leaked into conversation history during Stage 3 debugging — low urgency, single-use key, device already enrolled).
@@ -44,7 +56,7 @@ Rename `lobster` → `chipmunk` and replace the `oh-my-opencode` / openclaw expe
 
 ## Out of scope (explicitly, for later)
 
-- Gateway setup (Signal / Email / Discord decision deferred). Matrix is **not** a supported Hermes gateway — confirmed from upstream README.
+- Gateway setup (Signal / Email / Discord / Matrix decision deferred). NB: the README I consulted at plan time omitted Matrix, but Matrix IS supported by hermes-agent via `gateway/platforms/matrix.py` — discovered later during the muninn migration.
 - Forgejo bot account + token + MCP wiring. Will be a follow-up commit.
 - Local-model inference. Not running on chipmunk (Pi 4, no GPU). When we want it, it lives on a different host and Hermes points `base_url` at an OpenAI-compatible endpoint.
 - Removing `oh-my-opencode` from `nixos/personalities/development/ai.nix:106` (other hosts still import it).

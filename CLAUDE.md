@@ -11,7 +11,7 @@ Avalanche is a unified infrastructure-as-code monorepo managing 14 NixOS hosts (
 ### Three-Layer Structure
 
 1. **NixOS Layer** (`nixos/`): Declarative system configurations
-   - `hosts/`: Per-machine configurations (calypso, hawk, chipmunk, opi01-03, raccoon00-05, etc.)
+   - `hosts/`: Per-machine configurations (calypso, hawk, muninn, opi01-03, raccoon00-05, etc.)
    - `profiles/`: Reusable configurations
      - `hw-*.nix`: Hardware-specific (RPi4, Orange Pi 5 Plus, Acer mini PC)
      - `role-*.nix`: Role-based (server, workstation, k3s-controller, k3s-worker)
@@ -121,8 +121,8 @@ Web-based gateway management dashboard for routy (network services, DHCP, firewa
 - **x86 Servers**: routy (main gateway), cardinal
 - **K3s Controllers**: opi01-03 (Orange Pi 5 Plus, aarch64, **NPU-enabled**)
 - **K3s Workers**: raccoon00-05 (Raspberry Pi 4, aarch64)
-- **Agent Runner**: chipmunk (Raspberry Pi 4, claude-code + oh-my-opencode)
-- **Powered down**: beacon (nix-serve)
+- **Agent Runner**: muninn (Beelink SER5, x86_64, claude-code + hermes-agent with Matrix gateway)
+- **Powered down**: beacon (nix-serve), chipmunk (Raspberry Pi 4, superseded by muninn as the hermes host)
 - **Archive**: sparrow01 (Raspberry Pi 3, reference config only, no flake entry)
 
 ### Key Technologies
