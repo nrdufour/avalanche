@@ -42,6 +42,13 @@
       default  = "google/gemma-4-31b-it";
       provider = "openrouter";
     };
+
+    # SecondBrain knowledge base over MCP (HTTP transport).
+    # API key lives in hermes-env (SOPS); hermes expands ${VAR} in headers.
+    mcpServers.secondbrain = {
+      url = "https://secondbrain.internal/mcp";
+      headers."X-API-Key" = "\${SECONDBRAIN_API_KEY}";
+    };
   };
 
   sops.secrets."hermes-env" = {
