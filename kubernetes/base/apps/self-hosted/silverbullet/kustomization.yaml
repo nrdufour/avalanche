@@ -6,9 +6,8 @@ resources:
   - service.yaml
   - ingress.yaml
   - pvc.yaml
-# Components removed to avoid envsubst variable issues
-# components:
-#   - ../../../components/volsync-v2
+components:
+  - ../../../components/volsync-v2
 patches:
 # !! DISASTER RECOVERY WARNING !!
 # This patch PREVENTS restore-from-backup on a fresh cluster.
