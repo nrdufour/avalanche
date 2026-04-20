@@ -17,11 +17,7 @@ spec:
       env:
         - name: APP
           value: silverbullet
-        - name: ARGOCD_ENV_APP
-          value: silverbullet
         - name: VOLSYNC_CAPACITY
-          value: "2Gi"
-        - name: ARGOCD_ENV_VOLSYNC_CAPACITY
           value: "2Gi"
         - name: VOLSYNC_BITWARDEN_KEY
           value: "b45f65b2-6326-42b8-b159-0e630fd223db"
@@ -31,11 +27,7 @@ spec:
           value: ReadWriteOnce
         - name: VOLSYNC_CACHE_CAPACITY
           value: "2Gi"
-        - name: ARGOCD_ENV_VOLSYNC_CACHE_CAPACITY
-          value: "2Gi"
         - name: VOLSYNC_SCHEDULE
-          value: "15 */6 * * *"
-        - name: ARGOCD_ENV_VOLSYNC_SCHEDULE
           value: "15 */6 * * *"
         - name: VOLSYNC_UID
           value: "1000"
