@@ -1,0 +1,31 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: silverbullet-ingress
+  annotations:
+    gethomepage.dev/description: Personal Knowledge Base
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/group: Self-Hosted
+    gethomepage.dev/icon: silverbullet
+    gethomepage.dev/name: SilverBullet
+    gethomepage.dev/pod-selector: "app=silverbullet"
+    cert-manager.io/cluster-issuer: ca-server-cluster-issuer
+    cert-manager.io/common-name: silverbullet.internal
+spec:
+  tls:
+    - hosts:
+        - silverbullet.internal
+      secretName: silverbullet-ing-cert
+  ingressClassName: nginx
+  rules:
+    - host: silverbullet.internal
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: silverbullet
+                port:
+                  number: 3000

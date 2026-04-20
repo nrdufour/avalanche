@@ -12,4 +12,5 @@ resources:
   - wallabag-app.yaml
   - miniflux-app.yaml
   - homebox-app.yaml
+  - silverbullet-app.yaml
   - matrix-app.yaml

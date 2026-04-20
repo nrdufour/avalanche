@@ -1,0 +1,19 @@
+---
+apiVersion: argocd.argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: silverbullet
+  namespace: argocd
+spec:
+  project: avalanche
+  source:
+    repoURL: https://forge.internal/nemo/avalanche
+    targetRevision: HEAD
+    path: kubernetes/base/apps/self-hosted/silverbullet
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: self-hosted
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
