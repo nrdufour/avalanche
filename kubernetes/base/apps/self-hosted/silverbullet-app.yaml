@@ -5,15 +5,17 @@ metadata:
   name: silverbullet
   namespace: argocd
 spec:
-  project: avalanche
+  project: default
   source:
-    repoURL: https://forge.internal/nemo/avalanche
+    repoURL: https://forge.internal/nemo/avalanche.git
     targetRevision: HEAD
     path: kubernetes/base/apps/self-hosted/silverbullet
   destination:
-    server: https://kubernetes.default.svc
     namespace: self-hosted
+    name: 'in-cluster'
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
