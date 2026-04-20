@@ -4,8 +4,6 @@ kind: Application
 metadata:
   name: silverbullet
   namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-trigger: "force-sync-2026-04-20"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
