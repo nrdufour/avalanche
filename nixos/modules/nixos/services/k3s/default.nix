@@ -160,6 +160,20 @@ in
       BindPaths = "/run/current-system/sw/bin:/bin";
     };
 
+    # LVM must not scan DRBD devices. Without a filter, `vgs`/`lvs` probes every
+    # block device, including `/dev/drbd*`. If a DRBD device is Outdated or has
+    # `blocked:upper`, the probe's read blocks in uninterruptible sleep and
+    # pins the fd open — which in turn prevents a peer from promoting to
+    # Primary ("Peer may not become primary while device is opened read-only"),
+    # creating a self-sustaining deadlock. Observed on opi03 on 2026-04-21.
+    environment.etc."lvm/lvmlocal.conf" = mkIf cfg.linstorSupport {
+      text = ''
+        devices {
+            global_filter = [ "r|^/dev/drbd|", "a|.*|" ]
+        }
+      '';
+    };
+
     # LINSTOR/DRBD storage support
     boot.extraModulePackages = mkIf cfg.linstorSupport [
       config.boot.kernelPackages.drbd
