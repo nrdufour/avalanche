@@ -43,6 +43,17 @@
       provider = "openrouter";
     };
 
+    # OpenRouter provider routing. `data_collection = "deny"` excludes any
+    # upstream provider that retains prompt/response data (OpenRouter ZDR
+    # filter). `require_parameters` drops providers that silently ignore
+    # request params. `sort = "price"` picks the cheapest ZDR-compliant
+    # provider that still honours the requested parameters.
+    settings.provider_routing = {
+      sort = "price";
+      data_collection = "deny";
+      require_parameters = true;
+    };
+
     # SecondBrain knowledge base over MCP (HTTP transport).
     # API key lives in hermes-env (SOPS); hermes expands ${VAR} in headers.
     mcpServers.secondbrain = {
