@@ -51,6 +51,10 @@
   # hermes-agent (imported above) for fire-and-forget tasks.
   environment.systemPackages = [
     pkgs.htop
+    pkgs.iotop
+    pkgs.glances
+    pkgs.nload
+    pkgs.numactl
     inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.claude-code
   ];
 
