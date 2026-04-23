@@ -19,7 +19,7 @@ spec:
       enableServiceLinks: false
       containers:
         - name: main
-          image: ghcr.io/esphome/esphome:2026.4.1
+          image: ghcr.io/esphome/esphome:2026.4.2
           env:
             - name: ESPHOME_DASHBOARD_USE_PING
               value: "true"
