@@ -1,4 +1,4 @@
-{ pkgs, config, ... }:
+{ pkgs, config, lib, ... }:
 let
   ifTheyExist = groups: builtins.filter (group: builtins.hasAttr group config.users.groups) groups;
 in
@@ -23,8 +23,10 @@ in
       ];
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAAjRgUY8iJkzNdbWvMv65NZmcWx3DSUCnv/FMw63nxl nrdufour@gmail.com"
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIENdrD/0PCXJxO/9S3OSZljGt+Da0IDkicTx9Kswvqlt hermes-agent"
-    ];
+    ]
+    # hermes-agent (on muninn) gets SSH access everywhere except the workstation.
+    ++ lib.optional (config.networking.hostName != "calypso")
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIENdrD/0PCXJxO/9S3OSZljGt+Da0IDkicTx9Kswvqlt hermes-agent";
   };
 
   # Direct dependency from the user
