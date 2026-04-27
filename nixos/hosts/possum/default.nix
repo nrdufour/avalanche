@@ -97,8 +97,8 @@
 
   system.autoUpgrade = {
     enable = true;
-    allowReboot = false;
-    dates = "03:00";
+    allowReboot = true;
+    dates = "02:30";
     flake = "git+https://forge.internal/nemo/avalanche.git";
   };
 

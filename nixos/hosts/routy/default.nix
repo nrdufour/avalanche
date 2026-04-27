@@ -57,7 +57,9 @@
   system.autoUpgrade = {
     enable = true;
     allowReboot = true;
-    dates = "03:00";
+    # routy is the gateway: upgrade ahead of the rest of the fleet (03:00)
+    # so a reboot here doesn't collide with peers fetching the flake.
+    dates = "02:00";
     flake = "git+https://forge.internal/nemo/avalanche.git";
   };
 

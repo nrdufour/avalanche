@@ -4,8 +4,9 @@ kind: CronJob
 metadata:
   name: influxdb2-backup
 spec:
-  # Run daily at 2 AM
-  schedule: "0 2 * * *"
+  # Run daily at 4 AM (after the NixOS autoupgrade window: hawk 01:30,
+  # routy 02:00, cardinal/possum 02:30, fleet 03:00).
+  schedule: "0 4 * * *"
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
   concurrencyPolicy: Forbid

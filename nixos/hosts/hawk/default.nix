@@ -69,7 +69,9 @@
   system.autoUpgrade = {
     enable = true;
     allowReboot = true;
-    dates = "03:00";
+    # hawk hosts the flake source (forge.internal); upgrade earliest so
+    # the rest of the fleet pulls a settled state at their later slots.
+    dates = "01:30";
     flake = "git+https://forge.internal/nemo/avalanche.git";
   };
 }
