@@ -14,4 +14,4 @@ kubeRbacProxy:
   # canonical upstream at quay.io/brancz/kube-rbac-proxy.
   image:
     repository: quay.io/brancz/kube-rbac-proxy
-    tag: v0.21.2
+    tag: v0.22.0
