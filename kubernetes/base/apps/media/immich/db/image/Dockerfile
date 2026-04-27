@@ -1,4 +1,4 @@
-ARG POSTGRES_VERSION=16.13@sha256:e05777da3dd583b99537dae500b4b63794c5b4fe01ececb2aaca1148bf555a8f
+ARG POSTGRES_VERSION=16.13@sha256:da09a5927dd7af1572591df6c2c1a192d441054ff73e6df823402fcbf08c5ff0
 FROM ghcr.io/cloudnative-pg/postgresql:${POSTGRES_VERSION}
 
 # Redeclare ARG after FROM to make it available in RUN
