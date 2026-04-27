@@ -133,7 +133,7 @@ data:
           ]
         },
         {
-          "title": "Error Reports",
+          "title": "Error Reports (24h)",
           "type": "stat",
           "id": 4,
           "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
@@ -161,7 +161,7 @@ data:
           },
           "targets": [
             {
-              "expr": "sum(linstor_error_reports_count{hostname!=\"\"})",
+              "expr": "sum(increase(linstor_error_reports_count{hostname!=\"\"}[24h])) or vector(0)",
               "legendFormat": "Errors",
               "instant": true,
               "refId": "A"
