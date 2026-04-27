@@ -197,7 +197,7 @@ data:
           },
           "targets": [
             {
-              "expr": "count(linstor_volume_state != 1 and linstor_volume_state != 4) or vector(0)",
+              "expr": "count(linstor_volume_state == 5 or linstor_volume_state == 6) or vector(0)",
               "legendFormat": "Degraded",
               "instant": true,
               "refId": "A"
@@ -488,7 +488,7 @@ data:
           "options": { "showHeader": true },
           "targets": [
             {
-              "expr": "linstor_volume_state != 1 and linstor_volume_state != 4",
+              "expr": "linstor_volume_state == 5 or linstor_volume_state == 6",
               "format": "table",
               "instant": true,
               "refId": "A"
