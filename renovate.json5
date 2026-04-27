@@ -159,6 +159,13 @@
       matchUpdateTypes: ['major'],
       enabled: false,
     },
+    {
+      description: 'Pin actions/checkout to v5 in bump-flake.yaml (v6 breaks push-back auth on Forgejo Actions runners — receive-pack returns 401 and git hangs on credential prompt)',
+      matchManagers: ['github-actions'],
+      matchPackageNames: ['actions/checkout'],
+      matchFileNames: ['.forgejo/workflows/bump-flake.yaml'],
+      allowedVersions: '<6',
+    },
     // Pin digests for security-critical infrastructure images
     {
       description: 'Pin digests for security-critical images',
