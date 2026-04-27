@@ -28,8 +28,14 @@
         "numtide.cachix.org-1:2ps1kLBUWjxIneOy1Ik6cQjb41X0iXVXeHigGmycPPE="
       ];
 
-      # Fallback quickly if substituters are not available.
-      connect-timeout = 5;
+      # Connect timeout for substituters AND for fetching flake inputs from
+      # github.com. Was 5s, but the 2026-04-22 incident showed that 5s is too
+      # tight when DNS or routing has a transient blip during the nightly
+      # autoupgrade window — the github fetch fails with "Resolving timed out
+      # after 5000 milliseconds" and the host stays a kernel behind. 30s
+      # tolerates a routy-reboot-sized blip; the cost is a one-time wait when
+      # a substituter is genuinely down (rare, fine for nightly upgrades).
+      connect-timeout = 30;
 
       # Avoid copying unnecessary stuff over SSH
       builders-use-substitutes = true;

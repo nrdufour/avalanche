@@ -6,6 +6,14 @@
 
   sops.defaultSopsFile = ../../secrets/k3s-worker/secrets.sops.yaml;
 
+  # Spread the 03:00 fleet upgrade burst across a 30-minute window. The
+  # early-tier hosts (hawk 01:30, routy 02:00, cardinal/possum 02:30) keep
+  # deterministic slots in their own host configs; only the bulk fleet
+  # (k3s workers + controllers + muninn) jitters here. Goal is to avoid a
+  # repeat of the 2026-04-22 thundering-herd DNS failure where every host
+  # hit github.com simultaneously while routy was still rebooting.
+  system.autoUpgrade.randomizedDelaySec = "30min";
+
   mySystem = {
     services.k3s = {
       enable = true;

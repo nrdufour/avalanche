@@ -34,6 +34,7 @@ Step-by-step how-to guides and operational procedures.
 - [Kanidm User Management](guides/identity/kanidm-user-management.md) - Creating and managing users in Kanidm identity provider
 
 ### Upgrades
+- [Autoupgrade Schedule](guides/upgrades/autoupgrade-schedule.md) - Per-host nightly upgrade timing and rationale
 - [NixOS 25.11 Upgrade](guides/upgrades/nixos-25-11-upgrade.md) - Upgrading NixOS hosts to version 25.11
 
 ## Plans

@@ -70,7 +70,11 @@
   system.autoUpgrade = {
     enable = true;
     allowReboot = true;
-    dates = "03:00";
+    # muninn rides with the cardinal/possum tier at 02:30, but with a small
+    # 10-minute jitter so its own reboot doesn't perfectly overlap with the
+    # storage hosts. Lands cleanly before the 03:00 k3s fleet wakes up.
+    dates = "02:30";
+    randomizedDelaySec = "10min";
     flake = "git+https://forge.internal/nemo/avalanche.git";
   };
 }

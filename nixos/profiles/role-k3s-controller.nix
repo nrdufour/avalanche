@@ -6,6 +6,11 @@
 
   sops.defaultSopsFile = ../../secrets/k3s-worker/secrets.sops.yaml;
 
+  # Match the 30-minute autoupgrade jitter applied to k3s workers.
+  # See nixos/profiles/role-k3s-worker.nix for full rationale (2026-04-22
+  # thundering-herd DNS incident).
+  system.autoUpgrade.randomizedDelaySec = "30min";
+
   mySystem = {
     services.k3s = {
       enable = true;
