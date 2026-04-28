@@ -7,21 +7,30 @@
 
   systemd.services.android16-dscp-fix = {
     description = "Clear DSCP markings globally for Android 16 compatibility";
-    after = [ "network.target" "nftables.service" ];
-    wants = [ "nftables.service" ];
+    # The `ip filter` table + FORWARD chain is created by tailscaled via
+    # iptables-nft, not by nftables.service. Order after tailscaled and
+    # poll for the chain so we don't race the boot.
+    after = [ "network.target" "nftables.service" "tailscaled.service" ];
+    wants = [ "nftables.service" "tailscaled.service" ];
     wantedBy = [ "multi-user.target" ];
 
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
+      Restart = "on-failure";
+      RestartSec = "5s";
     };
 
     script = ''
-      # Wait for nftables to be ready
-      sleep 2
+      # Wait until the FORWARD chain in `ip filter` exists (created by
+      # tailscaled via iptables-nft). Bail after ~30s to surface real failures.
+      for i in $(seq 1 30); do
+        if ${pkgs.nftables}/bin/nft list chain ip filter FORWARD >/dev/null 2>&1; then
+          break
+        fi
+        sleep 1
+      done
 
-      # Clear DSCP markings on all incoming traffic to prevent Android 16 rejection
-      # This is a broad fix that handles all services (not just fly.dev)
       ${pkgs.nftables}/bin/nft insert rule ip filter FORWARD ip dscp != cs0 ip dscp set cs0
 
       echo "Android 16 DSCP fix applied (global)"
