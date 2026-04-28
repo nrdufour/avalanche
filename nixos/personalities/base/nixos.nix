@@ -15,9 +15,6 @@
 
             trusted-users = [ "root" "@wheel" ];
 
-            # Fallback quickly if substituters are not available.
-            connect-timeout = 5;
-
             experimental-features = [ "nix-command" "flakes" ];
         };
         gc = {
