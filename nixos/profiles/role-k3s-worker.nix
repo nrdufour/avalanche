@@ -26,6 +26,15 @@
   # Network sysctl tuning for K3s worker nodes
   # See: docs/architecture/network/k3s-sysctl-tuning.md for full rationale
   boot.kernel.sysctl = {
+    # IP forwarding (required for flannel VXLAN decap → cni0 → pods).
+    # NixOS's tasks/network-interfaces.nix sets forwarding=false by default
+    # (mkDefault, gated on proxyARP). The k3s NixOS module relies on
+    # kube-proxy/flannel to set this at runtime, but a switch-to-configuration
+    # that reloads systemd-sysctl.service will clobber it back to 0,
+    # silently breaking cross-node pod traffic. 2026-04-28 outage.
+    "net.ipv4.ip_forward" = 1;
+    "net.ipv4.conf.all.forwarding" = 1;
+
     # Connection tracking (prevent table exhaustion)
     # Reference: https://wiki.nftables.org/wiki-nftables/index.php/Connection_Tracking_System
     # Impact: Prevents "nf_conntrack: table full" errors from Nginx Ingress, Gluetun NAT, service mesh
