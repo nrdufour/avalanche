@@ -4,6 +4,10 @@ kind: CronJob
 metadata:
   name: influxdb2-backup
 spec:
+  # Suspended: backup repeatedly fails (snapshot volume not ready); see
+  # docs/troubleshooting and project memory project_influxdb2_volsync_recurring.md.
+  # Re-enable once the underlying VolSync/snapshot issue is resolved.
+  suspend: true
   # Run daily at 4 AM (after the NixOS autoupgrade window: hawk 01:30,
   # routy 02:00, cardinal/possum 02:30, fleet 03:00).
   schedule: "0 4 * * *"
