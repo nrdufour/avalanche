@@ -20,7 +20,7 @@ spec:
         - name: VOLSYNC_BITWARDEN_KEY
           value: "b45f65b2-6326-42b8-b159-0e630fd223db"
         - name: VOLSYNC_STORAGECLASS
-          value: linstor
+          value: longhorn
         - name: VOLSYNC_ACCESSMODE
           value: ReadWriteOnce
         - name: VOLSYNC_CACHE_CAPACITY
@@ -33,9 +33,9 @@ spec:
         - name: VOLSYNC_GID
           value: "472"
         - name: VOLSYNC_SNAPSHOT_CLASS
-          value: linstor-snapshot
+          value: longhorn-snapshot-vsc
         - name: VOLSYNC_CLEANUP_TEMP_PVC
-          value: "true"
+          value: "false"
   ignoreDifferences:
     - group: ""
       kind: PersistentVolumeClaim
