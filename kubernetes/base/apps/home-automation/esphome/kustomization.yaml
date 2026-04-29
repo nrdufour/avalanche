@@ -11,6 +11,15 @@ resources:
 components:
   - ../../../components/volsync-v2
 
-# NOTE: dataSourceRef-removal patch temporarily removed for the LINSTOR→Longhorn
-# migration (2026-04-29) so the new PVC restores from the latest restic backup.
-# Re-add after the new PVC binds and esphome is verified healthy.
+patches:
+  # !! DISASTER RECOVERY WARNING !!
+  # This patch PREVENTS restore-from-backup on a fresh cluster.
+  # If rebuilding the cluster, REMOVE this patch so the PVC is created
+  # with dataSourceRef and VolSync restores data from S3 automatically.
+  # Re-add it after the restore is complete.
+  - target:
+      kind: PersistentVolumeClaim
+      name: .*
+    patch: |
+      - op: remove
+        path: /spec/dataSourceRef
