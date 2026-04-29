@@ -1,5 +1,7 @@
 # LINSTOR VolSync Snapshot Clone — resize_inode Corruption
 
+> **⚠️ HISTORICAL — LINSTOR decommissioned 2026-04-29.** One of many filesystem corruption issues that made LINSTOR more trouble than it was worth. Kept for reference.
+
 ## Problem
 
 VolSync backup mover pods get stuck in `ContainerCreating` indefinitely when the LINSTOR CSI driver creates a snapshot clone PVC for the restic backup. The kubelet reports:

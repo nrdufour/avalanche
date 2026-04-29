@@ -1,5 +1,7 @@
 # Piraeus CSI Snapshot Consistency — Analysis & Path Forward
 
+> **⚠️ HISTORICAL — LINSTOR/Piraeus decommissioned 2026-04-29.** The root causes here were never solved. Between this, DRBD split-brain, torn ext4 journals, and days of manual filesystem recovery, the conclusion was clear: fast storage that eats your data is not worth it. All workloads back on Longhorn. Kept for reference.
+
 **Status**: Known issue, two distinct failure classes remediated reactively, root causes unsolved. kured held cluster-wide as of 2026-04-14.
 **Last updated**: 2026-04-14
 **Owner**: none assigned (work deferred)

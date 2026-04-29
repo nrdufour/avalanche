@@ -1,5 +1,7 @@
 # LINSTOR — Missing `/dev/linstor_vg/*` symlinks after node reboot
 
+> **⚠️ HISTORICAL — LINSTOR decommissioned 2026-04-29.** This issue and the 4-hour debug session it caused were part of a pattern of time-wasting LINSTOR failures. Kept for reference.
+
 **Status:** Active issue, no upstream fix. Mitigated by holding all kured-driven node reboots while LINSTOR is in use.
 **First observed:** 2026-04-14, on opi02 and opi03 after opi03's auto-upgrade reboot at 03:38 UTC.
 **Time-to-diagnose on first occurrence:** ~4 hours of misdirected debugging across DRBD, ArgoCD, VolSync, and snapshot subsystems.

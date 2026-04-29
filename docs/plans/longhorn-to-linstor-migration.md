@@ -1,5 +1,7 @@
 # Longhorn to LINSTOR (Piraeus) Migration Plan (Issue #131)
 
+> **⚠️ ABANDONED 2026-04-29** — The full migration to LINSTOR was reversed after a single day in production: split-brain DRBD volumes, torn ext4 journals, 2 days of lost InfluxDB writes, and hours of manual per-volume filesystem surgery. An interesting experience, but not one worth repeating. LINSTOR/Piraeus fully decommissioned; all workloads back on Longhorn. Historical reference only.
+
 **Status**: 🚧 In Progress (Phase 4 — Batch 4 complete, Batch 5 next)
 **Created**: 2026-04-08
 **Last Updated**: 2026-04-09
