@@ -20,6 +20,10 @@ with lib;
     # delete all files in /tmp during boot.
     boot.tmp.cleanOnBoot = true;
 
+    # CVE-2026-31431 ("Copy Fail") — algif_aead LPE. Mitigation until the
+    # 6.12.85+ backport reaches nixpkgs. AF_ALG AEAD has no consumers here.
+    boot.blacklistedKernelModules = [ "algif_aead" ];
+
     # use DHCP to obtain an IP address
     networking.useDHCP = lib.mkDefault true;
 
