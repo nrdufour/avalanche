@@ -22,7 +22,14 @@ with lib;
 
     # CVE-2026-31431 ("Copy Fail") — algif_aead LPE. Mitigation until the
     # 6.12.85+ backport reaches nixpkgs. AF_ALG AEAD has no consumers here.
+    # `blacklist` alone only blocks alias-driven autoload; `install` blocks
+    # explicit modprobe, and module_blacklist= blocks at the kernel level on
+    # next boot.
     boot.blacklistedKernelModules = [ "algif_aead" ];
+    boot.extraModprobeConfig = ''
+      install algif_aead /bin/true
+    '';
+    boot.kernelParams = [ "module_blacklist=algif_aead" ];
 
     # use DHCP to obtain an IP address
     networking.useDHCP = lib.mkDefault true;
