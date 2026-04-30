@@ -7,3 +7,6 @@ resources:
   - service.yaml
   - ingress.yaml
   - pvc.yaml
+  - volsync-secret.yaml
+  - volsync-ca.yaml
+  - volsync-replication-source.yaml

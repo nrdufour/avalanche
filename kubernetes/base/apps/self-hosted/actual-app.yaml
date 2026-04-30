@@ -1,13 +1,16 @@
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: actual
   namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
     repoURL: https://forge.internal/nemo/avalanche.git
-    targetRevision: HEAD
+    targetRevision: main
     path: kubernetes/base/apps/self-hosted/actual
   destination:
     namespace: self-hosted

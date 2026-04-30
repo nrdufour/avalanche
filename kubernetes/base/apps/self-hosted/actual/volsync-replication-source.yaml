@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/volsync.backube/replicationsource_v1alpha1.json
+---
+# Phase 1: backs up the existing actual-longhorn-pvc to S3.
+# Once a successful backup exists, replace this with the full volsync-v2 component.
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationSource
+metadata:
+  name: actual
+spec:
+  sourcePVC: actual-longhorn-pvc
+
+  trigger:
+    schedule: "57 */6 * * *"
+
+  restic:
+    customCA:
+      configMapName: actual-volsync-ca
+      key: ca.crt
+
+    copyMethod: Snapshot
+    repository: actual-volsync-secret
+
+    storageClassName: longhorn
+    volumeSnapshotClassName: longhorn-snapshot-vsc
+
+    accessModes:
+      - ReadWriteOnce
+
+    cacheCapacity: 2Gi
+
+    moverSecurityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+
+    pruneIntervalDays: 14
+    retain:
+      hourly: 24
+      daily: 7
