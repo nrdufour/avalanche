@@ -210,11 +210,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1777424038,
-        "narHash": "sha256-lgE40BMJrpaIbxf/HNjcaxFxzqJUkm3vIoX4Ei8k66c=",
+        "lastModified": 1777510602,
+        "narHash": "sha256-YKfi/cu+OpIUILj/3F8+RhPw2QjiBFpJk6deeDPx3Ok=",
         "owner": "numtide",
         "repo": "llm-agents.nix",
-        "rev": "096e385dfce24ca71838488494a3cb038b1636c0",
+        "rev": "07f492cce7c0f2e216316307ea50c232a9abf368",
         "type": "github"
       },
       "original": {
@@ -230,11 +230,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1777434090,
-        "narHash": "sha256-i7p7ajtdKF6oVjs3ERyECCg6m1lWEchHNPKQjgRW4h4=",
+        "lastModified": 1777520673,
+        "narHash": "sha256-EgUbSPqdXT1kiqE9VYwX097zvW/glUPrz4NhxTTGp0s=",
         "owner": "nix-community",
         "repo": "nix-vscode-extensions",
-        "rev": "f32bb01e6a12b74fa67261e9d690ff9d0603d86b",
+        "rev": "1500938a18efd84c43bab24da5da00722fd23c1d",
         "type": "github"
       },
       "original": {
@@ -366,11 +366,11 @@
         "nixpkgs": "nixpkgs_4"
       },
       "locked": {
-        "lastModified": 1777432900,
-        "narHash": "sha256-I7wkkTg7W0w/LLg+weEvwXmFxSvT6WMBj8ars/0GEG4=",
+        "lastModified": 1777519323,
+        "narHash": "sha256-mwhW9oyPvvMwPIlB1hAKE0y4YDre+flZDpbdfXmFmf0=",
         "owner": "nix-community",
         "repo": "NUR",
-        "rev": "4fb74466795d3d5ab8b3db2cbb0034a8a2c93430",
+        "rev": "9d0656beb8049d3c061365d268f81a4179a70819",
         "type": "github"
       },
       "original": {
@@ -486,11 +486,11 @@
     "secondbrain": {
       "flake": false,
       "locked": {
-        "lastModified": 1772635169,
-        "narHash": "sha256-rgqozq6sVA7ULPk1FXVfDw95hoP6K6mIcIyIryMkSSM=",
+        "lastModified": 1777498458,
+        "narHash": "sha256-oW0IgyGp2mfUr7F9LHjxEdB0qeedCHtw+lduTaVDKI4=",
         "ref": "refs/heads/main",
-        "rev": "5406081863b6b66df05859c9c9e699ec1e506e64",
-        "revCount": 29,
+        "rev": "dea4ca54c61a6da604506e12698ddd97b95baa85",
+        "revCount": 31,
         "type": "git",
         "url": "https://forge.internal/nemo/secondbrain.git"
       },
