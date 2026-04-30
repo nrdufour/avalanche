@@ -27,7 +27,7 @@ with lib;
     # next boot.
     boot.blacklistedKernelModules = [ "algif_aead" ];
     boot.extraModprobeConfig = ''
-      install algif_aead /bin/true
+      install algif_aead /run/current-system/sw/bin/false
     '';
     boot.kernelParams = [ "module_blacklist=algif_aead" ];
 
