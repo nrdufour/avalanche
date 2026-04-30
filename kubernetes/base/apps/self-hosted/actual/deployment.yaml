@@ -53,4 +53,4 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: actual-longhorn-pvc
+            claimName: actual
