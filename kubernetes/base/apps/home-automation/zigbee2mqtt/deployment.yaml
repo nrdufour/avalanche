@@ -21,6 +21,8 @@ spec:
       containers:
       - name: zigbee2mqtt
         image: ghcr.io/koenkk/zigbee2mqtt:latest
+        securityContext:
+          privileged: true
         env:
         - name: ZIGBEE2MQTT_DATA
           value: /app/data
