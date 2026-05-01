@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zigbee2mqtt
+  namespace: home-automation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zigbee2mqtt
+  template:
+    metadata:
+      labels:
+        app: zigbee2mqtt
+    spec:
+      nodeSelector:
+        zigbee.feature.node.kubernetes.io/sonoff: "true"
+      containers:
+      - name: zigbee2mqtt
+        image: koenkk/zigbee2mqtt:latest
+        args: ["--config", "/app/data/configuration.yaml"]
+        ports:
+        - containerPort: 8080
+          name: http
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            memory: 512Mi
+        volumeMounts:
+        - name: data
+          mountPath: /app/data
+        - name: device
+          mountPath: /dev/ttyUSB0
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: zigbee2mqtt-pvc
+      - name: device
+        hostPath:
+          path: /dev/ttyUSB0
+          type: CharDevice
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zigbee2mqtt
+  namespace: home-automation
+spec:
+  selector:
+    app: zigbee2mqtt
+  ports:
+  - port: 80
+    targetPort: 8080
+    name: http
