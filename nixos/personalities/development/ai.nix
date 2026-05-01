@@ -26,6 +26,7 @@ in
     enable = true;
     package = unstable.ollama-cuda;
     acceleration = "cuda";
+    host = "0.0.0.0";
   };
 
   # Ensure Ollama service has proper CUDA environment
