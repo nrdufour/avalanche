@@ -5,6 +5,7 @@ kind: Kustomization
 
 resources:
   - deployment.yaml
+  - ingress.yaml
 
 components:
   - ../../../components/volsync-v2

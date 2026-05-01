@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: zigbee2mqtt
+  namespace: home-automation
+  annotations:
+    cert-manager.io/cluster-issuer: ca-server-cluster-issuer
+    cert-manager.io/common-name: zigbee2mqtt.internal
+    gethomepage.dev/description: Zigbee Gateway
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/group: Home
+    gethomepage.dev/icon: zigbee2mqtt.png
+    gethomepage.dev/name: Zigbee2MQTT
+    gethomepage.dev/pod-selector: "app=zigbee2mqtt"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: zigbee2mqtt.internal
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: zigbee2mqtt
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - "zigbee2mqtt.internal"
+      secretName: zigbee2mqtt-ing-cert
