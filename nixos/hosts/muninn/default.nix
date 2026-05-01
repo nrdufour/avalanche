@@ -2,6 +2,7 @@
   imports = [
     ./hardware-configuration.nix
     ./hermes.nix
+    ./mattermost.nix
     ./ollama.nix
   ];
 

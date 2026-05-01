@@ -72,6 +72,8 @@
           { name = "cwa"; target = "cardinal.internal."; }
           # AI/ML (calypso workstation)
           { name = "ollama"; target = "calypso.internal."; }
+          # Messaging (muninn host)
+          { name = "mattermost"; target = "muninn.internal."; }
           # Garage subdomains (cardinal host)
           { name = "ui.garage"; target = "cardinal.internal."; }
           { name = "web.garage"; target = "cardinal.internal."; }
