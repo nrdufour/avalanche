@@ -3,7 +3,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - zigbee2mqtt/application.yaml
+  - zigbee2mqtt-app.yaml
   - influxdb2-app.yaml
   - rtl433-app.yaml
   - grafana-app.yaml
