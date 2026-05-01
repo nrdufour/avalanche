@@ -34,10 +34,9 @@
       ];
     };
 
-    # NOTE: settings only seed /var/lib/hermes/.hermes/config.yaml on
-    # first creation; the hermes-agent module does not rewrite it on
-    # redeploy. To change model/provider, also delete the file and
-    # restart hermes-agent, or edit the yaml in place.
+    # settings are deep-merged into config.yaml on every deploy via
+    # configMergeScript (Nix keys win). No need to delete the file to pick
+    # up changes.
     settings.model = {
       default  = "google/gemma-4-31b-it";
       provider = "openrouter";
@@ -52,6 +51,16 @@
       sort = "price";
       data_collection = "deny";
       require_parameters = true;
+    };
+
+    # Calypso's local Ollama (NVIDIA GPU, gemma4:e4b). Available as an
+    # additional provider to test local inference. Switch to it with:
+    #   hermes model calypso-ollama/gemma4:e4b
+    settings.providers."calypso-ollama" = {
+      name    = "Calypso Ollama (gemma4:e4b)";
+      base_url = "http://calypso.internal:11434/v1";
+      model   = "gemma4:e4b";
+      api_key = "ollama";
     };
 
     # SecondBrain knowledge base over MCP (HTTP transport).
