@@ -15,5 +15,6 @@ data:
       },
       "disable_custom_urls": true,
       "disable_guests": true,
-      "default_theme": "dark"
+      "default_theme": "dark",
+      "default_encryption_enabled": false
     }
