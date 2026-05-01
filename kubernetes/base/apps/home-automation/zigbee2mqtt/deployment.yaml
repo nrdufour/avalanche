@@ -15,6 +15,9 @@ spec:
     spec:
       nodeSelector:
         zigbee.feature.node.kubernetes.io/sonoff: "true"
+      securityContext:
+        supplementalGroups:
+          - 27
       containers:
       - name: zigbee2mqtt
         image: ghcr.io/koenkk/zigbee2mqtt:latest
@@ -30,7 +33,7 @@ spec:
         - name: ZIGBEE2MQTT_CONFIG_MQTT_SERVER
           value: mqtt://mqtt.internal
         - name: ZIGBEE2MQTT_CONFIG_SERIAL_ADAPTER
-          value: ezsp
+          value: ember
         - name: ZIGBEE2MQTT_CONFIG_FRONTEND_ENABLED
           value: "true"
         - name: ZIGBEE2MQTT_CONFIG_FRONTEND_PORT
