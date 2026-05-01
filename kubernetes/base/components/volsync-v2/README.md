@@ -183,8 +183,9 @@ minute offset for each app (3-5 minute gaps between apps).
 | `:45` | Every 6h | seerr |
 | `:48` | Every 6h | homebox |
 | `:51` | Every 6h | kanboard |
+| `:54` | Every 6h | zigbee2mqtt |
 
-**Next available slot: `:54` (every 6h) or `:27` (hourly).**
+**Next available slot: `:57` (every 6h) or `:27` (hourly).**
 
 ## Bitwarden Secret Structure
 

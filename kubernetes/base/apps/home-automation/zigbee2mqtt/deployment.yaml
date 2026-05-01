@@ -17,8 +17,22 @@ spec:
         zigbee.feature.node.kubernetes.io/sonoff: "true"
       containers:
       - name: zigbee2mqtt
-        image: koenkk/zigbee2mqtt:latest
-        args: ["--config", "/app/data/configuration.yaml"]
+        image: ghcr.io/koenkk/zigbee2mqtt:latest
+        env:
+        - name: ZIGBEE2MQTT_DATA
+          value: /app/data
+        - name: ZIGBEE2MQTT_CONFIG_HOMEASSISTANT_ENABLED
+          value: "true"
+        - name: ZIGBEE2MQTT_CONFIG_PERMIT_JOIN
+          value: "true"
+        - name: ZIGBEE2MQTT_CONFIG_MQTT_BASE_TOPIC
+          value: zigbee2mqtt
+        - name: ZIGBEE2MQTT_CONFIG_MQTT_SERVER
+          value: mqtt://mqtt.internal
+        - name: ZIGBEE2MQTT_CONFIG_SERIAL_PORT
+          value: /dev/ttyUSB0
+        - name: ZIGBEE2MQTT_CONFIG_FRONTEND_PORT
+          value: "8080"
         ports:
         - containerPort: 8080
           name: http
@@ -36,7 +50,7 @@ spec:
       volumes:
       - name: data
         persistentVolumeClaim:
-          claimName: zigbee2mqtt-pvc
+          claimName: zigbee2mqtt
       - name: device
         hostPath:
           path: /dev/ttyUSB0

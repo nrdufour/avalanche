@@ -3,12 +3,43 @@ kind: Application
 metadata:
   name: zigbee2mqtt
   namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
-    repoURL: https://forge.internal/nemo/avalanche
-    targetRevision: HEAD
+    repoURL: https://forge.internal/nemo/avalanche.git
+    targetRevision: main
     path: kubernetes/base/apps/home-automation/zigbee2mqtt
+    plugin:
+      name: kustomize-envsubst
+      env:
+        - name: APP
+          value: zigbee2mqtt
+        - name: VOLSYNC_CAPACITY
+          value: "1Gi"
+        - name: VOLSYNC_BITWARDEN_KEY
+          value: "b45f65b2-6326-42b8-b159-0e630fd223db"
+        - name: VOLSYNC_STORAGECLASS
+          value: longhorn
+        - name: VOLSYNC_ACCESSMODE
+          value: ReadWriteOnce
+        - name: VOLSYNC_CACHE_CAPACITY
+          value: "1Gi"
+        - name: VOLSYNC_SCHEDULE
+          # Staggered to avoid concurrent Longhorn snapshot clones (see volsync-v2 README)
+          value: "54 */6 * * *"
+        - name: VOLSYNC_SNAPSHOT_CLASS
+          value: longhorn-snapshot-vsc
+        - name: VOLSYNC_CLEANUP_TEMP_PVC
+          value: "false"
+  ignoreDifferences:
+    - group: ""
+      kind: PersistentVolumeClaim
+      name: zigbee2mqtt
+      jsonPointers:
+        - /spec/dataSourceRef
+        - /spec/dataSource
   destination:
     server: https://kubernetes.default.svc
     namespace: home-automation
@@ -16,3 +47,6 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
