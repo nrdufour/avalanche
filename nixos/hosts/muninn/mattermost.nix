@@ -12,7 +12,7 @@
       peerAuth = true;
     };
 
-    extraConfig = {
+    settings = {
       LogSettings.EnableDiagnostics = false;
       ServiceSettings.EnableSecurityAlertNotifications = false;
       ServiceSettings.EnableTutorial = false;
