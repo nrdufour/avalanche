@@ -28,7 +28,7 @@ spec:
           value: /app/data
         - name: ZIGBEE2MQTT_CONFIG_HOMEASSISTANT_ENABLED
           value: "true"
-        - name: ZIGBEE2MQTT_CONFIG_AVAILABILITY
+        - name: ZIGBEE2MQTT_CONFIG_AVAILABILITY_ENABLED
           value: "true"
         - name: ZIGBEE2MQTT_CONFIG_PERMIT_JOIN
           value: "true"
