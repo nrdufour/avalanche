@@ -91,6 +91,13 @@ spec:
                   key: api_key
             - name: SB_CLAUDE_MODEL
               value: "claude-haiku-4-5-20251001"
+            - name: SB_OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: secondbrain-openrouter
+                  key: api_key
+            - name: SB_OPENROUTER_CLASSIFY_MODEL
+              value: "google/gemma-4-31b-it"
           resources:
             requests:
               cpu: 50m

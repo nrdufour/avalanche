@@ -9,3 +9,4 @@ resources:
   - oidc-external-secret.yaml
   - matrix-external-secret.yaml
   - claude-external-secret.yaml
+  - openrouter-external-secret.yaml
