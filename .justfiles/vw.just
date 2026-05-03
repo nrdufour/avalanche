@@ -12,10 +12,10 @@ list:
     echo "Fetching Vaultwarden items..."
     echo ""
 
-    kubectl exec -n security deployment/bitwarden-cli -- \
+    { printf "UUID\tNAME\tTYPE\n"; kubectl exec -n security deployment/bitwarden-cli -- \
         curl -s http://127.0.0.1:8087/list/object/items | \
-        jq -r '.data.data[] | "\(.id)\t\(.name)\t\(.type)"' | \
-        column -t -s $'\t' -N "UUID,NAME,TYPE"
+        jq -r '.data.data[] | "\(.id)\t\(.name)\t\(.type)"'; } | \
+        column -t -s $'\t'
 
 # Search Vaultwarden items by name
 search search_term:
@@ -25,10 +25,10 @@ search search_term:
     echo "Searching for '{{search_term}}' in Vaultwarden..."
     echo ""
 
-    kubectl exec -n security deployment/bitwarden-cli -- \
+    { printf "UUID\tNAME\tTYPE\n"; kubectl exec -n security deployment/bitwarden-cli -- \
         curl -s http://127.0.0.1:8087/list/object/items | \
-        jq -r '.data.data[] | select(.name | ascii_downcase | contains("{{search_term}}" | ascii_downcase)) | "\(.id)\t\(.name)\t\(.type)"' | \
-        column -t -s $'\t' -N "UUID,NAME,TYPE"
+        jq -r '.data.data[] | select(.name | ascii_downcase | contains("{{search_term}}" | ascii_downcase)) | "\(.id)\t\(.name)\t\(.type)"'; } | \
+        column -t -s $'\t'
 
 # Get details of a specific Vaultwarden item by UUID
 get uuid:
