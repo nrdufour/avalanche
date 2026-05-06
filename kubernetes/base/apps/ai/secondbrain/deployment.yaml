@@ -42,7 +42,7 @@ spec:
                   name: secondbrain-16-db-app
                   key: password
             - name: SB_OLLAMA_URL
-              value: "http://calypso.internal:11434"
+              value: "http://hawk.internal:11434"
             - name: SB_OLLAMA_CLASSIFY_MODEL
               value: "gemma4:e4b"
             - name: SB_OLLAMA_TIMEOUT
