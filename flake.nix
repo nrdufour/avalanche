@@ -385,7 +385,11 @@
 
               # YAML processing (PRD runner)
               yq-go
-            ];
+            ]
+            # `just nix deploy` invokes nixos-rebuild with --build-host /
+            # --target-host. On NixOS hosts the binary is part of the system;
+            # on Darwin we have to bring it in via the dev shell.
+            ++ pkgs.lib.optional pkgs.stdenv.isDarwin pkgs.nixos-rebuild;
           };
         });
 
