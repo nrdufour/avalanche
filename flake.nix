@@ -71,6 +71,10 @@
   outputs = { self, nixpkgs, nixpkgs-unstable, sops-nix, ... }@inputs:
     let
       inherit (self) outputs;
+
+      # Systems for which we provide a dev shell (developer machines only).
+      devShellSystems = [ "x86_64-darwin" "aarch64-darwin" "x86_64-linux" "aarch64-linux" ];
+      forAllSystems = nixpkgs.lib.genAttrs devShellSystems;
     in
     {
       # Extend lib with custom functions
@@ -347,6 +351,43 @@
 
           # Placeholder: cloud hosts will be added here
         };
+
+      # Developer shell — entered via direnv (`use flake` in .envrc).
+      devShells = forAllSystems (system:
+        let pkgs = import nixpkgs { inherit system; };
+        in {
+          default = pkgs.mkShell {
+            nativeBuildInputs = with pkgs; [
+              # Common tools
+              just
+              jq
+
+              # NixOS tools
+              statix
+              nixfmt-rfc-style
+              fd
+
+              # Kubernetes tools
+              kubectl
+              kubectl-cnpg
+              fluxcd
+              kubernetes-helm
+              yamllint
+              cmctl
+              argocd
+
+              # Cloud/VPN
+              hcloud
+              wireguard-tools
+
+              # Forgejo
+              forgejo-cli
+
+              # YAML processing (PRD runner)
+              yq-go
+            ];
+          };
+        });
 
       # Convenience output that aggregates all system builds
       # Also used in CI to build targets generally
