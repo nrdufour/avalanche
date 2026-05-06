@@ -37,13 +37,16 @@
           enabled = false;  # Enforcing "Safe search" option for search engines, when possible.
         };
       };
-      # The following notation uses map
-      # to not have to manually create {enabled = true; url = "";} for every filter
-      # This is, however, fully optional
-      # filters = map(url: { enabled = true; url = url; }) [
-      #   "https://adguardteam.github.io/HostlistsRegistry/assets/filter_9.txt"  # The Big List of Hacked Malware Web Sites
-      #   "https://adguardteam.github.io/HostlistsRegistry/assets/filter_11.txt"  # malicious url blocklist
-      # ];
+      filters = map (url: { enabled = true; inherit url; }) [
+        # Security
+        "https://adguardteam.github.io/HostlistsRegistry/assets/filter_9.txt"   # The Big List of Hacked Malware Web Sites
+        "https://adguardteam.github.io/HostlistsRegistry/assets/filter_11.txt"  # Malicious URL Blocklist (URLHaus)
+        "https://adguardteam.github.io/HostlistsRegistry/assets/filter_30.txt"  # Phishing URL Blocklist (PhishTank/OpenPhish)
+        "https://adguardteam.github.io/HostlistsRegistry/assets/filter_50.txt"  # uBlock₀ – Badware risks
+        # Ads / trackers (mobile-leaning)
+        "https://adguardteam.github.io/HostlistsRegistry/assets/filter_2.txt"   # AdAway Default Blocklist
+        "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/pro.txt"  # HaGeZi Pro
+      ];
     };
   };
 
