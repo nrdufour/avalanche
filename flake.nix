@@ -362,8 +362,17 @@
           nixos-rebuild-shim = pkgs.writeShellScriptBin "nixos-rebuild" ''
             exec ${pkgs.nixos-rebuild-ng}/bin/nixos-rebuild-ng "$@"
           '';
+          # Mozilla CA bundle + Ptinem Root CA, so nix/git/etc. inside the
+          # shell trust forge.internal. NixOS hosts already trust Ptinem
+          # system-wide; this exists for plain-nix Darwin (and as belt-and-
+          # suspenders elsewhere).
+          ca-bundle = pkgs.runCommand "ca-bundle.crt" { } ''
+            cat ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt ${./ca/ptinem-root-ca.pem} > $out
+          '';
         in {
           default = pkgs.mkShell {
+            NIX_SSL_CERT_FILE = "${ca-bundle}";
+            SSL_CERT_FILE = "${ca-bundle}";
             nativeBuildInputs = with pkgs; [
               # Common tools
               just
