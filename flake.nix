@@ -354,7 +354,14 @@
 
       # Developer shell — entered via direnv (`use flake` in .envrc).
       devShells = forAllSystems (system:
-        let pkgs = import nixpkgs { inherit system; };
+        let
+          pkgs = import nixpkgs { inherit system; };
+          # On NixOS the system exposes the -ng binary as `nixos-rebuild`;
+          # the upstream package only ships `nixos-rebuild-ng`. Provide a
+          # same-named shim so the justfile recipes work uniformly.
+          nixos-rebuild-shim = pkgs.writeShellScriptBin "nixos-rebuild" ''
+            exec ${pkgs.nixos-rebuild-ng}/bin/nixos-rebuild-ng "$@"
+          '';
         in {
           default = pkgs.mkShell {
             nativeBuildInputs = with pkgs; [
@@ -386,10 +393,11 @@
               # YAML processing (PRD runner)
               yq-go
             ]
-            # `just nix deploy` invokes nixos-rebuild with --build-host /
-            # --target-host. On NixOS hosts the binary is part of the system;
-            # on Darwin we have to bring it in via the dev shell.
-            ++ pkgs.lib.optional pkgs.stdenv.isDarwin pkgs.nixos-rebuild;
+            # `just nix deploy` invokes nixos-rebuild (the rust `-ng`
+            # variant; the recipes pass --no-reexec which the Perl one
+            # doesn't accept). NixOS hosts already ship it as
+            # `nixos-rebuild`, so only bring the shim in on Darwin.
+            ++ pkgs.lib.optional pkgs.stdenv.isDarwin nixos-rebuild-shim;
           };
         });
 
