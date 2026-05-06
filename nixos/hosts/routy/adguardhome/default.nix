@@ -15,11 +15,12 @@
         address = "127.0.0.1:3003";
       };
       dns = {
-        # Bind on all interfaces; access is gated by the WAN port-53 drop in
-        # firewall.nix and by the systemd RestrictNetworkInterfaces allowlist
-        # below. Avoids coupling startup to specific IPs (notably the Tailscale
-        # IP, which won't exist if tailscaled can't auth).
-        bind_hosts = [ "0.0.0.0" ];
+        bind_hosts = [
+          "10.0.0.54"
+          "10.1.0.54"
+          "10.2.0.54"
+          "100.121.204.6"  # Tailscale interface for remote DNS queries
+        ];
         upstream_dns = [
           "[/internal/]10.0.0.53"
           "127.0.0.1"
@@ -45,18 +46,6 @@
       # ];
     };
   };
-
-  # Kernel-level allowlist of interfaces AdGuard may send/receive on.
-  # Belt-and-suspenders to the WAN firewall: even if nftables is misconfigured,
-  # wan0 traffic never reaches the AdGuard process. Name-based and resolved
-  # lazily by BPF, so listing tailscale0 doesn't make startup depend on it.
-  systemd.services.adguardhome.serviceConfig.RestrictNetworkInterfaces = [
-    "lo"
-    "lan0"
-    "lab0"
-    "lab1"
-    "tailscale0"
-  ];
 
   services.nginx = {
     enable = true;
