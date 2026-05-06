@@ -37,6 +37,16 @@
           enabled = false;  # Enforcing "Safe search" option for search engines, when possible.
         };
       };
+      querylog = {
+        enabled = true;
+        file_enabled = true;
+        interval = "720h";  # 30 days
+        size_memory = 0;
+      };
+      statistics = {
+        enabled = true;
+        interval = "720h";  # 30 days
+      };
       filters = map (url: { enabled = true; inherit url; }) [
         # Security
         "https://adguardteam.github.io/HostlistsRegistry/assets/filter_9.txt"   # The Big List of Hacked Malware Web Sites
