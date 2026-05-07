@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/fluent/fluent-bit
-  tag: 5.0.4
+  tag: 5.0.5
 
 config:
   service: |
