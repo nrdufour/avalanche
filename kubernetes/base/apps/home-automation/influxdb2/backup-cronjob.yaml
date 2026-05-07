@@ -28,7 +28,7 @@ spec:
             fsGroup: 1000
           containers:
           - name: backup
-            image: influxdb:2.8
+            image: influxdb:2.9
             command:
             - /bin/sh
             - -c
