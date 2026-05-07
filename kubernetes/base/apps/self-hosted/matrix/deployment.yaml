@@ -20,7 +20,7 @@ spec:
     spec:
       initContainers:
         - name: render-config
-          image: ghcr.io/element-hq/synapse:v1.152.0
+          image: ghcr.io/element-hq/synapse:v1.152.1
           command:
             - python3
             - -c
@@ -82,7 +82,7 @@ spec:
               mountPath: /data
       containers:
         - name: synapse
-          image: ghcr.io/element-hq/synapse:v1.152.0
+          image: ghcr.io/element-hq/synapse:v1.152.1
           env:
             - name: UID
               value: "0"
