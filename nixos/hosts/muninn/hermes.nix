@@ -51,6 +51,7 @@
       sort = "price";
       data_collection = "deny";
       require_parameters = true;
+      ignore = [ "Venice" ];
     };
 
     # Calypso's local Ollama (NVIDIA GPU, gemma4:e4b). Available as an
