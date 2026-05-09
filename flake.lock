@@ -210,11 +210,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1778201855,
-        "narHash": "sha256-A40W0Xa+PQ0p+Mmmei2Ji0oxNKmePhWN7AmvZmWQxV8=",
+        "lastModified": 1778290078,
+        "narHash": "sha256-xQ4Xwqyv22tEMpsS/+aczfv1ZqaKB4fO2faHTiS2zwk=",
         "owner": "numtide",
         "repo": "llm-agents.nix",
-        "rev": "a4f00b54a1c7838f2ab3445bb13a02e6db96bae2",
+        "rev": "ec7e9c2f435bcb86459365b0ba22ed1ddb4a5dad",
         "type": "github"
       },
       "original": {
@@ -230,11 +230,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1778211356,
-        "narHash": "sha256-89oSA+XtcMfaQ0n2qkiQd5rgr3S5NTvw8eDkUaVL/6E=",
+        "lastModified": 1778297753,
+        "narHash": "sha256-IRgRWBkluHR+JiNmhS/fbTbodr22/P9MuWZSU7x3DGI=",
         "owner": "nix-community",
         "repo": "nix-vscode-extensions",
-        "rev": "017db59f664db24d8e24367b72ca76cdb706586c",
+        "rev": "a15c2ddce7f4018f9277c727f6689c56be8b2720",
         "type": "github"
       },
       "original": {
@@ -366,11 +366,11 @@
         "nixpkgs": "nixpkgs_4"
       },
       "locked": {
-        "lastModified": 1778212310,
-        "narHash": "sha256-pGKYDaEb74kOiXVueUp5Axt8GDYrEufo22CRQJvSPM4=",
+        "lastModified": 1778298787,
+        "narHash": "sha256-r+TNsQOyVJ9bL+pe17nnU1pwM1dQdnguNq8itmuCrGc=",
         "owner": "nix-community",
         "repo": "NUR",
-        "rev": "93212c6a84c7f6a4c573652210b0c503fc4eaa74",
+        "rev": "7cc6c5704c2b1c07dc67b25d4a95145829e40b5e",
         "type": "github"
       },
       "original": {
@@ -502,11 +502,11 @@
     "sentinel": {
       "flake": false,
       "locked": {
-        "lastModified": 1776837923,
-        "narHash": "sha256-epZVajLeHP/cK9jYJDj8gMH6BSOErDVBkUV0NzYGgwk=",
+        "lastModified": 1778274261,
+        "narHash": "sha256-4pUFFhtDUHXvUIg287qCJ4FZ86t9+aopZcZxKz7mWq8=",
         "ref": "refs/heads/main",
-        "rev": "928db03ccba065b296a5aa297b79e4fa18b83ded",
-        "revCount": 24,
+        "rev": "b0ebb938171aeab6fd10017cd74254b7762a304d",
+        "revCount": 26,
         "type": "git",
         "url": "https://forge.internal/nemo/sentinel.git"
       },
