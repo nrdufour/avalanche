@@ -43,6 +43,5 @@ kubernetes/kubeconfig.tmp
 kubernetes/**/kubeconfig
 kubernetes/**/kubeconfig.*
 
-# Agent runtime state (Claude Code per-project memory, OMC state)
+# Agent runtime state (Claude Code per-project memory)
 .claude/projects/
-.omc/
