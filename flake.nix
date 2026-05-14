@@ -37,10 +37,7 @@
     # https://hermes-agent.nousresearch.com/docs/getting-started/nix-setup/
     # Not following nixpkgs: upstream builds Python deps via uv2nix and may
     # expect a specific nixpkgs revision for wheel compatibility.
-    # Pinned to 6fb69229 (last commit before upstream npm-deps hash
-    # regression, tracked in NousResearch/hermes-agent#12965). Unpin once
-    # that issue is fixed.
-    hermes-agent.url = "github:NousResearch/hermes-agent/6fb69229caba";
+    hermes-agent.url = "github:NousResearch/hermes-agent";
 
     # dns.nix - Type-safe DNS zone definitions
     # https://github.com/nix-community/dns.nix
