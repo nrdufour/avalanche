@@ -42,13 +42,6 @@
       provider = "openrouter";
     };
 
-    settings.auxiliary = {
-      title_generation = {
-        provider = "openrouter";
-        model = "google/gemma-4-26b-a4b-it";
-      };
-    };
-
     # OpenRouter provider routing. `data_collection = "deny"` excludes any
     # upstream provider that retains prompt/response data (OpenRouter ZDR
     # filter). `require_parameters` drops providers that silently ignore
