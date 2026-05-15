@@ -1,8 +1,17 @@
-{ config, inputs, ... }: {
+{ config, inputs, pkgs, ... }: {
   imports = [ inputs.hermes-agent.nixosModules.default ];
 
   services.hermes-agent = {
     enable = true;
+
+    # Strip the broken google_chat platform plugin that spams the logs on
+    # every startup with "'google_chat' is not a valid Platform". The plugin
+    # exists in the shipped source but the Platform enum doesn't include it.
+    package = inputs.hermes-agent.packages.${pkgs.stdenv.hostPlatform.system}.default.overrideAttrs (old: {
+      postInstall = (old.postInstall or "") + ''
+        rm -rf $out/lib/python*/site-packages/plugins/platforms/google_chat
+      '';
+    });
 
     # Host-side `hermes` wrapper on PATH. Routes into the container
     # for interactive users listed in container.hostUsers below.
