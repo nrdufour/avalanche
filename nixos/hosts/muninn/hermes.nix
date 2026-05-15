@@ -66,5 +66,6 @@
     owner = config.services.hermes-agent.user;
     group = config.services.hermes-agent.group;
     mode  = "0400";
+    restartUnits = [ "hermes-agent.service" ];
   };
 }
