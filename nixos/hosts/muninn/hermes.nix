@@ -35,11 +35,27 @@
     };
 
     # settings are deep-merged into config.yaml on every deploy via
-    # configMergeScript (Nix keys win). No need to delete the file to pick
-    # up changes.
+    # configMergeScript (Nix keys win). Stale keys removed from Nix stay
+    # in config.yaml; nuke the file and re-activate to drop them.
     settings.model = {
-      default  = "google/gemma-4-26b-a4b-it";
+      default  = "moonshotai/kimi-k2.6";
       provider = "openrouter";
+    };
+
+    # Pin aux tasks to a cheap flash model instead of running them on Kimi.
+    # `vision` is required (Kimi K2.6 is text-only).
+    settings.auxiliary = {
+      title_generation.provider = "openrouter";
+      title_generation.model    = "google/gemini-3-flash-preview";
+
+      vision.provider = "openrouter";
+      vision.model    = "google/gemini-2.5-flash";
+
+      compression.provider = "openrouter";
+      compression.model    = "google/gemini-3-flash-preview";
+
+      web_extract.provider = "openrouter";
+      web_extract.model    = "google/gemini-3-flash-preview";
     };
 
     # OpenRouter provider routing. `data_collection = "deny"` excludes any
