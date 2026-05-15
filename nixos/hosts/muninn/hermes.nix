@@ -38,7 +38,7 @@
     # configMergeScript (Nix keys win). No need to delete the file to pick
     # up changes.
     settings.model = {
-      default  = "google/gemma-4-31b-it";
+      default  = "google/gemma-4-26b-a4b-it";
       provider = "openrouter";
     };
 
