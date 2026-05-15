@@ -49,7 +49,6 @@
       };
     };
 
-
     # OpenRouter provider routing. `data_collection = "deny"` excludes any
     # upstream provider that retains prompt/response data (OpenRouter ZDR
     # filter). `require_parameters` drops providers that silently ignore
@@ -60,16 +59,6 @@
       data_collection = "deny";
       require_parameters = true;
       ignore = [ "Venice" ];
-    };
-
-    # Calypso's local Ollama (NVIDIA GPU, gemma4:e4b). Available as an
-    # additional provider to test local inference. Switch to it with:
-    #   hermes model calypso-ollama/gemma4:e4b
-    settings.providers."calypso-ollama" = {
-      name    = "Calypso Ollama (gemma4:e4b)";
-      base_url = "http://calypso.internal:11434/v1";
-      model   = "gemma4:e4b";
-      api_key = "ollama";
     };
 
     # SecondBrain knowledge base over MCP (HTTP transport).
